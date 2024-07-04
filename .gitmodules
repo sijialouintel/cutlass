@@ -1,0 +1,4 @@
+[submodule "test/unit_xe/3rdparty/xe4_test"]
+	path = test/unit_xe/3rdparty/xe4_test
+	url = https://github.com/intel-sandbox/xe4_tests.git
+	branch = main
