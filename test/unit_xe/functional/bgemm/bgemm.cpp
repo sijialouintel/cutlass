@@ -1,15 +1,32 @@
 #include <sycl/sycl.hpp>
 #include <cute/tensor.hpp>
 
-#include "collective_mma.hpp"
-#include "xe4_copy_async.hpp"
+#include "cutlass/layout/matrix.h"
+#include "cutlass/detail/layout.hpp"
+#include "cutlass/util/packed_stride.hpp"
+
+#include "xe4_gemm.hpp"
 #include "validation.hpp"
 
 using namespace cute;
 using namespace sycl;
 using namespace cute::xe4;
+using namespace cutlass::gemm::collective;
 
 class BGEMM;
+
+template <class T, uint32_t bM, uint32_t bN>
+void transpose_block(T* src, T* dst, int m, int n) {
+    for (int i = 0; i < m; i+=bM) {
+        for (int j = 0; j < n; j+=bN) {
+            for (int ii = 0; ii < bM; ++ii) {
+                for (int jj = 0; jj < bN; ++jj) {
+                    dst[(i+ii)*n+j+jj] = src[(i+jj)*n+j+ii];
+                }
+            }
+        }
+    }
+}
 
 int main()
 {
@@ -18,9 +35,10 @@ int main()
     std::cout << "Running on " << dev.get_info<info::device::name>() << "\n";
     auto ctxt = q.get_context();
 
-    uint32_t mat_m = 1024;
-    uint32_t mat_n = 1024;
-    uint32_t mat_k = 1024;
+    int mat_m = 1024;
+    int mat_n = 1024;
+    int mat_k = 2048;
+    int mat_l = 1;
     constexpr uint32_t wg_m = 128;
     constexpr uint32_t wg_n = 128;
     constexpr uint32_t wg_k = 128;
@@ -35,11 +53,32 @@ int main()
     using dtypeAcc = float;
     using dtypeC = float;
 
+    static constexpr bool transposeA = true;
+    static constexpr bool transposeB = false;
+
+    using LayoutA = std::conditional_t<transposeA, cutlass::layout::ColumnMajor, cutlass::layout::RowMajor>;
+    using LayoutB = std::conditional_t<transposeB, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
+    using LayoutC = cutlass::layout::RowMajor;
+
+    std::vector<dtypeA> A_h(sizeA);
+    std::generate_n(A_h.data(), sizeA, [=]() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
+
     auto A_s = malloc_shared<dtypeA>(sizeA, q);
-    std::generate_n(A_s, sizeA, [=]() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
+    if constexpr (transposeA) {
+        transpose_block<dtypeA, wg_k, wg_m>(A_h.data(), A_s, mat_k, mat_m);
+    } else {
+        std::copy_n(A_h.data(), sizeA, A_s);
+    }
+
+    std::vector<dtypeB> B_h(sizeB);
+    std::generate_n(B_h.data(), sizeB, [=]() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
 
     auto B_s = malloc_shared<dtypeB>(sizeB, q);
-    std::generate_n(B_s, sizeB, [=]() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
+    if constexpr (transposeB) {
+        transpose_block<dtypeB, wg_n, wg_k>(B_h.data(), B_s, mat_n, mat_k);
+    } else {
+        std::copy_n(B_h.data(), sizeB, B_s);
+    }
 
     auto C_s = malloc_shared<dtypeC>(sizeC, q);
     std::fill_n(C_s, sizeC, dtypeC(0));
@@ -51,61 +90,60 @@ int main()
     std::cout << "Group range: {" << 1 << ", " << group_range_m << ", " << group_range_n << "} \n";
     nd_range<3> Range(group_range * local_range, local_range);
 
-    using mat_desc_t = uint64_t;
-    using abar_ptr_t = uint64_t*;
-    using tdesc_ptr_t = uint64_t*;
+    using StrideA = cutlass::detail::TagToStrideA_t<LayoutA>;
+    using StrideB = cutlass::detail::TagToStrideB_t<LayoutB>;
+    using StrideC = cutlass::detail::TagToStrideC_t<LayoutC>;
 
     using TileShape = Shape<Int<wg_m>, Int<wg_n>, Int<wg_k>>;
+    using MMA_Op = XE4_ASYNC_GMMA<dtypeAcc, void, dtypeA, dtypeB, TileShape,
+        CoreMatrixSize<cm_size_t::cm_32x32B, cm_size_t::cm_16x32B, cm_size_t::cm_32x32B>, uint64_t, uint64_t*>;
 
-    using CollectiveMainloop = cutlass::gemm::collective::CollectiveMma<
-        stage,                                                                                  // Stages
+    using CollectiveMainloop = CollectiveMma<
+        MainloopXe4DmaGmma<stage>,                                                              // MainloopXe4DmaGmma
         TileShape,                                                                              // TileShape
         dtypeA,                                                                                 // ElementA
-        cute::Stride<int64_t, cute::Int<1>>,                                                    // StrideA
+        StrideA,                                                                                // StrideA
         dtypeB,                                                                                 // ElementB
-        cute::Stride<int64_t, cute::Int<1>>,                                                    // StrideB
-        dtypeC,                                                                                 // ElementC
-        dtypeAcc,                                                                               // ElementAcc
-        cute::Stride<int64_t, cute::Int<1>>,                                                    // StrideC
+        StrideB,                                                                                // StrideB
+        decltype(cute::make_tiled_mma(MMA_Op{})),                                               // TiledMma
         ASYNC_TENSOR_LOAD,                                                                      // GmemTiledCopyA
         Layout<Shape<Int<wg_m>,Int<wg_k>,Int<stage>>, Stride<Int<wg_k>,_1,Int<wg_m*wg_k>>>,     // SmemLayoutAtomA
+        void,                                                                                   // SmemCopyAtomA
+        void,                                                                                   // TransformA
         ASYNC_TENSOR_LOAD,                                                                      // GmemTiledCopyB
         Layout<Shape<Int<wg_k>,Int<wg_n>,Int<stage>>, Stride<Int<wg_n>,_1,Int<wg_k*wg_n>>>,     // SmemLayoutAtomB
-        ASYNC_TENSOR_STORE,                                                                     // GmemTiledCopyC
-        Layout<Shape<Int<wg_m>,Int<wg_n>>, Stride<Int<wg_n>,_1>>,                               // SmemLayoutAtomC
-        tdesc_ptr_t,                                                                            // TensorDescPtr
-        abar_ptr_t,                                                                             // AbarrierPtr
-        mat_desc_t                                                                              // MatrixDesc
+        void,                                                                                   // SmemCopyAtomB
+        void                                                                                    // TransformB
     >;
 
-    using Pipeline = typename CollectiveMainloop::MainloopPipeline;
-    using PipelineState = typename CollectiveMainloop::PipelineState;
+    using GemmKernel = cutlass::gemm::kernel::GemmUniversal<
+        Shape<int,int,int,int>,
+        CollectiveMainloop,
+        void,
+        void
+    >;
 
     q.parallel_for<class BGEMM>(Range, [=](nd_item<3> item) {
-        auto problem_shape = make_shape(mat_m, mat_n, mat_k);
-        auto args = CollectiveMainloop::Arguments {
-            A_s, make_stride(mat_k, _1{}),
-            B_s, make_stride(mat_n, _1{}),
-            C_s, make_stride(mat_n, _1{}),
-            item.get_group(),
+        auto problem_shape = make_shape(mat_m, mat_n, mat_k, mat_l);
+        auto args = GemmKernel::Arguments {
+            item,
+            problem_shape,
+            {
+                A_s, cutlass::make_cute_packed_stride(StrideA{}, cute::make_shape(mat_m, mat_k, mat_l)),
+                B_s, cutlass::make_cute_packed_stride(StrideB{}, cute::make_shape(mat_k, mat_n, mat_l)),
+                C_s, cutlass::make_cute_packed_stride(StrideC{}, cute::make_shape(mat_m, mat_n, mat_l)),
+                item.get_group(),
+            }
         };
 
-        auto mainloop = CollectiveMainloop{};
-        auto params = mainloop.to_underlying_arguments(problem_shape, args);
-        auto load_inputs = mainloop.load_init(problem_shape, params);
-
-        Pipeline pipeline(item);
-        uint32_t local_id = item.get_local_id(2);
-        uint32_t k_tile_count = (mat_k + wg_k -1) / wg_k;
-        auto blk_coord = cute::make_tuple(item.get_group(1), item.get_group(2));
-        auto slm_pipe_write = cutlass::xe4::make_producer_start_state<Pipeline>();
-        mainloop.load(params, pipeline, slm_pipe_write, load_inputs, blk_coord, k_tile_count, local_id);
-
-        PipelineState slm_pipe_read;
-        mainloop.mma(params, pipeline, slm_pipe_read, k_tile_count, local_id);
+        GemmKernel kernel;
+        auto params = kernel.to_underlying_arguments(args, nullptr);
+        kernel(params);
      }).wait();
 
-    uint32_t err_cnt = validate_gemm_result(A_s, B_s, C_s, mat_m, mat_n, mat_k);
+    mem_layout layout_a = transposeA ? mem_layout::col_major : mem_layout::row_major;
+    mem_layout layout_b = transposeB ? mem_layout::col_major : mem_layout::row_major;
+    uint32_t err_cnt = validate_gemm_result(A_h.data(), B_h.data(), C_s, mat_m, mat_n, mat_k, layout_a, layout_b);
     if (err_cnt > 0) {
         std::cout << "Test Failed!" << std::endl;
         return -1;

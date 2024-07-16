@@ -17,11 +17,13 @@ EXTRA_DEFS="-DCUTLASS_ENABLE_SYCL"
 DPCPP_COMPILER=icpx
 SCRIPT_PATH=$(dirname "$(realpath "$0")")
 XE4_INCLUDE_PATH=$(realpath "$SCRIPT_PATH/../../../3rdparty/xe4_test/pisa_tests")
+CUTLASS_PISA_PATH=$(realpath "$SCRIPT_PATH/../../../../..")
 
-INCLUDE_PATHS="-I/root/working_dir/libraries.gpu.xe.cutlass_pisa/include \
+INCLUDE_PATHS="-I$CUTLASS_PISA_PATH/include \
                -I/usr/local/cuda/include \
                -I$XE4_INCLUDE_PATH \
-               -I/root/working_dir/libraries.gpu.xe.cutlass_pisa/test/unit_xe/functional"
+               -I$CUTLASS_PISA_PATH/tools/util/include \
+               -I$CUTLASS_PISA_PATH/test/unit_xe/functional"
 
 $DPCPP_COMPILER -fsycl -fsycl-targets=spir64_gen -Xs "-device fcs" -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -std=c++17 -fPIE $INCLUDE_PATHS $EXTRA_DEFS ../bgemm.cpp -o bgemm
 

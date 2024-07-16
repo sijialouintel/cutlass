@@ -2,6 +2,8 @@
 
 #include "xe4_copy_async.hpp"
 
+#include "cutlass/detail/layout.hpp"
+
 namespace cute
 {
 
@@ -35,8 +37,8 @@ struct XE4_COPY_Unpack
   }
 };
 
-template <class CopyOperation, class NumBitsPerTMA, class TensorDesc>
-struct Copy_Traits<CopyOperation, NumBitsPerTMA, TensorDesc>
+template <class CopyOperation, class NumBitsPerTMA, class TensorDesc, class GBasis>
+struct Copy_Traits<CopyOperation, NumBitsPerTMA, TensorDesc, GBasis>
 {
   using ThrID     = Layout<_1>;
   using SrcLayout = Layout<Shape<_1, NumBitsPerTMA>>;
@@ -46,10 +48,11 @@ struct Copy_Traits<CopyOperation, NumBitsPerTMA, TensorDesc>
   using CopyOp = conditional_t<is_same_v<CopyOperation, xe4::ASYNC_TENSOR_LOAD>, ASYNC_TENSOR_LOAD_OP, ASYNC_TENSOR_STORE_OP>;
 
   TensorDesc* tdesc_ptr_ = nullptr;
+  GBasis gbasis_;
 
   template<class ABarrier>
   CUTE_HOST_DEVICE constexpr
-  Copy_Traits<CopyOp, NumBitsPerTMA, TensorDesc, ABarrier>
+  Copy_Traits<CopyOp, NumBitsPerTMA, TensorDesc, ABarrier, bool>
   with(ABarrier const* abar_ptr) const {
     return {{}, {tdesc_ptr_, abar_ptr}};
   }
@@ -57,8 +60,7 @@ struct Copy_Traits<CopyOperation, NumBitsPerTMA, TensorDesc>
   template <class GShape>
   CUTE_HOST_DEVICE constexpr
   auto get_tma_tensor(GShape const& g_shape) const {
-    auto dummy_stride = make_stride(E<0>{}, E<1>{});
-    return make_counting_tensor(make_layout(g_shape, dummy_stride));
+    return make_counting_tensor(make_layout(g_shape, gbasis_));
   }
 
   // Don't try to execute a copy with XE4_TMA_LOAD before calling .with()
@@ -70,14 +72,14 @@ struct Copy_Traits<CopyOperation, NumBitsPerTMA, TensorDesc>
               Tensor<TD,DLayout>      & dst) = delete;
 };
 
-template<class CopyOp, class NumBitsPerTMA, class TensorDesc>
-auto make_copy_traits(TensorDesc* tensor_desc)
+template<class CopyOp, class NumBitsPerTMA, class TensorDesc, class GBasis>
+auto make_copy_traits(TensorDesc* tensor_desc, GBasis gbasis)
 {
-  return Copy_Traits<CopyOp, NumBitsPerTMA, TensorDesc>{tensor_desc};
+  return Copy_Traits<CopyOp, NumBitsPerTMA, TensorDesc, GBasis>{tensor_desc, gbasis};
 }
 
-template <class CopyOp, class NumBitsPerTMA, class TensorDesc, class ABarrier>
-struct Copy_Traits<CopyOp, NumBitsPerTMA, TensorDesc, ABarrier> : XE4_COPY_Unpack<CopyOp>
+template <class CopyOp, class NumBitsPerTMA, class TensorDesc, class ABarrier, class Unused>
+struct Copy_Traits<CopyOp, NumBitsPerTMA, TensorDesc, ABarrier, Unused> : XE4_COPY_Unpack<CopyOp>
 {
   using ThrID     = Layout<_1>;
   using SrcLayout = Layout<Shape<_1, NumBitsPerTMA>>;
@@ -98,16 +100,19 @@ struct AuxParams {
   static constexpr bool swizzlingDisabled = swizzlingDisabled_;
 };
 
-template <class AuxParams, class GTensor, class SLayout>
+template <class AuxParams, bool isTransposed, class GTensor, class SLayout>
 CUTE_HOST_DEVICE auto
 make_tensor_desc(GTensor const& gtensor, SLayout const& slayout)
 {
   using T = typename GTensor::value_type;
 
-  uint32_t width = size<1>(gtensor);
-  uint32_t height = size<0>(gtensor);
-  uint32_t block_width = size<1>(slayout);
-  uint32_t block_height = size<0>(slayout);
+  constexpr int dim_x = isTransposed ? 0 : 1;
+  constexpr int dim_y = dim_x ^ 1;
+
+  uint32_t width = size<dim_x>(gtensor);
+  uint32_t height = size<dim_y>(gtensor);
+  uint32_t block_width = size<dim_x>(slayout);
+  uint32_t block_height = size<dim_y>(slayout);
 
   auto tdesc_ptr = allocate_tdesc<AuxParams::tdescIdx, typename AuxParams::tdescPtr>();
   tensor_desc_fill_global_addr(tdesc_ptr, gtensor.data());
@@ -120,18 +125,35 @@ make_tensor_desc(GTensor const& gtensor, SLayout const& slayout)
   return tdesc_ptr;
 }
 
-template <class CopyOp, class AuxParams, class GTensor, class SLayout>
+template <class Shape, class Stride>
+constexpr bool
+is_mn_major(Layout<Shape,Stride> const& layout) {
+  return cutlass::detail::is_major<0, Stride>();
+}
+
+template <bool isTransposed>
+CUTE_HOST_DEVICE auto get_gbasis() {
+  if constexpr (isTransposed) {
+    return make_stride(E<1>{}, E<0>{}, E<2>{});
+  } else {
+    return make_stride(E<0>{}, E<1>{}, E<2>{});
+  }
+}
+
+template <class CopyOp, class AuxParams, class GEngine, class GLayout, class SLayout>
 CUTE_HOST_DEVICE auto
-make_copy_atom(GTensor const& gtensor, SLayout const& slayout)
+make_copy_atom(Tensor<GEngine, GLayout> const& gtensor, SLayout const& slayout)
 {
-  using T = typename GTensor::value_type;
+  using T = typename GEngine::value_type;
 
   auto num_elems_per_tma = size<0>(group<0, 2>(slayout));
   constexpr uint32_t num_bits_per_tma = num_elems_per_tma * sizeof_bits_v<T>;
 
-  auto tensor_desc = make_tensor_desc<AuxParams>(gtensor, slayout);
-  auto copy_traits = make_copy_traits<CopyOp, C<num_bits_per_tma>>(tensor_desc);
-  return Copy_Atom<decltype(copy_traits), typename GTensor::value_type>{copy_traits};
+  constexpr bool isTransposed = is_mn_major(GLayout{});
+  auto gbasis = get_gbasis<isTransposed>();
+  auto tensor_desc= make_tensor_desc<AuxParams, isTransposed>(gtensor, slayout);
+  auto copy_traits = make_copy_traits<CopyOp, C<num_bits_per_tma>>(tensor_desc, gbasis);
+  return Copy_Atom<decltype(copy_traits), T>{copy_traits};
 }
 
 template <class CopyOp, class AuxParams, class GTensor, class SLayout, class TLayout, class VLayout>
