@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
+###################### [1] Activate oneAPI Environment ######################
+
 source /opt/intel/oneapi/setvars.sh
+
+###################### [2] Generate Xe4 Kernel Binary ######################
 
 export IGC_DumpToCustomDir=./igc_dump
 export IGC_ShaderDumpEnable=1
@@ -33,12 +37,10 @@ for file in igc_dump/*.spv; do
   ocloc compile -device fcs -spirv_input -gen_file -output_no_suffix -file $file 2>&1 | grep -v "missing"
 done
 
-rm *.bin
-kernel_name=_ZTS5BGEMM
-
 echo "Generating XeISA"
 for file in *.gen; do
   echo "Processing $file"
+  kernel_name=$(grep '^\.kernel' $file | awk -F'[@()]' '{print $2}')
   grep -v "Inline assembly" $file > ${kernel_name}.pisa
 
   llc -march=xe -swsb-allocation ${kernel_name}.pisa
@@ -47,19 +49,29 @@ for file in *.gen; do
   mv ${kernel_name}.pisa.${kernel_name}.bin ${kernel_name}.bin
 done
 
+###################### [3] Build Executable ######################
+
 $DPCPP_COMPILER -fsycl -fsycl-targets=spir64_gen -DVC_WA -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -Xs "-device fcs" $INCLUDE_PATHS $EXTRA_DEFS ../bgemm.cpp -o bgemm
 
-REPO_ROOT=/root/working_dir/drivers.gpu.simulation.gen-isa-interpreter
+###################### [4] Run the Executable ######################
 
-export LD_LIBRARY_PATH=$REPO_ROOT/build/debug-xe4/runtime/src:$LD_LIBRARY_PATH
 export L0SIM_DEVICE_KIND=Xe4
-export L0SIM_GRITS_PATH=/root/FCS
+export L0SIM_GRITS_PATH=${FULSIM_PATH:-/root/FCS}
 
-# export L0SIM_SELECT_DEVICES=XE4ISAI
-export L0SIM_SELECT_DEVICES=GRITS
+if [[ -z "$L0SIM_SELECT_DEVICES" ]]; then
+  export L0SIM_SELECT_DEVICES=GRITS
+fi
 
+if [[ -z "$GEN_ISA_ROOT" ]]; then
+  export GEN_ISA_ROOT=/root/working_dir/drivers.gpu.simulation.gen-isa-interpreter/build/debug-xe4/runtime/src
+fi
+
+export LD_LIBRARY_PATH=$GEN_ISA_ROOT:$LD_LIBRARY_PATH
 export XE4_KERNEL_BINARY_REPLACE_PATH=./
 export XE4_LOG_ON="1"                     # set to 0 to turn log off, default off
 export XE4_LOG_FOLDER_PATH="./logdump"    # default log folder "dump"
 
 ./bgemm
+
+echo "GEN_ISA_ROOT: $GEN_ISA_ROOT"
+echo "L0SIM_SELECT_DEVICES: $L0SIM_SELECT_DEVICES"
