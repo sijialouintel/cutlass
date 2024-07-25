@@ -110,7 +110,7 @@ struct MMA_Traits<XE4_ASYNC_GMMA<TD, TC, TA, TB, Shape_MNK_, CoreMatSize, MatDes
   using Shape_MNK = Shape_MNK_;
   using ThrID   = Layout<_1>;
   using ALayout = xe4::ABLayout<get<0>(Shape_MNK{}), get<2>(Shape_MNK{})>;
-  using BLayout = xe4::ABLayout<get<2>(Shape_MNK{}), get<1>(Shape_MNK{})>;
+  using BLayout = xe4::ABLayout<get<1>(Shape_MNK{}), get<2>(Shape_MNK{})>;
   using CLayout = xe4::ABLayout<get<0>(Shape_MNK{}), get<1>(Shape_MNK{})>;
 
   template<typename MMA_Op>

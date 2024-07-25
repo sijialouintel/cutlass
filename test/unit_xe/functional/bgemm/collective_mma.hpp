@@ -134,11 +134,11 @@ struct CollectiveMma<
 
     using TiledLoadB = decltype(make_xe4_copy<GmemTiledCopyB, AuxParamsB>(
         make_tensor(static_cast<ElementB const*>(nullptr), repeat_like(StrideB{}, int32_t(0)), StrideB{}),
-        SmemLayoutB{}, make_shape(shape<2>(TileShape{}), shape<1>(TileShape{}))));
+        SmemLayoutB{}, make_shape(shape<1>(TileShape{}), shape<2>(TileShape{}))));
 
     using TiledStoreC = decltype(make_xe4_copy<GmemTiledCopyC, AuxParamsC>(
       make_tensor(static_cast<ElementC const*>(nullptr), repeat_like(StrideC{}, int32_t(0)), StrideC{}),
-      SmemLayoutC{}, make_shape(shape<1>(TileShape{}), shape<0>(TileShape{}))));
+      SmemLayoutC{}, make_shape(shape<0>(TileShape{}), shape<1>(TileShape{}))));
 
     TiledLoadA load_a;
     TiledLoadB load_b;
@@ -151,7 +151,7 @@ struct CollectiveMma<
     SlmTensorA slm_a;
     SlmTensorB slm_b;
     SlmTensorC slm_c;
-  };;
+  };
 
   template<class ProblemShape>
   static constexpr Params
@@ -159,11 +159,11 @@ struct CollectiveMma<
     auto [M, N, K, L] = problem_shape;
 
     auto A = make_tensor(args.ptr_A, make_layout(make_shape(M,K,L), args.dA));
-    auto B = make_tensor(args.ptr_B, make_layout(make_shape(K,N,L), args.dB));
+    auto B = make_tensor(args.ptr_B, make_layout(make_shape(N,K,L), args.dB));
     auto C = make_tensor(args.ptr_C, make_layout(make_shape(M,N,L), args.dC));
 
     auto load_a = make_xe4_copy<GmemTiledCopyA, AuxParamsA>(A, SmemLayoutA{}, make_shape(shape<0>(TileShape{}), shape<2>(TileShape{})));
-    auto load_b = make_xe4_copy<GmemTiledCopyB, AuxParamsB>(B, SmemLayoutB{}, make_shape(shape<2>(TileShape{}), shape<1>(TileShape{})));
+    auto load_b = make_xe4_copy<GmemTiledCopyB, AuxParamsB>(B, SmemLayoutB{}, make_shape(shape<1>(TileShape{}), shape<2>(TileShape{})));
     auto store_c = make_xe4_copy<GmemTiledCopyC, AuxParamsC>(C, SmemLayoutC{}, make_shape(shape<0>(TileShape{}), shape<1>(TileShape{})));
 
     auto [slm_a, slm_b, slm_c] = allocate_share_local_memory(args);
@@ -189,11 +189,11 @@ struct CollectiveMma<
     auto [M, N, K, L] = problem_shape;
 
     auto mA_mkl = mainloop_params.load_a.get_tma_tensor(make_shape(M, K, L));   // (m,k,l)
-    auto mB_knl = mainloop_params.load_b.get_tma_tensor(make_shape(K, N, L));   // (k,n,l)
+    auto mB_knl = mainloop_params.load_b.get_tma_tensor(make_shape(N, K, L));   // (n,k,l)
     auto mC_mnl = mainloop_params.store_c.get_tma_tensor(make_shape(M, N, L));  // (m,n,l)
 
     auto gA_mkl = flat_divide(mA_mkl, make_shape(shape<0>(TileShape{}), shape<2>(TileShape{})));  // (BLK_M,BLK_K,m,k,l)
-    auto gB_knl = flat_divide(mB_knl, make_shape(shape<2>(TileShape{}), shape<1>(TileShape{})));  // (BLK_K,BLK_N,k,n,l)
+    auto gB_knl = flat_divide(mB_knl, make_shape(shape<1>(TileShape{}), shape<2>(TileShape{})));  // (BLK_N,BLK_K,n,k,l)
     auto gC_mnl = flat_divide(mC_mnl, make_shape(shape<0>(TileShape{}), shape<1>(TileShape{})));  // (BLK_M,BLK_N,m,n,l)
 
     return cute::make_tuple(gA_mkl, gB_knl, gC_mnl);
@@ -217,9 +217,9 @@ struct CollectiveMma<
       auto tAgA = block_load_a.partition_S(gA);           // (TMA,TMA_M,TMA_K,k)
       auto tAsA = block_load_a.partition_D(sA);           // (TMA,TMA_M,TMA_K,PIPE)
 
-      auto gB = gB_knl(_, _, _, n_coord, l_coord);        // (BLK_K,BLK_N,k)
-      auto tBgB = block_load_b.partition_S(gB);           // (TMA,TMA_K,TMA_N,k)
-      auto tBsB = block_load_b.partition_D(sB);           // (TMA,TMA_K,TMA_N,PIPE)
+      auto gB = gB_knl(_, _, n_coord, _, l_coord);        // (BLK_N,BLK_K,k)
+      auto tBgB = block_load_b.partition_S(gB);           // (TMA,TMA_N,TMA_K,k)
+      auto tBsB = block_load_b.partition_D(sB);           // (TMA,TMA_N,TMA_K,PIPE)
 
       auto gC = gC_mnl(_, _, m_coord, n_coord, l_coord);  // (BLK_M,BLK_N)
       auto tCgC = block_load_c.partition_S(gC);           // (TMA,TMA_M,TMA_N)
@@ -270,7 +270,7 @@ struct CollectiveMma<
       auto thread_mma = tiled_mma.get_thread_slice(0);
 
       auto tCrA = thread_mma.partition_fragment_A(sA);    // (MMA,MMA_M,MMA_K,PIPE)
-      auto tCrB = thread_mma.partition_fragment_B(sB);    // (MMA,MMA_K,MMA_N,PIPE)
+      auto tCrB = thread_mma.partition_fragment_B(sB);    // (MMA,MMA_N,MMA_K,PIPE)
 
       if (k_tile_count == 1) {
         pipeline.consumer_try_wait(slm_pipe_read);

@@ -35,12 +35,12 @@ int main()
     std::cout << "Running on " << dev.get_info<info::device::name>() << "\n";
     auto ctxt = q.get_context();
 
-    int mat_m = 1024;
+    int mat_m = 512;
     int mat_n = 1024;
     int mat_k = 2048;
     int mat_l = 1;
-    constexpr uint32_t wg_m = 128;
-    constexpr uint32_t wg_n = 128;
+    constexpr uint32_t wg_m = 256;
+    constexpr uint32_t wg_n = 512;
     constexpr uint32_t wg_k = 128;
     constexpr uint32_t stage = 4;
 
@@ -53,11 +53,11 @@ int main()
     using dtypeAcc = float;
     using dtypeC = float;
 
-    static constexpr bool transposeA = true;
+    static constexpr bool transposeA = false;
     static constexpr bool transposeB = false;
 
     using LayoutA = std::conditional_t<transposeA, cutlass::layout::ColumnMajor, cutlass::layout::RowMajor>;
-    using LayoutB = std::conditional_t<transposeB, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
+    using LayoutB = std::conditional_t<transposeB, cutlass::layout::ColumnMajor, cutlass::layout::RowMajor>;
     using LayoutC = cutlass::layout::RowMajor;
 
     std::vector<dtypeA> A_h(sizeA);
@@ -111,7 +111,7 @@ int main()
         void,                                                                                   // SmemCopyAtomA
         void,                                                                                   // TransformA
         ASYNC_TENSOR_LOAD,                                                                      // GmemTiledCopyB
-        Layout<Shape<Int<wg_k>,Int<wg_n>,Int<stage>>, Stride<Int<wg_n>,_1,Int<wg_k*wg_n>>>,     // SmemLayoutAtomB
+        Layout<Shape<Int<wg_n>,Int<wg_k>,Int<stage>>, Stride<_1,Int<wg_n>,Int<wg_k*wg_n>>>,     // SmemLayoutAtomB
         void,                                                                                   // SmemCopyAtomB
         void                                                                                    // TransformB
     >;
@@ -130,7 +130,7 @@ int main()
             problem_shape,
             {
                 A_s, cutlass::make_cute_packed_stride(StrideA{}, cute::make_shape(mat_m, mat_k, mat_l)),
-                B_s, cutlass::make_cute_packed_stride(StrideB{}, cute::make_shape(mat_k, mat_n, mat_l)),
+                B_s, cutlass::make_cute_packed_stride(StrideB{}, cute::make_shape(mat_n, mat_k, mat_l)),
                 C_s, cutlass::make_cute_packed_stride(StrideC{}, cute::make_shape(mat_m, mat_n, mat_l)),
                 item.get_group(),
             }
