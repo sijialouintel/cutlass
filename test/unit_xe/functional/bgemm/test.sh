@@ -20,12 +20,12 @@ EXTRA_DEFS="-DCUTLASS_ENABLE_SYCL"
 
 DPCPP_COMPILER=icpx
 SCRIPT_PATH=$(dirname "$(realpath "$0")")
-XE4_INCLUDE_PATH=$(realpath "$SCRIPT_PATH/../../../3rdparty/xe4_test/pisa_tests")
+XE4_TEST_PATH=$(realpath "$SCRIPT_PATH/../../../3rdparty/xe4_test")
 CUTLASS_PISA_PATH=$(realpath "$SCRIPT_PATH/../../../../..")
 
 INCLUDE_PATHS="-I$CUTLASS_PISA_PATH/include \
                -I/usr/local/cuda/include \
-               -I$XE4_INCLUDE_PATH \
+               -I$XE4_TEST_PATH/pisa_tests \
                -I$CUTLASS_PISA_PATH/tools/util/include \
                -I$CUTLASS_PISA_PATH/test/unit_xe/functional"
 
@@ -62,16 +62,17 @@ if [[ -z "$L0SIM_SELECT_DEVICES" ]]; then
   export L0SIM_SELECT_DEVICES=GRITS
 fi
 
-if [[ -z "$GEN_ISA_ROOT" ]]; then
-  export GEN_ISA_ROOT=/root/working_dir/drivers.gpu.simulation.gen-isa-interpreter/build/debug-xe4/runtime/src
+if [[ -z "$ZESIM_PATH" ]]; then
+  cd $XE4_TEST_PATH; cmake --preset debug-xe4; cd -
+  export ZESIM_PATH=$XE4_TEST_PATH/build/debug-xe4/_deps/zesim-src/debug-xe4/zesim
 fi
 
-export LD_LIBRARY_PATH=$GEN_ISA_ROOT:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$ZESIM_PATH:$LD_LIBRARY_PATH
 export XE4_KERNEL_BINARY_REPLACE_PATH=./
 export XE4_LOG_ON="1"                     # set to 0 to turn log off, default off
 export XE4_LOG_FOLDER_PATH="./logdump"    # default log folder "dump"
 
 ./bgemm
 
-echo "GEN_ISA_ROOT: $GEN_ISA_ROOT"
+echo "ZESIM_PATH: $ZESIM_PATH"
 echo "L0SIM_SELECT_DEVICES: $L0SIM_SELECT_DEVICES"
