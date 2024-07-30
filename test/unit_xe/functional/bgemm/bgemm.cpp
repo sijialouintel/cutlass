@@ -35,12 +35,12 @@ int main()
     std::cout << "Running on " << dev.get_info<info::device::name>() << "\n";
     auto ctxt = q.get_context();
 
-    int mat_m = 512;
+    int mat_m = 1024;
     int mat_n = 1024;
     int mat_k = 2048;
     int mat_l = 1;
-    constexpr uint32_t wg_m = 256;
-    constexpr uint32_t wg_n = 512;
+    constexpr uint32_t wg_m = 128;
+    constexpr uint32_t wg_n = 128;
     constexpr uint32_t wg_k = 128;
     constexpr uint32_t stage = 4;
 
