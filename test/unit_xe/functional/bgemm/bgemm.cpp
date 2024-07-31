@@ -39,8 +39,8 @@ int main()
     int mat_n = 1024;
     int mat_k = 2048;
     int mat_l = 1;
-    constexpr uint32_t wg_m = 128;
-    constexpr uint32_t wg_n = 128;
+    constexpr uint32_t wg_m = 256;
+    constexpr uint32_t wg_n = 512;
     constexpr uint32_t wg_k = 128;
     constexpr uint32_t stage = 4;
 

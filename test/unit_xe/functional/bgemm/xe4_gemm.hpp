@@ -93,7 +93,7 @@ public:
 
     TiledMma tiled_mma;
     auto thread_mma = tiled_mma.get_thread_slice(0);
-    auto accumulators = thread_mma.partition_fragment_C(params.mainloop.slm_c);    // (MMA,MMA_N,MMA_N)
+    auto accumulators = thread_mma.partition_fragment_C(params.mainloop.slm_acc);    // (MMA,MMA_M,MMA_N)
 
     collective_mainloop.mma(params.mainloop, mainloop_pipeline, mainloop_pipe_consumer_state, accumulators, k_tile_count, local_id);
   }

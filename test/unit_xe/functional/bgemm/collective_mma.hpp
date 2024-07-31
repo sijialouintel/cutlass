@@ -146,10 +146,12 @@ struct CollectiveMma<
 
     using SlmTensorA = decltype(make_tensor(static_cast<ElementA*>(nullptr), SmemLayoutA{}));
     using SlmTensorB = decltype(make_tensor(static_cast<ElementB*>(nullptr), SmemLayoutB{}));
+    using SlmTensorAcc = decltype(make_tensor(static_cast<ElementAccumulator*>(nullptr), SmemLayoutC{}));
     using SlmTensorC = decltype(make_tensor(static_cast<ElementC*>(nullptr), SmemLayoutC{}));
 
     SlmTensorA slm_a;
     SlmTensorB slm_b;
+    SlmTensorAcc slm_acc;
     SlmTensorC slm_c;
   };
 
@@ -166,21 +168,22 @@ struct CollectiveMma<
     auto load_b = make_xe4_copy<GmemTiledCopyB, AuxParamsB>(B, SmemLayoutB{}, make_shape(shape<1>(TileShape{}), shape<2>(TileShape{})));
     auto store_c = make_xe4_copy<GmemTiledCopyC, AuxParamsC>(C, SmemLayoutC{}, make_shape(shape<0>(TileShape{}), shape<1>(TileShape{})));
 
-    auto [slm_a, slm_b, slm_c] = allocate_share_local_memory(args);
+    auto [slm_a, slm_b, slm_acc, slm_c] = allocate_share_local_memory(args);
 
-    return {load_a, load_b, store_c, slm_a, slm_b, slm_c};
+    return {load_a, load_b, store_c, slm_a, slm_b, slm_acc, slm_c};
   }
 
   static constexpr auto
   allocate_share_local_memory(Arguments const& args) {
-    constexpr auto slm_bytes = sizeof(ElementA)*size(SmemLayoutA{}) + sizeof(ElementB)*size(SmemLayoutB{}) + sizeof(ElementC)*size(SmemLayoutC{});
+    constexpr auto slm_bytes = sizeof(ElementA)*size(SmemLayoutA{}) + sizeof(ElementB)*size(SmemLayoutB{}) + std::max(sizeof(ElementC), sizeof(ElementAccumulator))*size(SmemLayoutC{});
     auto ptr = sycl::ext::oneapi::group_local_memory_for_overwrite<uint8_t[slm_bytes]>(args.group);
 
     auto slm_a = make_tensor(reinterpret_cast<ElementA*>(*ptr), SmemLayoutA{});
     auto slm_b = make_tensor(reinterpret_cast<ElementB*>(slm_a.data()+size(SmemLayoutA{})), SmemLayoutB{});
+    auto slm_acc = make_tensor(reinterpret_cast<ElementAccumulator*>(slm_b.data()+size(SmemLayoutB{})), SmemLayoutC{});
     auto slm_c = make_tensor(reinterpret_cast<ElementC*>(slm_b.data()+size(SmemLayoutB{})), SmemLayoutC{});
 
-    return std::make_tuple(slm_a, slm_b, slm_c);
+    return std::make_tuple(slm_a, slm_b, slm_acc, slm_c);
   }
 
   template <class ProblemShape>
@@ -204,7 +207,7 @@ struct CollectiveMma<
   load(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState slm_pipe_write,
     cute::tuple<TensorA, TensorB, TensorC> const& load_inputs, BlockCoord const& blk_coord, int k_tile_count, int local_id) {
     if(local_id == 0){
-      auto [load_a, load_b, store_c, sA, sB, sC] = mainloop_params;
+      auto [load_a, load_b, store_c, sA, sB, sAcc, sC] = mainloop_params;
 
       auto block_load_a = load_a.get_slice(0);
       auto block_load_b = load_b.get_slice(0);
@@ -264,18 +267,19 @@ struct CollectiveMma<
   CUTLASS_DEVICE void
   mma(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState slm_pipe_read, FrgTensorC& accum, int k_tile_count, int local_id) {
     if (local_id == 32) {
-      auto [load_a, load_b, store_c, sA, sB, sC] = mainloop_params;
+      auto [load_a, load_b, store_c, sA, sB, sAcc, sC] = mainloop_params;
 
       TiledMma tiled_mma;
       auto thread_mma = tiled_mma.get_thread_slice(0);
 
       auto tCrA = thread_mma.partition_fragment_A(sA);    // (MMA,MMA_M,MMA_K,PIPE)
       auto tCrB = thread_mma.partition_fragment_B(sB);    // (MMA,MMA_N,MMA_K,PIPE)
+      auto tCsC = thread_mma.partition_fragment_C(sC);    // (MMA,MMA_M,MMA_N)
 
       if (k_tile_count == 1) {
         pipeline.consumer_try_wait(slm_pipe_read);
         auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
-        cute::gemm(tiled_mma.with(abar_cons, MMA_Op<ElementAccumulator, void>{}), tCrA(_,_,_,0), tCrB(_,_,_,0), accum);
+        cute::gemm(tiled_mma.with(abar_cons, MMA_Op<ElementC, void>{}), tCrA(_,_,_,0), tCrB(_,_,_,0), tCsC);
         pipeline.consumer_commit(slm_pipe_read);
         return;
       }
@@ -306,7 +310,7 @@ struct CollectiveMma<
             uint32_t phase = ((k_tile_count - 1) / Stages) & 1u;
             pipeline.consumer_try_wait(index, phase);
 
-            cute::gemm(tiled_mma.with(abar_cons, MMA_Op<ElementC, ElementAccumulator>{}), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
+            cute::gemm(tiled_mma.with(abar_cons, MMA_Op<ElementC, ElementAccumulator>{}), tCsC, tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
             pipeline.consumer_commit(slm_pipe_read);
         }
       }

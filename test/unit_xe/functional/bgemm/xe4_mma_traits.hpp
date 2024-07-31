@@ -5,13 +5,14 @@
 
 namespace cute::xe4 {
 
-template <uint32_t Height, uint32_t WidthInBytes, class MatDesc=uint64_t, class STensor>
+template <uint32_t Height, uint32_t WidthInBytes, class MatDesc=uint64_t, class SEngine, class SLayout>
 CUTE_HOST_DEVICE constexpr
-MatDesc make_mat_desc(STensor const& sTensor) {
-  using T = typename STensor::value_type;
+MatDesc make_mat_desc(Tensor<SEngine,SLayout> const& sTensor) {
+  using T = typename SEngine::value_type;
+  constexpr int leading_dim = is_mn_major(SLayout{}) ? 0 : 1;
 
   constexpr uint32_t width = WidthInBytes / sizeof(T);
-  constexpr uint32_t x_iteration = size<1>(STensor{}) / width;
+  constexpr uint32_t x_iteration = size<leading_dim>(SLayout{}) / width;
   constexpr uint64_t row_offset = (sizeof(T) * width * Height * x_iteration) >> 9;
   constexpr uint64_t col_offset = (width * Height * sizeof(T)) >> 9;
 
@@ -26,7 +27,7 @@ CUTE_HOST_DEVICE constexpr
 MatDesc make_mat_desc(STensor const& sTensor) {
   constexpr uint32_t Height = get_height<cmSize>();
   constexpr uint32_t WidthInBytes = get_width_in_bytes<cmSize>();
-  return make_mat_desc<Height, WidthInBytes, MatDesc, STensor>(sTensor);
+  return make_mat_desc<Height, WidthInBytes, MatDesc>(sTensor);
 }
 
 template <class MatDesc=uint64_t>
@@ -54,7 +55,7 @@ struct MatDescIterator
   CUTE_HOST_DEVICE constexpr
   MatDescIterator operator+(Index const& offset) const
   {
-    return { MatDesc{desc_ + (offset >> 9)} };
+    return { MatDesc{desc_ + (uint64_t(offset) >> 9)} };
   }
 
   CUTE_HOST_DEVICE friend void
@@ -141,7 +142,7 @@ struct MMA_Traits<XE4_ASYNC_GMMA_OP, MMA_Op>: public MMA_Traits<MMA_Op> {
        Tensor<TC, CLayout> const& C)
   {
     return detail::explode_tuple(detail::CallFMA<MMA_Op>{},
-                                 make_tuple(traits.abarrier_, D[0], C[0], A[0], B[0]), seq<0,1,2,3,4>{});
+                                 make_tuple(traits.abarrier_, *D.data(), *C.data(), *A.data(), *B.data()), seq<0,1,2,3,4>{});
   }
 };
 
