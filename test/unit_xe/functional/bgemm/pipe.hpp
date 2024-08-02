@@ -118,7 +118,7 @@ public:
   BarrierPtr abar_cons_base = nullptr;
 
   PipelineTmaAsync(sycl::nd_item<3> item) {
-    uint32_t local_id = item.get_local_id(2);
+    uint32_t local_id = item.get_local_linear_id();
     abar_prod_base = allocate_abar<0,Stages>();
     abar_cons_base = allocate_abar<1,Stages>();
     if (local_id == 0) {

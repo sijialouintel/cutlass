@@ -55,19 +55,15 @@ $DPCPP_COMPILER -fsycl -fsycl-targets=spir64_gen -DVC_WA -lmkl_intel_lp64 -lmkl_
 
 ###################### [4] Run the Executable ######################
 
+export ZESIM_PATH=/root/working_dir/drivers.gpu.simulation.gen-isa-interpreter/build/debug-xe4/runtime/src
+export LD_LIBRARY_PATH=$ZESIM_PATH:$LD_LIBRARY_PATH
+
 export L0SIM_DEVICE_KIND=Xe4
 export L0SIM_GRITS_PATH=${FULSIM_PATH:-/root/FCS}
 
-if [[ -z "$L0SIM_SELECT_DEVICES" ]]; then
-  export L0SIM_SELECT_DEVICES=GRITS
-fi
+export L0SIM_SELECT_DEVICES=XE4ISAI
+# export L0SIM_SELECT_DEVICES=GRITS
 
-if [[ -z "$ZESIM_PATH" ]]; then
-  cd $XE4_TEST_PATH; cmake --preset debug-xe4; cd -
-  export ZESIM_PATH=$XE4_TEST_PATH/build/debug-xe4/_deps/zesim-src/debug-xe4/zesim
-fi
-
-export LD_LIBRARY_PATH=$ZESIM_PATH:$LD_LIBRARY_PATH
 export XE4_KERNEL_BINARY_REPLACE_PATH=./
 export XE4_LOG_ON="1"                     # set to 0 to turn log off, default off
 export XE4_LOG_FOLDER_PATH="./logdump"    # default log folder "dump"

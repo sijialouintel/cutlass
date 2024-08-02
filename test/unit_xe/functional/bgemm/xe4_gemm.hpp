@@ -86,7 +86,7 @@ public:
     typename CollectiveMainloop::PipelineState mainloop_pipe_consumer_state;
     auto mainloop_pipe_producer_state = cutlass::xe4::make_producer_start_state<MainloopPipeline>();
 
-    uint32_t local_id = item.get_local_id(2);
+    uint32_t local_id = item.get_local_linear_id();
     uint32_t k_tile_count = (K + wg_k -1) / wg_k;
     auto blk_coord = cute::make_tuple(item.get_group(1), item.get_group(2), 0);
     collective_mainloop.load(params.mainloop, mainloop_pipeline, mainloop_pipe_producer_state, load_inputs, blk_coord, k_tile_count, local_id);

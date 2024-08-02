@@ -35,12 +35,12 @@ int main()
     std::cout << "Running on " << dev.get_info<info::device::name>() << "\n";
     auto ctxt = q.get_context();
 
-    int mat_m = 1024;
-    int mat_n = 1024;
-    int mat_k = 2048;
+    int mat_m = 256;
+    int mat_n = 256;
+    int mat_k = 1024;
     int mat_l = 1;
-    constexpr uint32_t wg_m = 256;
-    constexpr uint32_t wg_n = 512;
+    constexpr uint32_t wg_m = 128;
+    constexpr uint32_t wg_n = 128;
     constexpr uint32_t wg_k = 128;
     constexpr uint32_t stage = 4;
 
@@ -83,7 +83,7 @@ int main()
     auto C_s = malloc_shared<dtypeC>(sizeC, q);
     std::fill_n(C_s, sizeC, dtypeC(0));
 
-    range<3> local_range(1, 1, 64);
+    range<3> local_range(1, 20, 32);
     uint32_t group_range_m = (mat_m + wg_m - 1) / wg_m;
     uint32_t group_range_n = (mat_n + wg_n - 1) / wg_n;
     range<3> group_range(1, group_range_m, group_range_n);
