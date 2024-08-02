@@ -143,16 +143,6 @@ struct CollectiveMma<
     TiledLoadA load_a;
     TiledLoadB load_b;
     TiledStoreC store_c;
-
-    using SlmTensorA = decltype(make_tensor(static_cast<ElementA*>(nullptr), SmemLayoutA{}));
-    using SlmTensorB = decltype(make_tensor(static_cast<ElementB*>(nullptr), SmemLayoutB{}));
-    using SlmTensorAcc = decltype(make_tensor(static_cast<ElementAccumulator*>(nullptr), SmemLayoutC{}));
-    using SlmTensorC = decltype(make_tensor(static_cast<ElementC*>(nullptr), SmemLayoutC{}));
-
-    SlmTensorA slm_a;
-    SlmTensorB slm_b;
-    SlmTensorAcc slm_acc;
-    SlmTensorC slm_c;
   };
 
   template<class ProblemShape>
@@ -168,22 +158,7 @@ struct CollectiveMma<
     auto load_b = make_xe4_copy<GmemTiledCopyB, AuxParamsB>(B, SmemLayoutB{}, make_shape(shape<1>(TileShape{}), shape<2>(TileShape{})));
     auto store_c = make_xe4_copy<GmemTiledCopyC, AuxParamsC>(C, SmemLayoutC{}, make_shape(shape<0>(TileShape{}), shape<1>(TileShape{})));
 
-    auto [slm_a, slm_b, slm_acc, slm_c] = allocate_share_local_memory(args);
-
-    return {load_a, load_b, store_c, slm_a, slm_b, slm_acc, slm_c};
-  }
-
-  static constexpr auto
-  allocate_share_local_memory(Arguments const& args) {
-    constexpr auto slm_bytes = sizeof(ElementA)*size(SmemLayoutA{}) + sizeof(ElementB)*size(SmemLayoutB{}) + std::max(sizeof(ElementC), sizeof(ElementAccumulator))*size(SmemLayoutC{});
-    auto ptr = sycl::ext::oneapi::group_local_memory_for_overwrite<uint8_t[slm_bytes]>(args.group);
-
-    auto slm_a = make_tensor(reinterpret_cast<ElementA*>(*ptr), SmemLayoutA{});
-    auto slm_b = make_tensor(reinterpret_cast<ElementB*>(slm_a.data()+size(SmemLayoutA{})), SmemLayoutB{});
-    auto slm_acc = make_tensor(reinterpret_cast<ElementAccumulator*>(slm_b.data()+size(SmemLayoutB{})), SmemLayoutC{});
-    auto slm_c = make_tensor(reinterpret_cast<ElementC*>(slm_b.data()+size(SmemLayoutB{})), SmemLayoutC{});
-
-    return std::make_tuple(slm_a, slm_b, slm_acc, slm_c);
+    return {load_a, load_b, store_c};
   }
 
   template <class ProblemShape>
@@ -205,57 +180,59 @@ struct CollectiveMma<
   template <class TensorA, class TensorB, class TensorC, class BlockCoord>
   CUTLASS_DEVICE void
   load(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState slm_pipe_write,
-    cute::tuple<TensorA, TensorB, TensorC> const& load_inputs, BlockCoord const& blk_coord, int k_tile_count, int local_id) {
-    if(local_id == 0){
-      auto [load_a, load_b, store_c, sA, sB, sAcc, sC] = mainloop_params;
+    cute::tuple<TensorA, TensorB, TensorC> const& load_inputs, BlockCoord const& blk_coord, int k_tile_count, int local_id, uint8_t* slm_buf) {
+    auto sA = make_tensor(reinterpret_cast<ElementA*>(slm_buf), SmemLayoutA{});
+    auto sB = make_tensor(reinterpret_cast<ElementB*>(sA.data()+size(SmemLayoutA{})), SmemLayoutB{});
+    auto sC = make_tensor(reinterpret_cast<ElementC*>(sB.data()+size(SmemLayoutB{})), SmemLayoutC{});
 
-      auto block_load_a = load_a.get_slice(0);
-      auto block_load_b = load_b.get_slice(0);
-      auto block_load_c = store_c.get_slice(0);
+    auto [load_a, load_b, store_c] = mainloop_params;
 
-      auto [gA_mkl, gB_knl, gC_mnl] = load_inputs;
-      auto [m_coord, n_coord, l_coord] = blk_coord;
+    auto block_load_a = load_a.get_slice(0);
+    auto block_load_b = load_b.get_slice(0);
+    auto block_load_c = store_c.get_slice(0);
 
-      auto gA = gA_mkl(_, _, m_coord, _, l_coord);        // (BLK_M,BLK_K,k)
-      auto tAgA = block_load_a.partition_S(gA);           // (TMA,TMA_M,TMA_K,k)
-      auto tAsA = block_load_a.partition_D(sA);           // (TMA,TMA_M,TMA_K,PIPE)
+    auto [gA_mkl, gB_knl, gC_mnl] = load_inputs;
+    auto [m_coord, n_coord, l_coord] = blk_coord;
 
-      auto gB = gB_knl(_, _, n_coord, _, l_coord);        // (BLK_N,BLK_K,k)
-      auto tBgB = block_load_b.partition_S(gB);           // (TMA,TMA_N,TMA_K,k)
-      auto tBsB = block_load_b.partition_D(sB);           // (TMA,TMA_N,TMA_K,PIPE)
+    auto gA = gA_mkl(_, _, m_coord, _, l_coord);        // (BLK_M,BLK_K,k)
+    auto tAgA = block_load_a.partition_S(gA);           // (TMA,TMA_M,TMA_K,k)
+    auto tAsA = block_load_a.partition_D(sA);           // (TMA,TMA_M,TMA_K,PIPE)
 
-      auto gC = gC_mnl(_, _, m_coord, n_coord, l_coord);  // (BLK_M,BLK_N)
-      auto tCgC = block_load_c.partition_S(gC);           // (TMA,TMA_M,TMA_N)
-      auto tCsC = block_load_c.partition_D(sC);           // (TMA,TMA_M,TMA_N)
+    auto gB = gB_knl(_, _, n_coord, _, l_coord);        // (BLK_N,BLK_K,k)
+    auto tBgB = block_load_b.partition_S(gB);           // (TMA,TMA_N,TMA_K,k)
+    auto tBsB = block_load_b.partition_D(sB);           // (TMA,TMA_N,TMA_K,PIPE)
 
-      constexpr uint32_t slm_bytes_load = (sizeof(ElementA)*size(SmemLayoutA{}) + sizeof(ElementB)*size(SmemLayoutB{})) / Stages;
-      constexpr uint32_t slm_bytes_store =  sizeof(ElementC)*size(SmemLayoutC{});
+    auto gC = gC_mnl(_, _, m_coord, n_coord, l_coord);  // (BLK_M,BLK_N)
+    auto tCgC = block_load_c.partition_S(gC);           // (TMA,TMA_M,TMA_N)
+    auto tCsC = block_load_c.partition_D(sC);           // (TMA,TMA_M,TMA_N)
 
-      for (int i = 0; i < k_tile_count; ++i, ++slm_pipe_write) {
-        pipeline.producer_try_wait(slm_pipe_write);
+    constexpr uint32_t slm_bytes_load = (sizeof(ElementA)*size(SmemLayoutA{}) + sizeof(ElementB)*size(SmemLayoutB{})) / Stages;
+    constexpr uint32_t slm_bytes_store =  sizeof(ElementC)*size(SmemLayoutC{});
 
-        uint32_t index = slm_pipe_write.index();
-        auto abar_prod = pipeline.producer_get_barrier(index);
+    for (int i = 0; i < k_tile_count; ++i, ++slm_pipe_write) {
+      pipeline.producer_try_wait(slm_pipe_write);
 
-        copy(load_a.with(abar_prod), tAgA(_,_,_,i), tAsA(_,_,_,index));
-        copy(load_b.with(abar_prod), tBgB(_,_,_,i), tBsB(_,_,_,index));
+      uint32_t index = slm_pipe_write.index();
+      auto abar_prod = pipeline.producer_get_barrier(index);
 
-        pipeline.producer_commit(index, slm_bytes_load);
-      }
+      copy(load_a.with(abar_prod), tAgA(_,_,_,i), tAsA(_,_,_,index));
+      copy(load_b.with(abar_prod), tBgB(_,_,_,i), tBsB(_,_,_,index));
 
-      if (k_tile_count > 0) {   // store out
-        auto slm_pipe_state = PipelineState::make_pipeline_state({}, k_tile_count - 1);
+      pipeline.producer_commit(index, slm_bytes_load);
+    }
 
-        pipeline.producer_try_wait(slm_pipe_state);
+    {   // store out
+      auto slm_pipe_state = PipelineState::make_pipeline_state({}, k_tile_count - 1);
 
-        ++slm_pipe_state;
-        auto abar_prod = pipeline.producer_get_barrier(slm_pipe_state);
+      pipeline.producer_try_wait(slm_pipe_state);
 
-        copy(store_c.with(abar_prod), tCsC, tCgC);
+      ++slm_pipe_state;
+      auto abar_prod = pipeline.producer_get_barrier(slm_pipe_state);
 
-        pipeline.producer_commit(slm_pipe_state, slm_bytes_store);
-        pipeline.consumer_try_wait(slm_pipe_state);
-      }
+      copy(store_c.with(abar_prod), tCsC, tCgC);
+
+      pipeline.producer_commit(slm_pipe_state, slm_bytes_store);
+      pipeline.consumer_try_wait(slm_pipe_state);
     }
   }
 
@@ -265,54 +242,57 @@ struct CollectiveMma<
 
   template <class FrgTensorC>
   CUTLASS_DEVICE void
-  mma(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState slm_pipe_read, FrgTensorC& accum, int k_tile_count, int local_id) {
-    if (local_id == 32) {
-      auto [load_a, load_b, store_c, sA, sB, sAcc, sC] = mainloop_params;
+  mma(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState slm_pipe_read, FrgTensorC& accumulator, int k_tile_count, int local_id, uint8_t* slm_buf) {
+    auto sA = make_tensor(reinterpret_cast<ElementA*>(slm_buf), SmemLayoutA{});
+    auto sB = make_tensor(reinterpret_cast<ElementB*>(sA.data()+size(SmemLayoutA{})), SmemLayoutB{});
+    auto sC = make_tensor(reinterpret_cast<ElementC*>(sB.data()+size(SmemLayoutB{})), SmemLayoutC{});
 
-      TiledMma tiled_mma;
-      auto thread_mma = tiled_mma.get_thread_slice(0);
+    auto [load_a, load_b, store_c] = mainloop_params;
 
-      auto tCrA = thread_mma.partition_fragment_A(sA);    // (MMA,MMA_M,MMA_K,PIPE)
-      auto tCrB = thread_mma.partition_fragment_B(sB);    // (MMA,MMA_N,MMA_K,PIPE)
-      auto tCsC = thread_mma.partition_fragment_C(sC);    // (MMA,MMA_M,MMA_N)
+    TiledMma tiled_mma;
+    auto thread_mma = tiled_mma.get_thread_slice(0);
 
-      if (k_tile_count == 1) {
-        pipeline.consumer_try_wait(slm_pipe_read);
-        auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
-        cute::gemm(tiled_mma.with(abar_cons, MMA_Op<ElementC, void>{}), tCrA(_,_,_,0), tCrB(_,_,_,0), tCsC);
-        pipeline.consumer_commit(slm_pipe_read);
-        return;
+    auto tCrA = thread_mma.partition_fragment_A(sA);    // (MMA,MMA_M,MMA_K,PIPE)
+    auto tCrB = thread_mma.partition_fragment_B(sB);    // (MMA,MMA_N,MMA_K,PIPE)
+    auto tCsC = thread_mma.partition_fragment_C(sC);    // (MMA,MMA_M,MMA_N)
+    auto accum = thread_mma.partition_fragment_C(accumulator); // (MMA,MMA_M,MMA_N)
+
+    if (k_tile_count == 1) {
+      pipeline.consumer_try_wait(slm_pipe_read);
+      auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
+      cute::gemm(tiled_mma.with(abar_cons, MMA_Op<ElementC, void>{}), tCrA(_,_,_,0), tCrB(_,_,_,0), tCsC);
+      pipeline.consumer_commit(slm_pipe_read);
+      return;
+    }
+
+    if (k_tile_count >= 2) {
+      PipelineState slm_pipe_read;
+      pipeline.consumer_try_wait(slm_pipe_read);
+      uint32_t index = slm_pipe_read.index();
+      auto abar_cons = pipeline.consumer_get_barrier(index);
+      cute::gemm(tiled_mma.with(abar_cons, MMA_Op<ElementAccumulator, void>{}), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
+      pipeline.consumer_commit(slm_pipe_read);
+
+      for (uint32_t i = 1; i < k_tile_count - 1; i++) {
+          ++slm_pipe_read;
+          uint32_t index = slm_pipe_read.index();
+          auto abar_cons = pipeline.consumer_get_barrier(index);
+          pipeline.consumer_try_wait(slm_pipe_read);
+          cute::gemm(tiled_mma.with(abar_cons, MMA_Op<ElementAccumulator, ElementAccumulator>{}), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
+          pipeline.consumer_commit(slm_pipe_read);
       }
+      {
+          ++slm_pipe_read;
+          uint32_t index = slm_pipe_read.index();
 
-      if (k_tile_count >= 2) {
-        PipelineState slm_pipe_read;
-        pipeline.consumer_try_wait(slm_pipe_read);
-        uint32_t index = slm_pipe_read.index();
-        auto abar_cons = pipeline.consumer_get_barrier(index);
-        cute::gemm(tiled_mma.with(abar_cons, MMA_Op<ElementAccumulator, void>{}), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
-        pipeline.consumer_commit(slm_pipe_read);
+          auto abar_cons = pipeline.consumer_get_barrier(index);
+          auto abar_prod = pipeline.producer_get_barrier(index);
 
-        for (uint32_t i = 1; i < k_tile_count - 1; i++) {
-            ++slm_pipe_read;
-            uint32_t index = slm_pipe_read.index();
-            auto abar_cons = pipeline.consumer_get_barrier(index);
-            pipeline.consumer_try_wait(slm_pipe_read);
-            cute::gemm(tiled_mma.with(abar_cons, MMA_Op<ElementAccumulator, ElementAccumulator>{}), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
-            pipeline.consumer_commit(slm_pipe_read);
-        }
-        {
-            ++slm_pipe_read;
-            uint32_t index = slm_pipe_read.index();
+          uint32_t phase = ((k_tile_count - 1) / Stages) & 1u;
+          pipeline.consumer_try_wait(index, phase);
 
-            auto abar_cons = pipeline.consumer_get_barrier(index);
-            auto abar_prod = pipeline.producer_get_barrier(index);
-
-            uint32_t phase = ((k_tile_count - 1) / Stages) & 1u;
-            pipeline.consumer_try_wait(index, phase);
-
-            cute::gemm(tiled_mma.with(abar_cons, MMA_Op<ElementC, ElementAccumulator>{}), tCsC, tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
-            pipeline.consumer_commit(slm_pipe_read);
-        }
+          cute::gemm(tiled_mma.with(abar_cons, MMA_Op<ElementC, ElementAccumulator>{}), tCsC, tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
+          pipeline.consumer_commit(slm_pipe_read);
       }
     }
   }

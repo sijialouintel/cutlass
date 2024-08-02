@@ -38,8 +38,20 @@ public:
   using CollectiveMainloop = CollectiveMainloop_;
   using TileShape = typename CollectiveMainloop::TileShape;
   using TiledMma  = typename CollectiveMainloop::TiledMma;
+  using ElementA  = typename CollectiveMainloop::ElementA;
+  using StrideA   = typename CollectiveMainloop::StrideA;
+  using SmemLayoutA = typename CollectiveMainloop::SmemLayoutA;
+  using ElementB  = typename CollectiveMainloop::ElementB;
+  using StrideB   = typename CollectiveMainloop::StrideB;
+  using SmemLayoutB = typename CollectiveMainloop::SmemLayoutB;
+  using ElementAccumulator = typename CollectiveMainloop::ElementAccumulator;
   using MainloopArguments = typename CollectiveMainloop::Arguments;
   using MainloopParams = typename CollectiveMainloop::Params;
+
+  using ElementC  = typename CollectiveMainloop::ElementC;
+  using SmemLayoutC = typename CollectiveMainloop::SmemLayoutC;
+
+  using SlmTensorAcc = decltype(make_tensor(static_cast<ElementAccumulator*>(nullptr), SmemLayoutC{}));
 
   // Device side arguments
   struct Arguments {
@@ -50,6 +62,9 @@ public:
 
   // Kernel entry point API
   struct Params {
+    uint8_t* slm_buf;
+    SlmTensorAcc accumulator;
+
     sycl::nd_item<3> item;
     ProblemShape problem_shape;
     MainloopParams mainloop;
@@ -59,7 +74,20 @@ public:
   Params
   to_underlying_arguments(Arguments const& args, void* workspace) {
     (void) workspace;
+
+    constexpr auto slm_a_bytes = sizeof(ElementA)*size(SmemLayoutA{});
+    constexpr auto slm_b_bytes = sizeof(ElementB)*size(SmemLayoutB{});
+    constexpr auto slm_c_bytes = sizeof(ElementC)*size(SmemLayoutC{});
+    constexpr auto accum_bytes = sizeof(ElementAccumulator)*size(SmemLayoutC{});
+    constexpr auto slm_bytes = slm_a_bytes + slm_b_bytes + slm_c_bytes + accum_bytes;
+
+    auto ptr = sycl::ext::oneapi::group_local_memory_for_overwrite<uint8_t[slm_bytes]>(args.item.get_group());
+    auto slm_buf = reinterpret_cast<uint8_t*>(*ptr);
+    auto accumulator = make_tensor(reinterpret_cast<ElementAccumulator*>(slm_buf), SmemLayoutC{});
+
     return {
+      slm_buf + accum_bytes,
+      accumulator,
       args.item,
       args.problem_shape,
       CollectiveMainloop::to_underlying_arguments(args.problem_shape, args.mainloop)
@@ -70,6 +98,7 @@ public:
   void
   operator()(Params const& params) {
     auto& item = params.item;
+    auto slm_buf = params.slm_buf;
 
     using MainloopPipeline = typename CollectiveMainloop::MainloopPipeline;
     MainloopPipeline mainloop_pipeline(item);
@@ -88,14 +117,13 @@ public:
 
     uint32_t local_id = item.get_local_linear_id();
     uint32_t k_tile_count = (K + wg_k -1) / wg_k;
-    auto blk_coord = cute::make_tuple(item.get_group(1), item.get_group(2), 0);
-    collective_mainloop.load(params.mainloop, mainloop_pipeline, mainloop_pipe_producer_state, load_inputs, blk_coord, k_tile_count, local_id);
 
-    TiledMma tiled_mma;
-    auto thread_mma = tiled_mma.get_thread_slice(0);
-    auto accumulators = thread_mma.partition_fragment_C(params.mainloop.slm_acc);    // (MMA,MMA_M,MMA_N)
-
-    collective_mainloop.mma(params.mainloop, mainloop_pipeline, mainloop_pipe_consumer_state, accumulators, k_tile_count, local_id);
+    if(local_id == 0) {
+      auto blk_coord = cute::make_tuple(item.get_group(1), item.get_group(2), 0);
+      collective_mainloop.load(params.mainloop, mainloop_pipeline, mainloop_pipe_producer_state, load_inputs, blk_coord, k_tile_count, local_id, slm_buf);
+    } else if (local_id == 32) {
+      collective_mainloop.mma(params.mainloop, mainloop_pipeline, mainloop_pipe_consumer_state, params.accumulator, k_tile_count, local_id, slm_buf);
+    }
   }
 };
 
