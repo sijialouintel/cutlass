@@ -196,4 +196,57 @@ public:
   }
 };
 
+template <int Stages_, typename BarrierPtr = uint64_t*>
+class PipelineTmaStore {
+public:
+  static constexpr int Stages = Stages_;
+  using ProducerBarrier = BarrierPtr;
+  using PipelineState = cutlass::xe4::PipelineState<Stages>;
+
+  BarrierPtr abar_store_base = nullptr;
+
+  PipelineTmaStore(sycl::nd_item<3> item) {
+    uint32_t local_id = item.get_local_linear_id();
+    abar_store_base = allocate_abar<2, Stages>();
+
+    if (local_id == 0) {
+      #pragma unroll
+      for (int i = 0; i < Stages; i++) {
+        abarrier_init(abar_store_base + i, 1);
+      }
+    }
+    item.barrier(access::fence_space::local_space);
+  }
+
+  CUTLASS_DEVICE
+  void store_commit(PipelineState state, uint32_t bytes) {
+    store_commit(state.index(), bytes);
+  }
+
+  CUTLASS_DEVICE
+  void store_commit(uint32_t stage, uint32_t bytes) {
+    abarrier_workgroup_arrive_expect_tx(abar_store_base + stage, bytes);
+  }
+
+  CUTLASS_DEVICE
+  void store_try_wait(PipelineState state, uint32_t skip_wait = false) {
+    store_try_wait(state.index(), state.phase(), skip_wait);
+  }
+
+  CUTLASS_DEVICE
+  void store_try_wait(uint32_t stage, uint32_t phase, uint32_t skip_wait = 0) {
+    abarrier_try_wait(abar_store_base + stage, phase);
+  }
+
+  CUTLASS_DEVICE
+  ProducerBarrier store_get_barrier(PipelineState state) {
+    return store_get_barrier(state.index());
+  }
+
+  CUTLASS_DEVICE
+  ProducerBarrier store_get_barrier(uint32_t stage) {
+    return abar_store_base + stage;
+  }
+};
+
 } // namespace cutlass::xe4

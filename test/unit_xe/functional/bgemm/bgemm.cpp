@@ -116,10 +116,17 @@ int main()
         void                                                                                    // TransformB
     >;
 
+    using CollectiveEpilogue = cutlass::epilogue::collective::DefaultEpilogue<
+        1,
+        StrideC,
+        DummyConverter<decltype(take<0, 2>(TileShape{})), dtypeC, dtypeAcc>,
+        cutlass::gemm::EpilogueDefault
+    >;
+
     using GemmKernel = cutlass::gemm::kernel::GemmUniversal<
         Shape<int,int,int,int>,
         CollectiveMainloop,
-        void,
+        CollectiveEpilogue,
         void
     >;
 
@@ -131,6 +138,9 @@ int main()
             {
                 A_s, cutlass::make_cute_packed_stride(StrideA{}, cute::make_shape(mat_m, mat_k, mat_l)),
                 B_s, cutlass::make_cute_packed_stride(StrideB{}, cute::make_shape(mat_n, mat_k, mat_l)),
+                item.get_group(),
+            },
+            {
                 C_s, cutlass::make_cute_packed_stride(StrideC{}, cute::make_shape(mat_m, mat_n, mat_l)),
                 item.get_group(),
             }

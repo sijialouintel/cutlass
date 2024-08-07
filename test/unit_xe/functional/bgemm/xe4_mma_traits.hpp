@@ -99,7 +99,7 @@ struct XE4_ASYNC_GMMA_OP {};
 template <class TD, class TC, class TA, class TB, class Shape_MNK_, class CoreMatSize, class MatDesc, class Abarrier>
 struct MMA_Traits<XE4_ASYNC_GMMA<TD, TC, TA, TB, Shape_MNK_, CoreMatSize, MatDesc, Abarrier>>
 {
-  using ValTypeD = float;
+  using ValTypeD = TD;
   using ValTypeA = bf16;
   using ValTypeB = bf16;
   using ValTypeC = float;
