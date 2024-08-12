@@ -22,9 +22,9 @@ int main()
     std::cout << "Running on " << dev.get_info<info::device::name>() << "\n";
     auto ctxt = q.get_context();
 
-    int mat_m = 512;
-    int mat_n = 1024;
-    int mat_k = 1024;
+    int mat_m = 256;
+    int mat_n = 512;
+    int mat_k = 512;
     int mat_l = 1;
     constexpr uint32_t wg_m = 256;
     constexpr uint32_t wg_n = 512;
@@ -71,7 +71,7 @@ int main()
     using StrideC = cutlass::detail::TagToStrideC_t<LayoutC>;
 
     using TileShape = Shape<Int<wg_m>, Int<wg_n>, Int<wg_k>>;
-    using MMA_Op = XE4_ASYNC_GMMA<dtypeAcc, void, dtypeA, dtypeB, TileShape, is_row_major_a, is_row_major_b, uint64_t, uint64_t*>;
+    using MMA_Op = XE4_ASYNC_GMMA<dtypeAcc, void, dtypeA, dtypeB, TileShape, is_row_major_a, is_row_major_b, uint32_t, uint64_t*>;
 
     using CollectiveMainloop = CollectiveMma<
         MainloopXe4DmaGmma<stage>,                                                              // MainloopXe4DmaGmma

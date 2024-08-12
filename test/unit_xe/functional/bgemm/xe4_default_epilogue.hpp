@@ -44,7 +44,7 @@ public:
   using SmemLayoutC = typename ThreadEpilogueOp::SmemLayoutOutput;
   using GmemTiledCopyC = cute::xe4::ASYNC_TENSOR_STORE;
 
-  using AuxParamsC = AuxParams<cm_size_t::cm_32x32B, cm_layout_t::vertical_split, false, TensorDescPtr, 2>;
+  using AuxParamsC = AuxParams<slm_matrix_type::type1, TensorDescPtr, 2>;
 
   using EpiloguePipeline = cutlass::xe4::PipelineTmaStore<StagesC, AbarrierPtr>;
   using PipelineState = typename EpiloguePipeline::PipelineState;

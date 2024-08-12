@@ -101,7 +101,7 @@ struct CollectiveMma<
 
   using TensorDescPtr = uint64_t*;
   using AbarrierPtr = uint64_t*;
-  using MatrixDesc = uint64_t;
+  using MatrixDesc = uint32_t;
 
   using ElementC = typename TiledMma::ValTypeD;
   using ElementAccumulator = typename TiledMma::ValTypeC;
@@ -111,13 +111,11 @@ struct CollectiveMma<
   static constexpr bool IsRowMajorB = cutlass::detail::is_major<0, StrideB>();
 
   using AuxParamsA = AuxParams<
-    (IsRowMajorA ? cm_size_t::cm_32x32B : cm_size_t::cm_16x64B),
-    (IsRowMajorA ? cm_layout_t::vertical_split : cm_layout_t::horizontal_split),
-    false,
+    (IsRowMajorA ? slm_matrix_type::type1 : slm_matrix_type::type2),
     TensorDescPtr,
     0
   >;
-  using AuxParamsB = AuxParams<cm_size_t::cm_16x32B, cm_layout_t::linear, false, TensorDescPtr, 1>;
+  using AuxParamsB = AuxParams<slm_matrix_type::type1, TensorDescPtr, 1>;
 
   using MainloopPipeline = cutlass::xe4::PipelineTmaAsync<Stages, AbarrierPtr>;
   using PipelineState = cutlass::xe4::PipelineState<Stages>;
@@ -275,6 +273,7 @@ struct CollectiveMma<
 
     auto tCrA = thread_mma.partition_fragment_A(sA);    // (MMA,MMA_M,MMA_K,PIPE)
     auto tCrB = thread_mma.partition_fragment_B(sB);    // (MMA,MMA_N,MMA_K,PIPE)
+
     auto accum = thread_mma.partition_fragment_C(accumulator); // (MMA,MMA_M,MMA_N)
 
     if (k_tile_count == 1) {

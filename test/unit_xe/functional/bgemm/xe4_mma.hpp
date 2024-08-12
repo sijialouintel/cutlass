@@ -3,7 +3,7 @@
 #include "inline_pisa.hpp"
 
 namespace cute {
-template <class TD, class TC, class TA, class TB, class Shape_MNK_, bool IsRowMajorA, bool IsRowMajorB, class MatDesc=uint64_t, class Abarrier_=uint64_t*>
+template <class TD, class TC, class TA, class TB, class Shape_MNK_, bool IsRowMajorA, bool IsRowMajorB, class MatDesc, class Abarrier_=uint64_t*>
 struct XE4_ASYNC_GMMA
 {
   using DRegisters = MatDesc[1];
@@ -51,7 +51,7 @@ struct XE4_ASYNC_GMMA<TD, void, TA, TB, Shape_MNK_, IsRowMajorA, IsRowMajorB, Ma
   }
 };
 
-template <class TD, class TC, class TA, class TB, class Shape_MNK_, bool IsRowMajorA, bool IsRowMajorB, class MatDesc=uint64_t, class Abarrier_=uint64_t*>
+template <class TD, class TC, class TA, class TB, class Shape_MNK_, bool IsRowMajorA, bool IsRowMajorB, class MatDesc, class Abarrier_=uint64_t*>
 struct XE4_ASYNC_GMMA_MULTICAST
 {
   using DRegisters = MatDesc[1];

@@ -154,13 +154,11 @@ auto make_copy_traits(TensorDesc* tensor_desc, GBasis gbasis)
 
 namespace detail {
 
-template<cm_size_t cmSize_, cm_layout_t cmLayout_, bool swizzlingDisabled_, class tdescPtr_, int tdescIdx_>
+template<slm_matrix_type cmType_, class tdescPtr_, int tdescIdx_>
 struct AuxParams {
   using tdescPtr = tdescPtr_;
   static constexpr int tdescIdx = tdescIdx_;
-  static constexpr cm_size_t cmSize = cmSize_;
-  static constexpr cm_layout_t cmLayout = cmLayout_;
-  static constexpr bool swizzlingDisabled = swizzlingDisabled_;
+  static constexpr slm_matrix_type cmType = cmType_;
 };
 
 template <class AuxParams, bool isTransposed, class GTensor, class SLayout>
@@ -183,7 +181,7 @@ make_tensor_desc(GTensor const& gtensor, SLayout const& slayout, uint32_t coop_s
   tensor_descriptor_fill_dim_stride<2>(tdesc_ptr, width * sizeof(T));
   tensor_descriptor_fill_traverse_stride<2>(tdesc_ptr, sycl::vec<uint32_t, 2>{1, 1});
   tensor_descriptor_fill_roitensor_size<2>(tdesc_ptr, {block_width, block_height});
-  tensor_descriptor_fill_misc<T, AuxParams::cmSize, AuxParams::cmLayout, AuxParams::swizzlingDisabled>(tdesc_ptr);
+  tensor_descriptor_fill_misc<T, AuxParams::cmType>(tdesc_ptr);
 
   return tdesc_ptr;
 }

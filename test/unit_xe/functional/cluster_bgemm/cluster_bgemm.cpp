@@ -26,7 +26,7 @@ int main()
 
     int mat_m = 512;
     int mat_n = 1024;
-    int mat_k = 1024;
+    int mat_k = 512;
     int mat_l = 1;
     constexpr uint32_t wg_m = 256;
     constexpr uint32_t wg_n = 512;
@@ -76,7 +76,7 @@ int main()
 
     using ClusterShape = Shape<Int<cluster_size_y>,Int<cluster_size_x>,_1>;
     using TileShape = Shape<Int<wg_m>, Int<wg_n>, Int<wg_k>>;
-    using MMA_Op = XE4_ASYNC_GMMA<dtypeAcc, void, dtypeA, dtypeB, TileShape, is_row_major_a, is_row_major_b, uint64_t, uint64_t*>;
+    using MMA_Op = XE4_ASYNC_GMMA<dtypeAcc, void, dtypeA, dtypeB, TileShape, is_row_major_a, is_row_major_b, uint32_t, uint64_t*>;
 
     using CollectiveMainloop = CollectiveMma<
         MainloopXe4DmaGmma<stage, ClusterShape>,                                                // MainloopXe4DmaGmma
@@ -86,11 +86,11 @@ int main()
         dtypeB,                                                                                 // ElementB
         StrideB,                                                                                // StrideB
         decltype(cute::make_tiled_mma(MMA_Op{})),                                               // TiledMma
-        ASYNC_TENSOR_LOAD_MULTICAST,                                                                      // GmemTiledCopyA
+        ASYNC_TENSOR_LOAD_MULTICAST,                                                            // GmemTiledCopyA
         Layout<Shape<Int<wg_m>,Int<wg_k>,Int<stage>>, Stride<Int<wg_k>,_1,Int<wg_m*wg_k>>>,     // SmemLayoutAtomA
         void,                                                                                   // SmemCopyAtomA
         void,                                                                                   // TransformA
-        ASYNC_TENSOR_LOAD_MULTICAST,                                                                      // GmemTiledCopyB
+        ASYNC_TENSOR_LOAD_MULTICAST,                                                            // GmemTiledCopyB
         Layout<Shape<Int<wg_n>,Int<wg_k>,Int<stage>>, Stride<_1,Int<wg_n>,Int<wg_k*wg_n>>>,     // SmemLayoutAtomB
         void,                                                                                   // SmemCopyAtomB
         void                                                                                    // TransformB
