@@ -13,20 +13,7 @@ using namespace sycl;
 using namespace cute::xe4;
 using namespace cutlass::gemm::collective;
 
-class BGEMM;
-
-template <class T, uint32_t bM, uint32_t bN>
-void transpose_block(T* src, T* dst, int m, int n) {
-    for (int i = 0; i < m; i+=bM) {
-        for (int j = 0; j < n; j+=bN) {
-            for (int ii = 0; ii < bM; ++ii) {
-                for (int jj = 0; jj < bN; ++jj) {
-                    dst[(i+ii)*n+j+jj] = src[(i+jj)*n+j+ii];
-                }
-            }
-        }
-    }
-}
+class CLUSTER_BGEMM;
 
 int main()
 {
@@ -57,32 +44,21 @@ int main()
     using dtypeAcc = float;
     using dtypeC = float;
 
-    static constexpr bool transposeA = false;
-    static constexpr bool transposeB = false;
+    static constexpr mem_layout layout_a = mem_layout::row_major;
+    static constexpr mem_layout layout_b = mem_layout::row_major;
 
-    using LayoutA = std::conditional_t<transposeA, cutlass::layout::ColumnMajor, cutlass::layout::RowMajor>;
-    using LayoutB = std::conditional_t<transposeB, cutlass::layout::ColumnMajor, cutlass::layout::RowMajor>;
+    static constexpr bool is_row_major_a = (layout_a == mem_layout::row_major);
+    static constexpr bool is_row_major_b = (layout_b == mem_layout::row_major);
+
+    using LayoutA = std::conditional_t<is_row_major_a, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
+    using LayoutB = std::conditional_t<is_row_major_b, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
     using LayoutC = cutlass::layout::RowMajor;
 
-    std::vector<dtypeA> A_h(sizeA);
-    std::generate_n(A_h.data(), sizeA, [=]() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
-
     auto A_s = malloc_shared<dtypeA>(sizeA, q);
-    if constexpr (transposeA) {
-        transpose_block<dtypeA, wg_k, wg_m>(A_h.data(), A_s, mat_k, mat_m);
-    } else {
-        std::copy_n(A_h.data(), sizeA, A_s);
-    }
-
-    std::vector<dtypeB> B_h(sizeB);
-    std::generate_n(B_h.data(), sizeB, [=]() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
+    std::generate_n(A_s, sizeA, [=]() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
 
     auto B_s = malloc_shared<dtypeB>(sizeB, q);
-    if constexpr (transposeB) {
-        transpose_block<dtypeB, wg_n, wg_k>(B_h.data(), B_s, mat_n, mat_k);
-    } else {
-        std::copy_n(B_h.data(), sizeB, B_s);
-    }
+    std::generate_n(B_s, sizeB, [=]() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
 
     auto C_s = malloc_shared<dtypeC>(sizeC, q);
     std::fill_n(C_s, sizeC, dtypeC(0));
@@ -100,8 +76,7 @@ int main()
 
     using ClusterShape = Shape<Int<cluster_size_y>,Int<cluster_size_x>,_1>;
     using TileShape = Shape<Int<wg_m>, Int<wg_n>, Int<wg_k>>;
-    using MMA_Op = XE4_ASYNC_GMMA<dtypeAcc, void, dtypeA, dtypeB, TileShape,
-        CoreMatrixSize<cm_size_t::cm_32x32B, cm_size_t::cm_16x32B, cm_size_t::cm_32x32B>, uint64_t, uint64_t*>;
+    using MMA_Op = XE4_ASYNC_GMMA<dtypeAcc, void, dtypeA, dtypeB, TileShape, is_row_major_a, is_row_major_b, uint64_t, uint64_t*>;
 
     using CollectiveMainloop = CollectiveMma<
         MainloopXe4DmaGmma<stage, ClusterShape>,                                                // MainloopXe4DmaGmma
@@ -135,7 +110,7 @@ int main()
         void
     >;
 
-    q.parallel_for<class BGEMM>(Range, [=](nd_item<3> item) {
+    q.parallel_for<class CLUSTER_BGEMM>(Range, [=](nd_item<3> item) {
         uint32_t wg_id = item.get_group().get_group_linear_id();
         auto problem_shape = make_shape(mat_m, mat_n, mat_k, mat_l);
 
@@ -157,9 +132,7 @@ int main()
         kernel(params);
      }).wait();
 
-    mem_layout layout_a = transposeA ? mem_layout::col_major : mem_layout::row_major;
-    mem_layout layout_b = transposeB ? mem_layout::col_major : mem_layout::row_major;
-    uint32_t err_cnt = validate_gemm_result(A_h.data(), B_h.data(), C_s, mat_m, mat_n, mat_k, layout_a, layout_b);
+    uint32_t err_cnt = validate_gemm_result(A_s, B_s, C_s, mat_m, mat_n, mat_k, layout_a, layout_b);
     if (err_cnt > 0) {
         std::cout << "Test Failed!" << std::endl;
         return -1;

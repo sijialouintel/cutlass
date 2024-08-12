@@ -107,7 +107,16 @@ struct CollectiveMma<
   using ElementAccumulator = typename TiledMma::ValTypeC;
   using StrideC = cutlass::detail::TagToStrideC_t<cutlass::layout::RowMajor>;
 
-  using AuxParamsA = AuxParams<cm_size_t::cm_32x32B, cm_layout_t::vertical_split, false, TensorDescPtr, 0>;
+  static constexpr bool IsRowMajorA = cutlass::detail::is_major<1, StrideA>();
+  static constexpr bool IsRowMajorB = cutlass::detail::is_major<0, StrideB>();
+
+  using AuxParamsA = AuxParams<
+    (IsRowMajorA ? cm_size_t::cm_32x32B : cm_size_t::cm_16x64B),
+    (IsRowMajorA ? cm_layout_t::vertical_split : cm_layout_t::horizontal_split),
+    false,
+    TensorDescPtr,
+    0
+  >;
   using AuxParamsB = AuxParams<cm_size_t::cm_16x32B, cm_layout_t::linear, false, TensorDescPtr, 1>;
 
   using MainloopPipeline = cutlass::xe4::PipelineTmaAsync<Stages, AbarrierPtr>;
@@ -243,15 +252,13 @@ struct CollectiveMma<
     }
   }
 
-  using CoreMatrixSize_ = CoreMatrixSize<cm_size_t::cm_32x32B, cm_size_t::cm_16x32B, cm_size_t::cm_32x32B>;
-
   template<class TD, class TC = void>
-  using MMA_Op_NORMAL = XE4_ASYNC_GMMA<TD, TC, ElementA, ElementB, TileShape, CoreMatrixSize_, MatrixDesc, AbarrierPtr>;
+  using MMA_Op_NORMAL = XE4_ASYNC_GMMA<TD, TC, ElementA, ElementB, TileShape, IsRowMajorA, IsRowMajorB, MatrixDesc, AbarrierPtr>;
 
   template<class TD, class TC = void>
   using MMA_Op = cute::conditional_t<size(ClusterShape{}) == 1,
-      XE4_ASYNC_GMMA<TD, TC, ElementA, ElementB, TileShape, CoreMatrixSize_, MatrixDesc, AbarrierPtr>,
-      XE4_ASYNC_GMMA_MULTICAST<TD, TC, ElementA, ElementB, TileShape, CoreMatrixSize_, MatrixDesc, AbarrierPtr>
+      XE4_ASYNC_GMMA<TD, TC, ElementA, ElementB, TileShape, IsRowMajorA, IsRowMajorB, MatrixDesc, AbarrierPtr>,
+      XE4_ASYNC_GMMA_MULTICAST<TD, TC, ElementA, ElementB, TileShape, IsRowMajorA, IsRowMajorB, MatrixDesc, AbarrierPtr>
   >;
 
   template <class FrgTensorC, class ClusterMask>

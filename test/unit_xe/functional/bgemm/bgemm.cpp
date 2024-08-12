@@ -15,19 +15,6 @@ using namespace cutlass::gemm::collective;
 
 class BGEMM;
 
-template <class T, uint32_t bM, uint32_t bN>
-void transpose_block(T* src, T* dst, int m, int n) {
-    for (int i = 0; i < m; i+=bM) {
-        for (int j = 0; j < n; j+=bN) {
-            for (int ii = 0; ii < bM; ++ii) {
-                for (int jj = 0; jj < bN; ++jj) {
-                    dst[(i+ii)*n+j+jj] = src[(i+jj)*n+j+ii];
-                }
-            }
-        }
-    }
-}
-
 int main()
 {
     queue q;
@@ -35,12 +22,12 @@ int main()
     std::cout << "Running on " << dev.get_info<info::device::name>() << "\n";
     auto ctxt = q.get_context();
 
-    int mat_m = 256;
-    int mat_n = 256;
+    int mat_m = 512;
+    int mat_n = 1024;
     int mat_k = 1024;
     int mat_l = 1;
-    constexpr uint32_t wg_m = 128;
-    constexpr uint32_t wg_n = 128;
+    constexpr uint32_t wg_m = 256;
+    constexpr uint32_t wg_n = 512;
     constexpr uint32_t wg_k = 128;
     constexpr uint32_t stage = 4;
 
@@ -53,32 +40,21 @@ int main()
     using dtypeAcc = float;
     using dtypeC = float;
 
-    static constexpr mem_layout layout_a = mem_layout::row_major;
+    static constexpr mem_layout layout_a = mem_layout::col_major;
     static constexpr mem_layout layout_b = mem_layout::row_major;
 
-    using LayoutA = std::conditional_t<layout_a == mem_layout::row_major, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
-    using LayoutB = std::conditional_t<layout_b == mem_layout::row_major, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
+    static constexpr bool is_row_major_a = (layout_a == mem_layout::row_major);
+    static constexpr bool is_row_major_b = (layout_b == mem_layout::row_major);
+
+    using LayoutA = std::conditional_t<is_row_major_a, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
+    using LayoutB = std::conditional_t<is_row_major_b, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
     using LayoutC = cutlass::layout::RowMajor;
 
-    std::vector<dtypeA> A_h(sizeA);
-    std::generate_n(A_h.data(), sizeA, [=]() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
-
     auto A_s = malloc_shared<dtypeA>(sizeA, q);
-    if constexpr (layout_a == mem_layout::row_major) {
-        std::copy_n(A_h.data(), sizeA, A_s);
-    } else {
-        transpose_block<dtypeA, wg_k, wg_m>(A_h.data(), A_s, mat_k, mat_m);
-    }
-
-    std::vector<dtypeB> B_h(sizeB);
-    std::generate_n(B_h.data(), sizeB, [=]() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
+    std::generate_n(A_s, sizeA, [=]() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
 
     auto B_s = malloc_shared<dtypeB>(sizeB, q);
-    if constexpr (layout_b == mem_layout::row_major) {
-        std::copy_n(B_h.data(), sizeB, B_s);
-    } else {
-        transpose_block<dtypeB, wg_n, wg_k>(B_h.data(), B_s, mat_n, mat_k);
-    }
+    std::generate_n(B_s, sizeB, [=]() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
 
     auto C_s = malloc_shared<dtypeC>(sizeC, q);
     std::fill_n(C_s, sizeC, dtypeC(0));
@@ -95,8 +71,7 @@ int main()
     using StrideC = cutlass::detail::TagToStrideC_t<LayoutC>;
 
     using TileShape = Shape<Int<wg_m>, Int<wg_n>, Int<wg_k>>;
-    using MMA_Op = XE4_ASYNC_GMMA<dtypeAcc, void, dtypeA, dtypeB, TileShape,
-        CoreMatrixSize<cm_size_t::cm_32x32B, cm_size_t::cm_16x32B, cm_size_t::cm_32x32B>, uint64_t, uint64_t*>;
+    using MMA_Op = XE4_ASYNC_GMMA<dtypeAcc, void, dtypeA, dtypeB, TileShape, is_row_major_a, is_row_major_b, uint64_t, uint64_t*>;
 
     using CollectiveMainloop = CollectiveMma<
         MainloopXe4DmaGmma<stage>,                                                              // MainloopXe4DmaGmma
@@ -152,7 +127,7 @@ int main()
         kernel(params);
      }).wait();
 
-    uint32_t err_cnt = validate_gemm_result(A_h.data(), B_h.data(), C_s, mat_m, mat_n, mat_k, layout_a, layout_b);
+    uint32_t err_cnt = validate_gemm_result(A_s, B_s, C_s, mat_m, mat_n, mat_k, layout_a, layout_b);
     if (err_cnt > 0) {
         std::cout << "Test Failed!" << std::endl;
         return -1;

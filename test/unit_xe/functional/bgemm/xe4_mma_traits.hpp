@@ -5,29 +5,76 @@
 
 namespace cute::xe4 {
 
-template <uint32_t Height, uint32_t WidthInBytes, class MatDesc=uint64_t, class SEngine, class SLayout>
-CUTE_HOST_DEVICE constexpr
-MatDesc make_mat_desc(Tensor<SEngine,SLayout> const& sTensor) {
-  using T = typename SEngine::value_type;
-  constexpr int leading_dim = is_mn_major(SLayout{}) ? 0 : 1;
+enum class MatrixTag : uint32_t {
+  A = 0,
+  B = 1,
+  C = 2
+};
 
-  constexpr uint32_t width = WidthInBytes / sizeof(T);
-  constexpr uint32_t x_iteration = size<leading_dim>(SLayout{}) / width;
-  constexpr uint64_t row_offset = (sizeof(T) * width * Height * x_iteration) >> 9;
-  constexpr uint64_t col_offset = (width * Height * sizeof(T)) >> 9;
+template <bool isRowMajor, class MatDesc=uint64_t, class Tensor>
+CUTE_HOST_DEVICE constexpr
+MatDesc make_mat_desc_a(Tensor const& sTensor) {
+  using T = typename Tensor::value_type;
+  constexpr int leading_dim = isRowMajor ? 1 : 0;
+
+  constexpr uint32_t cm_size_a_x = isRowMajor ? (32 / sizeof(T)) : 32;
+  constexpr uint32_t cm_size_a_y = isRowMajor ? 32 : (32 / sizeof(T));
+  constexpr uint32_t cm_num_a_x = size<leading_dim>(typename Tensor::layout_type{}) / cm_size_a_x;
+  constexpr uint64_t row_cm_offset_a = (sizeof(T) * cm_size_a_x * cm_size_a_y * cm_num_a_x) >> 9;
+  constexpr uint64_t col_cm_offset_a = (sizeof(T) * cm_size_a_x * cm_size_a_y) >> 9;
 
   MatDesc mat_desc = reinterpret_cast<uint64_t>(slm_space_cast(sTensor.data())) >> 9;
-  mat_desc |= (row_offset << 16) | (col_offset << 32);
+  mat_desc |= (row_cm_offset_a << 16) | (col_cm_offset_a << 32);
 
   return mat_desc;
 }
 
-template <cm_size_t cmSize, class MatDesc=uint64_t, class STensor>
+template <bool isRowMajor, class MatDesc=uint64_t, class Tensor>
+CUTE_HOST_DEVICE constexpr
+MatDesc make_mat_desc_b(Tensor const& sTensor) {
+  using T = typename Tensor::value_type;
+  constexpr int leading_dim = isRowMajor ? 0 : 1;
+
+  constexpr uint32_t cm_size_b_x = 32 / sizeof(T);
+  constexpr uint32_t cm_size_b_y = 16;
+  constexpr uint32_t cm_num_b_x = size<leading_dim>(typename Tensor::layout_type{}) / cm_size_b_x;
+  constexpr uint64_t row_cm_offset_b = (sizeof(T) * cm_size_b_x * cm_size_b_y * cm_num_b_x) >> 9;
+  constexpr uint64_t col_cm_offset_b = (sizeof(T) * cm_size_b_x * cm_size_b_y) >> 9;
+
+  MatDesc mat_desc = reinterpret_cast<uint64_t>(slm_space_cast(sTensor.data())) >> 9;
+  mat_desc |= (row_cm_offset_b << 16) | (col_cm_offset_b << 32);
+
+  return mat_desc;
+}
+
+template <bool isRowMajor, class MatDesc=uint64_t, class Tensor>
+CUTE_HOST_DEVICE constexpr
+MatDesc make_mat_desc_c(Tensor const& sTensor) {
+  using T = typename Tensor::value_type;
+  constexpr int leading_dim = isRowMajor ? 1 : 0;
+
+  constexpr uint32_t cm_size_c_x = 32 / sizeof(T);
+  constexpr uint32_t cm_size_c_y = 32;
+  constexpr uint32_t cm_num_c_x = size<1>(typename Tensor::layout_type{}) / cm_size_c_x;
+  constexpr uint64_t row_cm_offset_c = (sizeof(T) * cm_size_c_x * cm_size_c_y * cm_num_c_x) >> 9;
+  constexpr uint64_t col_cm_offset_c = (sizeof(T) * cm_size_c_x * cm_size_c_y) >> 9;
+
+  MatDesc mat_desc = reinterpret_cast<uint64_t>(slm_space_cast(sTensor.data())) >> 9;
+  mat_desc |= (row_cm_offset_c << 16) | (col_cm_offset_c << 32);
+
+  return mat_desc;
+}
+
+template <MatrixTag matrixTag, bool isRowMajor, class MatDesc=uint64_t, class STensor>
 CUTE_HOST_DEVICE constexpr
 MatDesc make_mat_desc(STensor const& sTensor) {
-  constexpr uint32_t Height = get_height<cmSize>();
-  constexpr uint32_t WidthInBytes = get_width_in_bytes<cmSize>();
-  return make_mat_desc<Height, WidthInBytes, MatDesc>(sTensor);
+  if constexpr (matrixTag == MatrixTag::A) {
+    return make_mat_desc_a<isRowMajor, MatDesc>(sTensor);
+  } else if constexpr (matrixTag == MatrixTag::B) {
+    return make_mat_desc_b<isRowMajor, MatDesc>(sTensor);
+  } else {
+    return make_mat_desc_c<isRowMajor, MatDesc>(sTensor);
+  }
 }
 
 template <class MatDesc=uint64_t>
@@ -69,10 +116,8 @@ raw_pointer_cast(MatDescIterator<MatDesc> const& ptr) {
   return ptr.desc_;
 }
 
-template <cm_size_t cmSize_, class MatDesc=uint64_t>
-struct slm_desc : MatDescIterator<MatDesc> {
-  static constexpr cm_size_t cmSize = cmSize_;
-};
+template <MatrixTag matrixTag, bool isRowMajor, class MatDesc=uint64_t>
+struct slm_desc : MatDescIterator<MatDesc> { };
 
 template <int M, int K>
 using ABLayout = Layout<Shape<_1,Shape<Int<M>,Int<K>>>, Stride<_0,Stride<_1,Int<M>>>>;
@@ -81,14 +126,14 @@ using ABLayout = Layout<Shape<_1,Shape<Int<M>,Int<K>>>, Stride<_0,Stride<_1,Int<
 
 namespace cute {
 
-template <cm_size_t cmSize, class MatDesc>
-struct MakeTensor<xe4::slm_desc<cmSize, MatDesc>>
+template <xe4::MatrixTag matrixTag, bool isRowMajor, class MatDesc>
+struct MakeTensor<xe4::slm_desc<matrixTag, isRowMajor, MatDesc>>
 {
   template <class TEngine, class TLayout>
   CUTE_HOST_DEVICE constexpr auto
   operator()(Tensor<TEngine,TLayout> const& smem_tensor)
   {
-    auto mat_desc = xe4::make_mat_desc<cmSize, MatDesc>(tensor<0>(smem_tensor));
+    auto mat_desc = xe4::make_mat_desc<matrixTag, isRowMajor, MatDesc>(tensor<0>(smem_tensor));
     auto new_layout = replace<0>(recast<uint8_t const>(smem_tensor).layout(), Layout<_1,_0>{});
     return make_tensor(xe4::MatDescIterator{mat_desc}, new_layout);
   }
@@ -96,17 +141,17 @@ struct MakeTensor<xe4::slm_desc<cmSize, MatDesc>>
 
 struct XE4_ASYNC_GMMA_OP {};
 
-template <class TD, class TC, class TA, class TB, class Shape_MNK_, class CoreMatSize, class MatDesc, class Abarrier>
-struct MMA_Traits<XE4_ASYNC_GMMA<TD, TC, TA, TB, Shape_MNK_, CoreMatSize, MatDesc, Abarrier>>
+template <class TD, class TC, class TA, class TB, class Shape_MNK_, bool IsRowMajorA, bool IsRowMajorB, class MatDesc, class Abarrier>
+struct MMA_Traits<XE4_ASYNC_GMMA<TD, TC, TA, TB, Shape_MNK_, IsRowMajorA, IsRowMajorB, MatDesc, Abarrier>>
 {
   using ValTypeD = TD;
   using ValTypeA = bf16;
   using ValTypeB = bf16;
   using ValTypeC = float;
 
-  using FrgTypeA = xe4::slm_desc<CoreMatSize::cmSizeA>;
-  using FrgTypeB = xe4::slm_desc<CoreMatSize::cmSizeB>;
-  using FrgTypeC = xe4::slm_desc<CoreMatSize::cmSizeC>;
+  using FrgTypeA = xe4::slm_desc<xe4::MatrixTag::A, IsRowMajorA>;
+  using FrgTypeB = xe4::slm_desc<xe4::MatrixTag::B, IsRowMajorB>;
+  using FrgTypeC = xe4::slm_desc<xe4::MatrixTag::C, true>;
 
   using Shape_MNK = Shape_MNK_;
   using ThrID   = Layout<_1>;
@@ -149,17 +194,17 @@ struct MMA_Traits<XE4_ASYNC_GMMA_OP, MMA_Op>: public MMA_Traits<MMA_Op> {
 
 struct XE4_ASYNC_GMMA_MULTICAST_OP {};
 
-template <class TD, class TC, class TA, class TB, class Shape_MNK_, class CoreMatSize, class MatDesc, class Abarrier>
-struct MMA_Traits<XE4_ASYNC_GMMA_MULTICAST<TD, TC, TA, TB, Shape_MNK_, CoreMatSize, MatDesc, Abarrier>>
+template <class TD, class TC, class TA, class TB, class Shape_MNK_, bool IsRowMajorA, bool IsRowMajorB, class MatDesc, class Abarrier>
+struct MMA_Traits<XE4_ASYNC_GMMA_MULTICAST<TD, TC, TA, TB, Shape_MNK_, IsRowMajorA, IsRowMajorB, MatDesc, Abarrier>>
 {
   using ValTypeD = TD;
   using ValTypeA = bf16;
   using ValTypeB = bf16;
   using ValTypeC = float;
 
-  using FrgTypeA = xe4::slm_desc<CoreMatSize::cmSizeA>;
-  using FrgTypeB = xe4::slm_desc<CoreMatSize::cmSizeB>;
-  using FrgTypeC = xe4::slm_desc<CoreMatSize::cmSizeC>;
+  using FrgTypeA = xe4::slm_desc<xe4::MatrixTag::A, IsRowMajorA>;
+  using FrgTypeB = xe4::slm_desc<xe4::MatrixTag::B, IsRowMajorB>;
+  using FrgTypeC = xe4::slm_desc<xe4::MatrixTag::C, true>;
 
   using Shape_MNK = Shape_MNK_;
   using ThrID   = Layout<_1>;

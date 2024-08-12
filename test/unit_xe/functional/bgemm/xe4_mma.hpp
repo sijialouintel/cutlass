@@ -3,15 +3,7 @@
 #include "inline_pisa.hpp"
 
 namespace cute {
-
-template <cm_size_t cmSizeA_, cm_size_t cmSizeB_, cm_size_t cmSizeC_>
-struct CoreMatrixSize {
-  static constexpr cm_size_t cmSizeA = cmSizeA_;
-  static constexpr cm_size_t cmSizeB = cmSizeB_;
-  static constexpr cm_size_t cmSizeC = cmSizeC_;
-};
-
-template <class TD, class TC, class TA, class TB, class Shape_MNK_, class CoreMatSize_, class MatDesc=uint64_t, class Abarrier_=uint64_t*>
+template <class TD, class TC, class TA, class TB, class Shape_MNK_, bool IsRowMajorA, bool IsRowMajorB, class MatDesc=uint64_t, class Abarrier_=uint64_t*>
 struct XE4_ASYNC_GMMA
 {
   using DRegisters = MatDesc[1];
@@ -21,7 +13,6 @@ struct XE4_ASYNC_GMMA
 
   using Shape_MNK = Shape_MNK_;
   using Abarrier = Abarrier_;
-  using CoreMatSize = CoreMatSize_;
 
   CUTE_HOST_DEVICE static void
   fma(Abarrier const& abar_cons,
@@ -30,12 +21,14 @@ struct XE4_ASYNC_GMMA
       MatDesc const& mat_desc_a,
       MatDesc const& mat_desc_b)
   {
-    async_gmma<TD, TC, TA, TB, get<0>(Shape_MNK{}), get<1>(Shape_MNK{}), get<2>(Shape_MNK{})>(mat_desc_d, mat_desc_c, mat_desc_a, mat_desc_b, abar_cons);
+    constexpr mem_layout layout_a = IsRowMajorA ? mem_layout::row_major: mem_layout::col_major;
+    constexpr mem_layout layout_b = IsRowMajorB ? mem_layout::row_major: mem_layout::col_major;
+    async_gmma<TD, TC, TA, TB, get<0>(Shape_MNK{}), get<1>(Shape_MNK{}), get<2>(Shape_MNK{}), layout_a, layout_b>(mat_desc_d, mat_desc_c, mat_desc_a, mat_desc_b, abar_cons);
   }
 };
 
-template <class TD, class TA, class TB, class Shape_MNK_, class CoreMatSize_, class MatDesc, class Abarrier_>
-struct XE4_ASYNC_GMMA<TD, void, TA, TB, Shape_MNK_, CoreMatSize_, MatDesc, Abarrier_>
+template <class TD, class TA, class TB, class Shape_MNK_, bool IsRowMajorA, bool IsRowMajorB, class MatDesc, class Abarrier_>
+struct XE4_ASYNC_GMMA<TD, void, TA, TB, Shape_MNK_, IsRowMajorA, IsRowMajorB, MatDesc, Abarrier_>
 {
   using DRegisters = MatDesc[1];
   using ARegisters = MatDesc[1];
@@ -44,7 +37,6 @@ struct XE4_ASYNC_GMMA<TD, void, TA, TB, Shape_MNK_, CoreMatSize_, MatDesc, Abarr
 
   using Shape_MNK = Shape_MNK_;
   using Abarrier = Abarrier_;
-  using CoreMatSize = CoreMatSize_;
 
   CUTE_HOST_DEVICE static void
   fma(Abarrier const& abar_cons,
@@ -53,11 +45,13 @@ struct XE4_ASYNC_GMMA<TD, void, TA, TB, Shape_MNK_, CoreMatSize_, MatDesc, Abarr
       MatDesc const& mat_desc_a,
       MatDesc const& mat_desc_b)
   {
-    async_gmma<TD, TA, TB, get<0>(Shape_MNK{}), get<1>(Shape_MNK{}), get<2>(Shape_MNK{})>(mat_desc_d, mat_desc_a, mat_desc_b, abar_cons);
+    constexpr mem_layout layout_a = IsRowMajorA ? mem_layout::row_major: mem_layout::col_major;
+    constexpr mem_layout layout_b = IsRowMajorB ? mem_layout::row_major: mem_layout::col_major;
+    async_gmma<TD, TA, TB, get<0>(Shape_MNK{}), get<1>(Shape_MNK{}), get<2>(Shape_MNK{}), layout_a, layout_b>(mat_desc_d, mat_desc_a, mat_desc_b, abar_cons);
   }
 };
 
-template <class TD, class TC, class TA, class TB, class Shape_MNK_, class CoreMatSize_, class MatDesc=uint64_t, class Abarrier_=uint64_t*>
+template <class TD, class TC, class TA, class TB, class Shape_MNK_, bool IsRowMajorA, bool IsRowMajorB, class MatDesc=uint64_t, class Abarrier_=uint64_t*>
 struct XE4_ASYNC_GMMA_MULTICAST
 {
   using DRegisters = MatDesc[1];
@@ -67,7 +61,6 @@ struct XE4_ASYNC_GMMA_MULTICAST
 
   using Shape_MNK = Shape_MNK_;
   using Abarrier = Abarrier_;
-  using CoreMatSize = CoreMatSize_;
 
   CUTE_HOST_DEVICE static void
   fma(Abarrier const& abar_cons,
@@ -78,13 +71,15 @@ struct XE4_ASYNC_GMMA_MULTICAST
       MatDesc const& mat_desc_a,
       MatDesc const& mat_desc_b)
   {
-    async_gmma<TD, TC, TA, TB, get<0>(Shape_MNK{}), get<1>(Shape_MNK{}), get<2>(Shape_MNK{})>(
+    constexpr mem_layout layout_a = IsRowMajorA ? mem_layout::row_major: mem_layout::col_major;
+    constexpr mem_layout layout_b = IsRowMajorB ? mem_layout::row_major: mem_layout::col_major;
+    async_gmma<TD, TC, TA, TB, get<0>(Shape_MNK{}), get<1>(Shape_MNK{}), get<2>(Shape_MNK{}), layout_a, layout_b>(
       mat_desc_d, mat_desc_c, mat_desc_a, mat_desc_b, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b);
   }
 };
 
-template <class TD, class TA, class TB, class Shape_MNK_, class CoreMatSize_, class MatDesc, class Abarrier_>
-struct XE4_ASYNC_GMMA_MULTICAST<TD, void, TA, TB, Shape_MNK_, CoreMatSize_, MatDesc, Abarrier_>
+template <class TD, class TA, class TB, class Shape_MNK_, bool IsRowMajorA, bool IsRowMajorB, class MatDesc, class Abarrier_>
+struct XE4_ASYNC_GMMA_MULTICAST<TD, void, TA, TB, Shape_MNK_, IsRowMajorA, IsRowMajorB, MatDesc, Abarrier_>
 {
   using DRegisters = MatDesc[1];
   using ARegisters = MatDesc[1];
@@ -93,7 +88,6 @@ struct XE4_ASYNC_GMMA_MULTICAST<TD, void, TA, TB, Shape_MNK_, CoreMatSize_, MatD
 
   using Shape_MNK = Shape_MNK_;
   using Abarrier = Abarrier_;
-  using CoreMatSize = CoreMatSize_;
 
   CUTE_HOST_DEVICE static void
   fma(Abarrier const& abar_cons,
@@ -104,7 +98,9 @@ struct XE4_ASYNC_GMMA_MULTICAST<TD, void, TA, TB, Shape_MNK_, CoreMatSize_, MatD
       MatDesc const& mat_desc_a,
       MatDesc const& mat_desc_b)
   {
-    async_gmma<TD, TA, TB, get<0>(Shape_MNK{}), get<1>(Shape_MNK{}), get<2>(Shape_MNK{})>(
+    constexpr mem_layout layout_a = IsRowMajorA ? mem_layout::row_major: mem_layout::col_major;
+    constexpr mem_layout layout_b = IsRowMajorB ? mem_layout::row_major: mem_layout::col_major;
+    async_gmma<TD, TA, TB, get<0>(Shape_MNK{}), get<1>(Shape_MNK{}), get<2>(Shape_MNK{}), layout_a, layout_b>(
       mat_desc_d, mat_desc_a, mat_desc_b, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b);
   }
 };
