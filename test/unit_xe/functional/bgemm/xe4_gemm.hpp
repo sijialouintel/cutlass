@@ -135,10 +135,12 @@ public:
 
     auto accumulator = make_tensor(reinterpret_cast<ElementAccumulator *>(params.shared_storage->accumulator.data()), SmemLayoutC {});
     auto blk_coord = cute::make_tuple(item.get_group(1), item.get_group(2), 0);
+    auto cluster_mask = collective_mainloop.calculateClusterMasks();
+
     if (local_id == 0) {
-      collective_mainloop.load(params.mainloop, mainloop_pipeline, mainloop_pipe_producer_state, load_inputs, blk_coord, k_tile_count, local_id, params.shared_storage->tensors.mainloop);
+      collective_mainloop.load(params.mainloop, mainloop_pipeline, mainloop_pipe_producer_state, load_inputs, blk_coord, k_tile_count, local_id, cluster_mask, params.shared_storage->tensors.mainloop);
     } else if (local_id == 32) {
-      collective_mainloop.mma(params.mainloop, mainloop_pipeline, mainloop_pipe_consumer_state, accumulator, k_tile_count, local_id, params.shared_storage->tensors.mainloop);
+      collective_mainloop.mma(params.mainloop, mainloop_pipeline, mainloop_pipe_consumer_state, accumulator, k_tile_count, local_id, cluster_mask, params.shared_storage->tensors.mainloop);
     }
 
     item.barrier(access::fence_space::local_space);

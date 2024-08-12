@@ -117,7 +117,8 @@ public:
   BarrierPtr abar_prod_base = nullptr;
   BarrierPtr abar_cons_base = nullptr;
 
-  PipelineTmaAsync(sycl::nd_item<3> item) {
+  template<int N>
+  PipelineTmaAsync(sycl::nd_item<N> item) {
     uint32_t local_id = item.get_local_linear_id();
     abar_prod_base = allocate_abar<0,Stages>();
     abar_cons_base = allocate_abar<1,Stages>();
@@ -166,13 +167,13 @@ public:
   }
 
   CUTLASS_DEVICE
-  void consumer_commit(PipelineState state) {
-    consumer_commit(state.index());
+  void consumer_commit(PipelineState state, uint32_t count=1) {
+    consumer_commit(state.index(), count);
   }
 
   CUTLASS_DEVICE
-  void consumer_commit(uint32_t stage, uint32_t skip = false) {
-    abarrier_workgroup_arrive_expect_tx(abar_cons_base + stage, 1);
+  void consumer_commit(uint32_t stage, uint32_t count, uint32_t skip = false) {
+    abarrier_workgroup_arrive_expect_tx(abar_cons_base + stage, count);
   }
 
   CUTLASS_DEVICE
@@ -205,7 +206,8 @@ public:
 
   BarrierPtr abar_store_base = nullptr;
 
-  PipelineTmaStore(sycl::nd_item<3> item) {
+  template<int N>
+  PipelineTmaStore(sycl::nd_item<N> item) {
     uint32_t local_id = item.get_local_linear_id();
     abar_store_base = allocate_abar<2, Stages>();
 

@@ -137,11 +137,11 @@ struct CollectiveMma<
   struct Params {
     using TiledLoadA = decltype(make_xe4_copy<GmemTiledCopyA, AuxParamsA>(
         make_tensor(static_cast<ElementA const*>(nullptr), repeat_like(StrideA{}, int32_t(0)), StrideA{}),
-        SmemLayoutA{}, make_shape(shape<0>(TileShape{}), shape<2>(TileShape{}))));
+        SmemLayoutA{}, make_shape(shape<0>(TileShape{}), shape<2>(TileShape{})), size<1>(ClusterShape{})));
 
     using TiledLoadB = decltype(make_xe4_copy<GmemTiledCopyB, AuxParamsB>(
         make_tensor(static_cast<ElementB const*>(nullptr), repeat_like(StrideB{}, int32_t(0)), StrideB{}),
-        SmemLayoutB{}, make_shape(shape<1>(TileShape{}), shape<2>(TileShape{}))));
+        SmemLayoutB{}, make_shape(shape<1>(TileShape{}), shape<2>(TileShape{})), size<0>(ClusterShape{})));
 
     TiledLoadA load_a;
     TiledLoadB load_b;
@@ -155,8 +155,8 @@ struct CollectiveMma<
     auto A = make_tensor(args.ptr_A, make_layout(make_shape(M,K,L), args.dA));
     auto B = make_tensor(args.ptr_B, make_layout(make_shape(N,K,L), args.dB));
 
-    auto load_a = make_xe4_copy<GmemTiledCopyA, AuxParamsA>(A, SmemLayoutA{}, make_shape(shape<0>(TileShape{}), shape<2>(TileShape{})));
-    auto load_b = make_xe4_copy<GmemTiledCopyB, AuxParamsB>(B, SmemLayoutB{}, make_shape(shape<1>(TileShape{}), shape<2>(TileShape{})));
+    auto load_a = make_xe4_copy<GmemTiledCopyA, AuxParamsA>(A, SmemLayoutA{}, make_shape(shape<0>(TileShape{}), shape<2>(TileShape{})), size<1>(ClusterShape{}));
+    auto load_b = make_xe4_copy<GmemTiledCopyB, AuxParamsB>(B, SmemLayoutB{}, make_shape(shape<1>(TileShape{}), shape<2>(TileShape{})), size<0>(ClusterShape{}));
 
     return {load_a, load_b};
   }
@@ -175,17 +175,46 @@ struct CollectiveMma<
     return cute::make_tuple(gA_mkl, gB_knl);
   }
 
-  template <class TensorA, class TensorB, class BlockCoord>
+  CUTLASS_DEVICE auto
+  calculateClusterMasks() const {
+    constexpr uint32_t cluster_size = size(ClusterShape{});
+    constexpr uint32_t cluster_size_x = size<1>(ClusterShape{});
+
+    uint32_t global_wg_id = sycl::ext::oneapi::experimental::this_group<3>().get_group_linear_id() % cluster_size;
+    uint32_t cluster_wgid_x = global_wg_id % cluster_size_x;
+    uint32_t cluster_wgid_y = global_wg_id / cluster_size_x;
+
+    uint32_t coop_set_id_a = cluster_wgid_y;
+    uint32_t cluster_mask_a = ((1u << cluster_size_x) - 1) << (coop_set_id_a * cluster_size_x);
+
+    uint32_t coop_set_id_b = cluster_wgid_x;
+    uint32_t cluster_mask_b_base = 1u << coop_set_id_b;
+    constexpr uint32_t cluster_size_y = size<0>(ClusterShape{});
+    constexpr uint32_t cluster_mask_b_scale = ((1u << (cluster_size_x * cluster_size_y)) - 1) / ((1u << cluster_size_x) - 1);
+    uint32_t cluster_mask_b = cluster_mask_b_base * cluster_mask_b_scale;
+
+    return cute::make_tuple(cluster_mask_a, cluster_mask_b);
+  }
+
+  template <class TensorA, class TensorB, class BlockCoord, class ClusterMask>
   CUTLASS_DEVICE void
-  load(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState slm_pipe_write, 
-    cute::tuple<TensorA, TensorB> const& load_inputs, BlockCoord const& blk_coord, int k_tile_count, int local_id, TensorStorage& shared_tensors) {
+  load(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState slm_pipe_write,
+    cute::tuple<TensorA, TensorB> const& load_inputs, BlockCoord const& blk_coord, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
     auto sA = make_tensor(reinterpret_cast<ElementA *>(shared_tensors.smem_A.data()), SmemLayoutA {});
     auto sB = make_tensor(reinterpret_cast<ElementB *>(shared_tensors.smem_B.data()), SmemLayoutB {});
 
-    auto [load_a, load_b] = mainloop_params;
+    constexpr uint32_t cluster_size = size(ClusterShape{});
+    constexpr uint32_t cluster_size_x = size<1>(ClusterShape{});
 
-    auto block_load_a = load_a.get_slice(0);
-    auto block_load_b = load_b.get_slice(0);
+    uint32_t global_wg_id = sycl::ext::oneapi::experimental::this_group<3>().get_group_linear_id() % cluster_size;
+    uint32_t cluster_wgid_x = global_wg_id % cluster_size_x;
+    uint32_t cluster_wgid_y = global_wg_id / cluster_size_x;
+
+    auto [load_a, load_b] = mainloop_params;
+    auto [cluster_mask_a, cluster_mask_b] = cluster_mask;
+
+    auto block_load_a = load_a.get_slice(cluster_wgid_x);
+    auto block_load_b = load_b.get_slice(cluster_wgid_y);
 
     auto [gA_mkl, gB_knl] = load_inputs;
     auto [m_coord, n_coord, l_coord] = blk_coord;
@@ -206,24 +235,32 @@ struct CollectiveMma<
       uint32_t index = slm_pipe_write.index();
       auto abar_prod = pipeline.producer_get_barrier(index);
 
-      copy(load_a.with(abar_prod), tAgA(_,_,_,i), tAsA(_,_,_,index));
-      copy(load_b.with(abar_prod), tBgB(_,_,_,i), tBsB(_,_,_,index));
+      copy(load_a.with(abar_prod, cluster_mask_a), tAgA(_,_,_,i), tAsA(_,_,_,index));
+      copy(load_b.with(abar_prod, cluster_mask_b), tBgB(_,_,_,i), tBsB(_,_,_,index));
 
       pipeline.producer_commit(index, slm_bytes_load);
     }
   }
 
-  template<class TD, class TC>
-  using MMA_Op = XE4_ASYNC_GMMA<TD, TC, ElementA, ElementB, TileShape,
-    CoreMatrixSize<cm_size_t::cm_32x32B, cm_size_t::cm_16x32B, cm_size_t::cm_32x32B>, MatrixDesc, AbarrierPtr>;
+  using CoreMatrixSize_ = CoreMatrixSize<cm_size_t::cm_32x32B, cm_size_t::cm_16x32B, cm_size_t::cm_32x32B>;
 
-  template <class FrgTensorC>
+  template<class TD, class TC>
+  using MMA_Op_NORMAL = XE4_ASYNC_GMMA<TD, TC, ElementA, ElementB, TileShape, CoreMatrixSize_, MatrixDesc, AbarrierPtr>;
+
+  template<class TD, class TC>
+  using MMA_Op = cute::conditional_t<size(ClusterShape{}) == 1,
+      XE4_ASYNC_GMMA<TD, TC, ElementA, ElementB, TileShape, CoreMatrixSize_, MatrixDesc, AbarrierPtr>,
+      XE4_ASYNC_GMMA_MULTICAST<TD, TC, ElementA, ElementB, TileShape, CoreMatrixSize_, MatrixDesc, AbarrierPtr>
+  >;
+
+  template <class FrgTensorC, class ClusterMask>
   CUTLASS_DEVICE void
-  mma(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState slm_pipe_read, FrgTensorC& accumulator, int k_tile_count, int local_id, TensorStorage& shared_tensors) {
+  mma(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState slm_pipe_read, FrgTensorC& accumulator, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
     auto sA = make_tensor(reinterpret_cast<ElementA *>(shared_tensors.smem_A.data()), SmemLayoutA {});
     auto sB = make_tensor(reinterpret_cast<ElementB *>(shared_tensors.smem_B.data()), SmemLayoutB {});
 
     auto [load_a, load_b] = mainloop_params;
+    auto [cluster_mask_a, cluster_mask_b] = cluster_mask;
 
     TiledMma tiled_mma;
     auto thread_mma = tiled_mma.get_thread_slice(0);
@@ -235,26 +272,30 @@ struct CollectiveMma<
     if (k_tile_count == 1) {
       pipeline.consumer_try_wait(slm_pipe_read);
       auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
-      cute::gemm(tiled_mma.with(abar_cons, MMA_Op<ElementC, void>{}), tCrA(_,_,_,0), tCrB(_,_,_,0), accum);
+      cute::gemm(tiled_mma.with(abar_cons, MMA_Op_NORMAL<ElementC, void>{}, cluster_mask_a, cluster_mask_b), tCrA(_,_,_,0), tCrB(_,_,_,0), accum);
       pipeline.consumer_commit(slm_pipe_read);
+      pipeline.producer_try_wait(slm_pipe_read);
       return;
     }
+
+    auto tiled_mma_cluster = cute::make_tiled_mma(MMA_Op<ElementC, void>{});
+    constexpr uint32_t expect_tx = (size(ClusterShape{}) == 1) ? 1 : (size<0>(ClusterShape{}) + size<1>(ClusterShape{}));
 
     if (k_tile_count >= 2) {
       PipelineState slm_pipe_read;
       pipeline.consumer_try_wait(slm_pipe_read);
       uint32_t index = slm_pipe_read.index();
       auto abar_cons = pipeline.consumer_get_barrier(index);
-      cute::gemm(tiled_mma.with(abar_cons, MMA_Op<ElementAccumulator, void>{}), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
-      pipeline.consumer_commit(slm_pipe_read);
+      cute::gemm(tiled_mma_cluster.with(abar_cons, MMA_Op<ElementAccumulator, void>{}, cluster_mask_a, cluster_mask_b), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
+      pipeline.consumer_commit(slm_pipe_read, expect_tx);
 
       for (uint32_t i = 1; i < k_tile_count - 1; i++) {
           ++slm_pipe_read;
           uint32_t index = slm_pipe_read.index();
           auto abar_cons = pipeline.consumer_get_barrier(index);
           pipeline.consumer_try_wait(slm_pipe_read);
-          cute::gemm(tiled_mma.with(abar_cons, MMA_Op<ElementAccumulator, ElementAccumulator>{}), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
-          pipeline.consumer_commit(slm_pipe_read);
+          cute::gemm(tiled_mma_cluster.with(abar_cons, MMA_Op<ElementAccumulator, ElementAccumulator>{}, cluster_mask_a, cluster_mask_b), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
+          pipeline.consumer_commit(slm_pipe_read, expect_tx);
       }
       {
           ++slm_pipe_read;
@@ -266,8 +307,9 @@ struct CollectiveMma<
           uint32_t phase = ((k_tile_count - 1) / Stages) & 1u;
           pipeline.consumer_try_wait(index, phase);
 
-          cute::gemm(tiled_mma.with(abar_cons, MMA_Op<ElementC, ElementAccumulator>{}), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
+          cute::gemm(tiled_mma.with(abar_cons, MMA_Op_NORMAL<ElementC, ElementAccumulator>{}, cluster_mask_a, cluster_mask_b), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
           pipeline.consumer_commit(slm_pipe_read);
+          pipeline.producer_try_wait(slm_pipe_read);
       }
     }
   }

@@ -116,7 +116,8 @@ struct MMA_Traits<XE4_ASYNC_GMMA<TD, TC, TA, TB, Shape_MNK_, CoreMatSize, MatDes
 
   template<typename MMA_Op>
   CUTE_HOST_DEVICE auto
-  with(Abarrier const& abarrier, MMA_Op &&) const {
+  with(Abarrier const& abarrier, MMA_Op && mma_op,
+    [[maybe_unused]] uint32_t const& cluster_mask_a, [[maybe_unused]] uint32_t const& cluster_mask_b) const {
     return MMA_Traits<XE4_ASYNC_GMMA_OP, MMA_Op>{abarrier};
   }
 };
@@ -143,6 +144,58 @@ struct MMA_Traits<XE4_ASYNC_GMMA_OP, MMA_Op>: public MMA_Traits<MMA_Op> {
   {
     return detail::explode_tuple(detail::CallFMA<MMA_Op>{},
                                  make_tuple(traits.abarrier_, *D.data(), *C.data(), *A.data(), *B.data()), seq<0,1,2,3,4>{});
+  }
+};
+
+
+struct XE4_ASYNC_GMMA_MULTICAST_OP {};
+
+template <class TD, class TC, class TA, class TB, class Shape_MNK_, class CoreMatSize, class MatDesc, class Abarrier>
+struct MMA_Traits<XE4_ASYNC_GMMA_MULTICAST<TD, TC, TA, TB, Shape_MNK_, CoreMatSize, MatDesc, Abarrier>>
+{
+  using ValTypeD = TD;
+  using ValTypeA = bf16;
+  using ValTypeB = bf16;
+  using ValTypeC = float;
+
+  using FrgTypeA = xe4::slm_desc<CoreMatSize::cmSizeA>;
+  using FrgTypeB = xe4::slm_desc<CoreMatSize::cmSizeB>;
+  using FrgTypeC = xe4::slm_desc<CoreMatSize::cmSizeC>;
+
+  using Shape_MNK = Shape_MNK_;
+  using ThrID   = Layout<_1>;
+  using ALayout = xe4::ABLayout<get<0>(Shape_MNK{}), get<2>(Shape_MNK{})>;
+  using BLayout = xe4::ABLayout<get<1>(Shape_MNK{}), get<2>(Shape_MNK{})>;
+  using CLayout = xe4::ABLayout<get<0>(Shape_MNK{}), get<1>(Shape_MNK{})>;
+
+  template<typename MMA_Op>
+  CUTE_HOST_DEVICE auto
+  with(Abarrier const& abarrier, MMA_Op && mma_op, uint32_t const& cluster_mask_a, uint32_t const& cluster_mask_b) const {
+    return MMA_Traits<XE4_ASYNC_GMMA_MULTICAST_OP, MMA_Op>{{}, {abarrier, cluster_mask_a, cluster_mask_b}};
+  }
+};
+
+template<typename MMA_Op>
+struct MMA_Traits<XE4_ASYNC_GMMA_MULTICAST_OP, MMA_Op>: public MMA_Traits<MMA_Op> {
+  using Abarrier = typename MMA_Op::Abarrier;
+
+  tuple<Abarrier, uint32_t, uint32_t> const opargs_;
+
+  template <class TD, class DLayout,
+            class TA, class ALayout,
+            class TB, class BLayout,
+            class TC, class CLayout>
+  CUTE_HOST_DEVICE friend constexpr
+  void
+  mma_unpack(MMA_Traits const& traits,
+       Tensor<TD, DLayout>      & D,
+       Tensor<TA, ALayout> const& A,
+       Tensor<TB, BLayout> const& B,
+       Tensor<TC, CLayout> const& C)
+  {
+    return detail::explode_tuple(detail::CallFMA<MMA_Op>{},
+                                 traits.opargs_, tuple_seq<decltype(traits.opargs_)>{},
+                                 make_tuple(*D.data(), *C.data(), *A.data(), *B.data()), seq<0,1,2,3>{});
   }
 };
 
