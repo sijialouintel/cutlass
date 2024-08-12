@@ -53,31 +53,31 @@ int main()
     using dtypeAcc = float;
     using dtypeC = float;
 
-    static constexpr bool transposeA = false;
-    static constexpr bool transposeB = false;
+    static constexpr mem_layout layout_a = mem_layout::row_major;
+    static constexpr mem_layout layout_b = mem_layout::row_major;
 
-    using LayoutA = std::conditional_t<transposeA, cutlass::layout::ColumnMajor, cutlass::layout::RowMajor>;
-    using LayoutB = std::conditional_t<transposeB, cutlass::layout::ColumnMajor, cutlass::layout::RowMajor>;
+    using LayoutA = std::conditional_t<layout_a == mem_layout::row_major, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
+    using LayoutB = std::conditional_t<layout_b == mem_layout::row_major, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
     using LayoutC = cutlass::layout::RowMajor;
 
     std::vector<dtypeA> A_h(sizeA);
     std::generate_n(A_h.data(), sizeA, [=]() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
 
     auto A_s = malloc_shared<dtypeA>(sizeA, q);
-    if constexpr (transposeA) {
-        transpose_block<dtypeA, wg_k, wg_m>(A_h.data(), A_s, mat_k, mat_m);
-    } else {
+    if constexpr (layout_a == mem_layout::row_major) {
         std::copy_n(A_h.data(), sizeA, A_s);
+    } else {
+        transpose_block<dtypeA, wg_k, wg_m>(A_h.data(), A_s, mat_k, mat_m);
     }
 
     std::vector<dtypeB> B_h(sizeB);
     std::generate_n(B_h.data(), sizeB, [=]() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
 
     auto B_s = malloc_shared<dtypeB>(sizeB, q);
-    if constexpr (transposeB) {
-        transpose_block<dtypeB, wg_n, wg_k>(B_h.data(), B_s, mat_n, mat_k);
-    } else {
+    if constexpr (layout_b == mem_layout::row_major) {
         std::copy_n(B_h.data(), sizeB, B_s);
+    } else {
+        transpose_block<dtypeB, wg_n, wg_k>(B_h.data(), B_s, mat_n, mat_k);
     }
 
     auto C_s = malloc_shared<dtypeC>(sizeC, q);
@@ -131,18 +131,19 @@ int main()
     >;
 
     q.parallel_for<class BGEMM>(Range, [=](nd_item<3> item) {
+        uint32_t wg_id = item.get_group().get_group_linear_id();
         auto problem_shape = make_shape(mat_m, mat_n, mat_k, mat_l);
+
         auto args = GemmKernel::Arguments {
             item,
             problem_shape,
             {
+                wg_id,
                 A_s, cutlass::make_cute_packed_stride(StrideA{}, cute::make_shape(mat_m, mat_k, mat_l)),
                 B_s, cutlass::make_cute_packed_stride(StrideB{}, cute::make_shape(mat_n, mat_k, mat_l)),
-                item.get_group(),
             },
             {
                 C_s, cutlass::make_cute_packed_stride(StrideC{}, cute::make_shape(mat_m, mat_n, mat_l)),
-                item.get_group(),
             }
         };
 
@@ -151,8 +152,6 @@ int main()
         kernel(params);
      }).wait();
 
-    mem_layout layout_a = transposeA ? mem_layout::col_major : mem_layout::row_major;
-    mem_layout layout_b = transposeB ? mem_layout::col_major : mem_layout::row_major;
     uint32_t err_cnt = validate_gemm_result(A_h.data(), B_h.data(), C_s, mat_m, mat_n, mat_k, layout_a, layout_b);
     if (err_cnt > 0) {
         std::cout << "Test Failed!" << std::endl;

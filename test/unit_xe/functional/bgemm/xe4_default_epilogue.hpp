@@ -65,7 +65,6 @@ public:
   struct Arguments {
     ElementC const* ptr_C = nullptr;
     StrideC dC{};
-    sycl::group<3> group;
   };
 
   // Device side epilogue params
@@ -90,11 +89,7 @@ public:
       [[maybe_unused]] void* workspace) {
 
     auto [M, N, K, L] = problem_shape;
-    constexpr auto slm_bytes = sizeof(ElementAccumulator) * size(SmemLayoutC {}) + sizeof(ElementC) * size(SmemLayoutC {});
-
-    auto ptr = sycl::ext::oneapi::group_local_memory_for_overwrite<uint8_t[slm_bytes]>(args.group);
     auto C = make_tensor(args.ptr_C, make_layout(make_shape(M, N, L), args.dC));
-
     auto store_c = make_xe4_copy<GmemTiledCopyC, AuxParamsC>(C, SmemLayoutC{}, make_shape(shape<0>(TileShape{}), shape<1>(TileShape{})));
 
     return {store_c};

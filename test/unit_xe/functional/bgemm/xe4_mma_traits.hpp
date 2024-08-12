@@ -114,10 +114,9 @@ struct MMA_Traits<XE4_ASYNC_GMMA<TD, TC, TA, TB, Shape_MNK_, CoreMatSize, MatDes
   using BLayout = xe4::ABLayout<get<1>(Shape_MNK{}), get<2>(Shape_MNK{})>;
   using CLayout = xe4::ABLayout<get<0>(Shape_MNK{}), get<1>(Shape_MNK{})>;
 
-  template<typename MMA_Op>
+  template<typename MMA_Op, class... TraitsArgs>
   CUTE_HOST_DEVICE auto
-  with(Abarrier const& abarrier, MMA_Op && mma_op,
-    [[maybe_unused]] uint32_t const& cluster_mask_a, [[maybe_unused]] uint32_t const& cluster_mask_b) const {
+  with(MMA_Op && mma_op, Abarrier const& abarrier, [[maybe_unused]] TraitsArgs&&... args) const {
     return MMA_Traits<XE4_ASYNC_GMMA_OP, MMA_Op>{abarrier};
   }
 };
@@ -168,10 +167,10 @@ struct MMA_Traits<XE4_ASYNC_GMMA_MULTICAST<TD, TC, TA, TB, Shape_MNK_, CoreMatSi
   using BLayout = xe4::ABLayout<get<1>(Shape_MNK{}), get<2>(Shape_MNK{})>;
   using CLayout = xe4::ABLayout<get<0>(Shape_MNK{}), get<1>(Shape_MNK{})>;
 
-  template<typename MMA_Op>
+  template<typename MMA_Op, class... TraitsArgs>
   CUTE_HOST_DEVICE auto
-  with(Abarrier const& abarrier, MMA_Op && mma_op, uint32_t const& cluster_mask_a, uint32_t const& cluster_mask_b) const {
-    return MMA_Traits<XE4_ASYNC_GMMA_MULTICAST_OP, MMA_Op>{{}, {abarrier, cluster_mask_a, cluster_mask_b}};
+  with(MMA_Op && mma_op, TraitsArgs&&... args) const {
+    return MMA_Traits<XE4_ASYNC_GMMA_MULTICAST_OP, MMA_Op>{{}, {static_cast<TraitsArgs&&>(args)...}};
   }
 };
 

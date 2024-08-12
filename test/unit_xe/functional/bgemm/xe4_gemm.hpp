@@ -70,7 +70,7 @@ public:
       EpilogueTensorStorage epilogue;
     } tensors;
 
-    cute::array<ElementAccumulator, cute::cosize_v<SmemLayoutC>> accumulator;
+    cute::array<ElementAccumulator, cute::cosize_v<SmemLayoutC>> smem_Acc;
   };
 
   // Device side arguments
@@ -110,42 +110,43 @@ public:
   void
   operator()(Params const& params) {
     auto& item = params.item;
+    auto& problem_shape = params.problem_shape;
+    auto shared_storage = params.shared_storage;
 
     using MainloopPipeline = typename CollectiveMainloop::MainloopPipeline;
-    MainloopPipeline mainloop_pipeline(item);
     using EpiloguePipeline = typename CollectiveEpilogue::EpiloguePipeline;
+    using MainloopPipelineState = typename CollectiveMainloop::PipelineState;
+    using EpiloguePipelineState = typename CollectiveEpilogue::PipelineState;
+
+    MainloopPipeline mainloop_pipeline(item);
     EpiloguePipeline epilogue_pipeline(item);
 
-    auto problem_shape_MNKL = append<4>(params.problem_shape, Int<1>{});
-    auto [M, N, K, L] = problem_shape_MNKL;
-
-    auto tile_shape = TileShape{};
-    auto wg_k = get<2>(tile_shape);
-
     CollectiveMainloop collective_mainloop;
-    auto load_inputs = collective_mainloop.load_init(problem_shape_MNKL, params.mainloop);
     CollectiveEpilogue collective_epilogue(params.epilogue);
 
-    typename CollectiveMainloop::PipelineState mainloop_pipe_consumer_state;
+    MainloopPipelineState mainloop_pipe_consumer_state;
+    EpiloguePipelineState epilogue_pipe_store_state;
     auto mainloop_pipe_producer_state = cutlass::xe4::make_producer_start_state<MainloopPipeline>();
-    typename CollectiveEpilogue::PipelineState epilogue_pipe_store_state;
 
-    uint32_t local_id = item.get_local_linear_id();
+    auto K = get<2>(problem_shape);
+    auto wg_k = get<2>(TileShape{});
     uint32_t k_tile_count = (K + wg_k -1) / wg_k;
+    uint32_t local_id = item.get_local_linear_id();
 
-    auto accumulator = make_tensor(reinterpret_cast<ElementAccumulator *>(params.shared_storage->accumulator.data()), SmemLayoutC {});
+    auto accumulator = make_tensor(reinterpret_cast<ElementAccumulator *>(shared_storage->smem_Acc.data()), SmemLayoutC {});
     auto blk_coord = cute::make_tuple(item.get_group(1), item.get_group(2), 0);
-    auto cluster_mask = collective_mainloop.calculateClusterMasks();
+    auto cluster_mask = collective_mainloop.calculateClusterMasks(params.mainloop.wg_id);
 
     if (local_id == 0) {
-      collective_mainloop.load(params.mainloop, mainloop_pipeline, mainloop_pipe_producer_state, load_inputs, blk_coord, k_tile_count, local_id, cluster_mask, params.shared_storage->tensors.mainloop);
+      auto load_inputs = collective_mainloop.load_init(problem_shape, params.mainloop);
+      collective_mainloop.load(params.mainloop, mainloop_pipeline, mainloop_pipe_producer_state, load_inputs, blk_coord, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
     } else if (local_id == 32) {
-      collective_mainloop.mma(params.mainloop, mainloop_pipeline, mainloop_pipe_consumer_state, accumulator, k_tile_count, local_id, cluster_mask, params.shared_storage->tensors.mainloop);
+      collective_mainloop.mma(params.mainloop, mainloop_pipeline, mainloop_pipe_consumer_state, accumulator, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
     }
 
     item.barrier(access::fence_space::local_space);
 
-    collective_epilogue(epilogue_pipeline, epilogue_pipe_store_state, problem_shape_MNKL, blk_coord, accumulator, local_id, params.shared_storage->tensors.epilogue);
+    collective_epilogue(epilogue_pipeline, epilogue_pipe_store_state, problem_shape, blk_coord, accumulator, local_id, shared_storage->tensors.epilogue);
   }
 };
 

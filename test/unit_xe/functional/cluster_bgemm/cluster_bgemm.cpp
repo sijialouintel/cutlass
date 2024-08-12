@@ -136,18 +136,19 @@ int main()
     >;
 
     q.parallel_for<class BGEMM>(Range, [=](nd_item<3> item) {
+        uint32_t wg_id = item.get_group().get_group_linear_id();
         auto problem_shape = make_shape(mat_m, mat_n, mat_k, mat_l);
+
         auto args = GemmKernel::Arguments {
             item,
             problem_shape,
             {
+                wg_id,
                 A_s, cutlass::make_cute_packed_stride(StrideA{}, cute::make_shape(mat_m, mat_k, mat_l)),
                 B_s, cutlass::make_cute_packed_stride(StrideB{}, cute::make_shape(mat_n, mat_k, mat_l)),
-                item.get_group(),
             },
             {
                 C_s, cutlass::make_cute_packed_stride(StrideC{}, cute::make_shape(mat_m, mat_n, mat_l)),
-                item.get_group(),
             }
         };
 

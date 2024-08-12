@@ -126,11 +126,11 @@ struct CollectiveMma<
 
   // Host side kernel arguments
   struct Arguments {
-    ElementA const* ptr_A;
+    uint32_t wg_id {0};
+    ElementA const* ptr_A {nullptr};
     StrideA dA;
-    ElementB const* ptr_B;
+    ElementB const* ptr_B {nullptr};
     StrideB dB;
-    sycl::group<3> group;
   };
 
   // Device side kernel params
@@ -143,6 +143,7 @@ struct CollectiveMma<
         make_tensor(static_cast<ElementB const*>(nullptr), repeat_like(StrideB{}, int32_t(0)), StrideB{}),
         SmemLayoutB{}, make_shape(shape<1>(TileShape{}), shape<2>(TileShape{})), size<0>(ClusterShape{})));
 
+    uint32_t wg_id {0};
     TiledLoadA load_a;
     TiledLoadB load_b;
   };
@@ -158,7 +159,7 @@ struct CollectiveMma<
     auto load_a = make_xe4_copy<GmemTiledCopyA, AuxParamsA>(A, SmemLayoutA{}, make_shape(shape<0>(TileShape{}), shape<2>(TileShape{})), size<1>(ClusterShape{}));
     auto load_b = make_xe4_copy<GmemTiledCopyB, AuxParamsB>(B, SmemLayoutB{}, make_shape(shape<1>(TileShape{}), shape<2>(TileShape{})), size<0>(ClusterShape{}));
 
-    return {load_a, load_b};
+    return {args.wg_id, load_a, load_b};
   }
 
   template <class ProblemShape>
@@ -176,11 +177,11 @@ struct CollectiveMma<
   }
 
   CUTLASS_DEVICE auto
-  calculateClusterMasks() const {
+  calculateClusterMasks(uint32_t wg_id) const {
     constexpr uint32_t cluster_size = size(ClusterShape{});
     constexpr uint32_t cluster_size_x = size<1>(ClusterShape{});
 
-    uint32_t global_wg_id = sycl::ext::oneapi::experimental::this_group<3>().get_group_linear_id() % cluster_size;
+    uint32_t global_wg_id = wg_id % cluster_size;
     uint32_t cluster_wgid_x = global_wg_id % cluster_size_x;
     uint32_t cluster_wgid_y = global_wg_id / cluster_size_x;
 
@@ -203,15 +204,15 @@ struct CollectiveMma<
     auto sA = make_tensor(reinterpret_cast<ElementA *>(shared_tensors.smem_A.data()), SmemLayoutA {});
     auto sB = make_tensor(reinterpret_cast<ElementB *>(shared_tensors.smem_B.data()), SmemLayoutB {});
 
+    auto [wg_id, load_a, load_b] = mainloop_params;
+    auto [cluster_mask_a, cluster_mask_b] = cluster_mask;
+
     constexpr uint32_t cluster_size = size(ClusterShape{});
     constexpr uint32_t cluster_size_x = size<1>(ClusterShape{});
 
-    uint32_t global_wg_id = sycl::ext::oneapi::experimental::this_group<3>().get_group_linear_id() % cluster_size;
+    uint32_t global_wg_id = wg_id % cluster_size;
     uint32_t cluster_wgid_x = global_wg_id % cluster_size_x;
     uint32_t cluster_wgid_y = global_wg_id / cluster_size_x;
-
-    auto [load_a, load_b] = mainloop_params;
-    auto [cluster_mask_a, cluster_mask_b] = cluster_mask;
 
     auto block_load_a = load_a.get_slice(cluster_wgid_x);
     auto block_load_b = load_b.get_slice(cluster_wgid_y);
@@ -244,10 +245,10 @@ struct CollectiveMma<
 
   using CoreMatrixSize_ = CoreMatrixSize<cm_size_t::cm_32x32B, cm_size_t::cm_16x32B, cm_size_t::cm_32x32B>;
 
-  template<class TD, class TC>
+  template<class TD, class TC = void>
   using MMA_Op_NORMAL = XE4_ASYNC_GMMA<TD, TC, ElementA, ElementB, TileShape, CoreMatrixSize_, MatrixDesc, AbarrierPtr>;
 
-  template<class TD, class TC>
+  template<class TD, class TC = void>
   using MMA_Op = cute::conditional_t<size(ClusterShape{}) == 1,
       XE4_ASYNC_GMMA<TD, TC, ElementA, ElementB, TileShape, CoreMatrixSize_, MatrixDesc, AbarrierPtr>,
       XE4_ASYNC_GMMA_MULTICAST<TD, TC, ElementA, ElementB, TileShape, CoreMatrixSize_, MatrixDesc, AbarrierPtr>
@@ -259,7 +260,7 @@ struct CollectiveMma<
     auto sA = make_tensor(reinterpret_cast<ElementA *>(shared_tensors.smem_A.data()), SmemLayoutA {});
     auto sB = make_tensor(reinterpret_cast<ElementB *>(shared_tensors.smem_B.data()), SmemLayoutB {});
 
-    auto [load_a, load_b] = mainloop_params;
+    auto [wg_id, load_a, load_b] = mainloop_params;
     auto [cluster_mask_a, cluster_mask_b] = cluster_mask;
 
     TiledMma tiled_mma;
@@ -272,13 +273,13 @@ struct CollectiveMma<
     if (k_tile_count == 1) {
       pipeline.consumer_try_wait(slm_pipe_read);
       auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
-      cute::gemm(tiled_mma.with(abar_cons, MMA_Op_NORMAL<ElementC, void>{}, cluster_mask_a, cluster_mask_b), tCrA(_,_,_,0), tCrB(_,_,_,0), accum);
+      cute::gemm(tiled_mma.with(MMA_Op_NORMAL<ElementC>{}, abar_cons, cluster_mask_a, cluster_mask_b), tCrA(_,_,_,0), tCrB(_,_,_,0), accum);
       pipeline.consumer_commit(slm_pipe_read);
       pipeline.producer_try_wait(slm_pipe_read);
       return;
     }
 
-    auto tiled_mma_cluster = cute::make_tiled_mma(MMA_Op<ElementC, void>{});
+    auto tiled_mma_cluster = cute::make_tiled_mma(MMA_Op<ElementC>{});
     constexpr uint32_t expect_tx = (size(ClusterShape{}) == 1) ? 1 : (size<0>(ClusterShape{}) + size<1>(ClusterShape{}));
 
     if (k_tile_count >= 2) {
@@ -286,7 +287,7 @@ struct CollectiveMma<
       pipeline.consumer_try_wait(slm_pipe_read);
       uint32_t index = slm_pipe_read.index();
       auto abar_cons = pipeline.consumer_get_barrier(index);
-      cute::gemm(tiled_mma_cluster.with(abar_cons, MMA_Op<ElementAccumulator, void>{}, cluster_mask_a, cluster_mask_b), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
+      cute::gemm(tiled_mma_cluster.with(MMA_Op<ElementAccumulator>{}, abar_cons, cluster_mask_a, cluster_mask_b), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
       pipeline.consumer_commit(slm_pipe_read, expect_tx);
 
       for (uint32_t i = 1; i < k_tile_count - 1; i++) {
@@ -294,7 +295,7 @@ struct CollectiveMma<
           uint32_t index = slm_pipe_read.index();
           auto abar_cons = pipeline.consumer_get_barrier(index);
           pipeline.consumer_try_wait(slm_pipe_read);
-          cute::gemm(tiled_mma_cluster.with(abar_cons, MMA_Op<ElementAccumulator, ElementAccumulator>{}, cluster_mask_a, cluster_mask_b), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
+          cute::gemm(tiled_mma_cluster.with(MMA_Op<ElementAccumulator, ElementAccumulator>{}, abar_cons, cluster_mask_a, cluster_mask_b), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
           pipeline.consumer_commit(slm_pipe_read, expect_tx);
       }
       {
@@ -307,7 +308,7 @@ struct CollectiveMma<
           uint32_t phase = ((k_tile_count - 1) / Stages) & 1u;
           pipeline.consumer_try_wait(index, phase);
 
-          cute::gemm(tiled_mma.with(abar_cons, MMA_Op_NORMAL<ElementC, ElementAccumulator>{}, cluster_mask_a, cluster_mask_b), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
+          cute::gemm(tiled_mma.with(MMA_Op_NORMAL<ElementC, ElementAccumulator>{}, abar_cons, cluster_mask_a, cluster_mask_b), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
           pipeline.consumer_commit(slm_pipe_read);
           pipeline.producer_try_wait(slm_pipe_read);
       }
