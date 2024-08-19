@@ -78,6 +78,16 @@ int main()
     using TileShape = Shape<Int<wg_m>, Int<wg_n>, Int<wg_k>>;
     using MMA_Op = XE4_ASYNC_GMMA<dtypeAcc, void, dtypeA, dtypeB, TileShape, is_row_major_a, is_row_major_b, uint32_t, uint64_t*>;
 
+    using SmemLayoutAtomA = std::conditional_t<is_row_major_a,
+        Layout<Shape<Int<wg_m>,Int<wg_k>,Int<stage>>, Stride<Int<wg_k>,_1,Int<wg_m*wg_k>>>,
+        Layout<Shape<Int<wg_m>,Int<wg_k>,Int<stage>>, Stride<_1,Int<wg_m>,Int<wg_m*wg_k>>>
+    >;
+
+    using SmemLayoutAtomB = std::conditional_t<is_row_major_b,
+        Layout<Shape<Int<wg_n>,Int<wg_k>,Int<stage>>, Stride<_1,Int<wg_n>,Int<wg_k*wg_n>>>,
+        Layout<Shape<Int<wg_n>,Int<wg_k>,Int<stage>>, Stride<Int<wg_k>,_1,Int<wg_k*wg_n>>>
+    >;
+
     using CollectiveMainloop = CollectiveMma<
         MainloopXe4DmaGmma<stage, ClusterShape>,                                                // MainloopXe4DmaGmma
         TileShape,                                                                              // TileShape
@@ -87,11 +97,11 @@ int main()
         StrideB,                                                                                // StrideB
         decltype(cute::make_tiled_mma(MMA_Op{})),                                               // TiledMma
         ASYNC_TENSOR_LOAD_MULTICAST,                                                            // GmemTiledCopyA
-        Layout<Shape<Int<wg_m>,Int<wg_k>,Int<stage>>, Stride<Int<wg_k>,_1,Int<wg_m*wg_k>>>,     // SmemLayoutAtomA
+        SmemLayoutAtomA,                                                                        // SmemLayoutAtomA
         void,                                                                                   // SmemCopyAtomA
         void,                                                                                   // TransformA
         ASYNC_TENSOR_LOAD_MULTICAST,                                                            // GmemTiledCopyB
-        Layout<Shape<Int<wg_n>,Int<wg_k>,Int<stage>>, Stride<_1,Int<wg_n>,Int<wg_k*wg_n>>>,     // SmemLayoutAtomB
+        SmemLayoutAtomB,                                                                        // SmemLayoutAtomB
         void,                                                                                   // SmemCopyAtomB
         void                                                                                    // TransformB
     >;

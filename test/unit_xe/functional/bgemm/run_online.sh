@@ -39,7 +39,7 @@ export XE4_LOG_FOLDER_PATH="./logdump"
 
 ./bgemm
 
-find build -type f -name "*.pisa" | while read -r file; do
+find . -type f -name "*.pisa" | while read -r file; do
     sed -i '/Inline assembly/d' "$file"
 done
 
