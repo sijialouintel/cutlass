@@ -13,9 +13,13 @@ using namespace sycl;
 using namespace cute::xe4;
 using namespace cutlass::gemm::collective;
 
-class CLUSTER_BGEMM;
+class CLUSTER_BGEMM_ROW_ROW;
+class CLUSTER_BGEMM_COL_ROW;
+class CLUSTER_BGEMM_ROW_COL;
+class CLUSTER_BGEMM_COL_COL;
 
-int main()
+template<typename test, mem_layout layout_a, mem_layout layout_b>
+int run_test()
 {
     queue q;
     auto dev = q.get_device();
@@ -43,9 +47,6 @@ int main()
     using dtypeB = bf16;
     using dtypeAcc = float;
     using dtypeC = float;
-
-    static constexpr mem_layout layout_a = mem_layout::row_major;
-    static constexpr mem_layout layout_b = mem_layout::row_major;
 
     static constexpr bool is_row_major_a = (layout_a == mem_layout::row_major);
     static constexpr bool is_row_major_b = (layout_b == mem_layout::row_major);
@@ -120,11 +121,11 @@ int main()
         void
     >;
 
-    q.parallel_for<class CLUSTER_BGEMM>(Range, [=](nd_item<3> item) {
+    q.parallel_for<test>(Range, [=](nd_item<3> item) {
         uint32_t wg_id = item.get_group().get_group_linear_id();
         auto problem_shape = make_shape(mat_m, mat_n, mat_k, mat_l);
 
-        auto args = GemmKernel::Arguments {
+        auto args = typename GemmKernel::Arguments {
             item,
             problem_shape,
             {
@@ -149,5 +150,14 @@ int main()
     }
 
     std::cout << "Test Pass!" << std::endl;
+    return 0;
+}
+
+int main()
+{
+    run_test<CLUSTER_BGEMM_ROW_ROW, mem_layout::row_major, mem_layout::row_major>();
+    run_test<CLUSTER_BGEMM_COL_ROW, mem_layout::col_major, mem_layout::row_major>();
+    run_test<CLUSTER_BGEMM_ROW_COL, mem_layout::row_major, mem_layout::col_major>();
+    run_test<CLUSTER_BGEMM_COL_COL, mem_layout::col_major, mem_layout::col_major>();
     return 0;
 }

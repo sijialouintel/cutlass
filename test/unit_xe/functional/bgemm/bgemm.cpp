@@ -13,9 +13,13 @@ using namespace sycl;
 using namespace cute::xe4;
 using namespace cutlass::gemm::collective;
 
-class BGEMM;
+class BGEMM_ROW_ROW;
+class BGEMM_COL_ROW;
+class BGEMM_ROW_COL;
+class BGEMM_COL_COL;
 
-int main()
+template<typename test, mem_layout layout_a, mem_layout layout_b>
+int run_test()
 {
     queue q;
     auto dev = q.get_device();
@@ -40,9 +44,6 @@ int main()
     using dtypeAcc = float;
     using dtypeC = float;
 
-    static constexpr mem_layout layout_a = mem_layout::col_major;
-    static constexpr mem_layout layout_b = mem_layout::row_major;
-
     static constexpr bool is_row_major_a = (layout_a == mem_layout::row_major);
     static constexpr bool is_row_major_b = (layout_b == mem_layout::row_major);
 
@@ -63,8 +64,12 @@ int main()
     uint32_t group_range_m = (mat_m + wg_m - 1) / wg_m;
     uint32_t group_range_n = (mat_n + wg_n - 1) / wg_n;
     range<3> group_range(1, group_range_m, group_range_n);
-    std::cout << "Group range: {" << 1 << ", " << group_range_m << ", " << group_range_n << "} \n";
     nd_range<3> Range(group_range * local_range, local_range);
+
+    std::cout << "ProblemShape: (" << mat_m << ", " << mat_n << ", " << mat_k << ")\n";
+    std::cout << "TileShape: (" << wg_m << ", " << wg_n << ", " << wg_k << ")\n";
+    std::cout << "isRowMajorA=" << is_row_major_a << " isRowMajorB=" << is_row_major_b << "\n";
+    std::cout << "Group range: {" << 1 << ", " << group_range_m << ", " << group_range_n << "} \n";
 
     using StrideA = cutlass::detail::TagToStrideA_t<LayoutA>;
     using StrideB = cutlass::detail::TagToStrideB_t<LayoutB>;
@@ -115,11 +120,11 @@ int main()
         void
     >;
 
-    q.parallel_for<class BGEMM>(Range, [=](nd_item<3> item) {
+    q.parallel_for<test>(Range, [=](nd_item<3> item) {
         uint32_t wg_id = item.get_group().get_group_linear_id();
         auto problem_shape = make_shape(mat_m, mat_n, mat_k, mat_l);
 
-        auto args = GemmKernel::Arguments {
+        auto args = typename GemmKernel::Arguments {
             item,
             problem_shape,
             {
@@ -144,5 +149,21 @@ int main()
     }
 
     std::cout << "Test Pass!" << std::endl;
+    return 0;
+}
+
+int main()
+{
+
+#if defined(TEST_ROW_ROW)
+    run_test<BGEMM_ROW_ROW, mem_layout::row_major, mem_layout::row_major>();
+#elif defined(TEST_COL_ROW)
+    run_test<BGEMM_COL_ROW, mem_layout::col_major, mem_layout::row_major>();
+#elif defined(TEST_ROW_COL)
+    run_test<BGEMM_ROW_COL, mem_layout::row_major, mem_layout::col_major>();
+#elif defined(TEST_COL_COL)
+    run_test<BGEMM_COL_COL, mem_layout::col_major, mem_layout::col_major>();
+#endif
+
     return 0;
 }
