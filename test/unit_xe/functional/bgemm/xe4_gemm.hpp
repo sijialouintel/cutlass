@@ -48,7 +48,9 @@ public:
   using ElementB  = typename CollectiveMainloop::ElementB;
   using StrideB   = typename CollectiveMainloop::StrideB;
   using SmemLayoutB = typename CollectiveMainloop::SmemLayoutB;
+  using DispatchPolicy = typename CollectiveMainloop::DispatchPolicy;
   using ElementAccumulator = typename CollectiveMainloop::ElementAccumulator;
+  using ClusterShape = typename DispatchPolicy::ClusterShape;
   using MainloopArguments = typename CollectiveMainloop::Arguments;
   using MainloopParams = typename CollectiveMainloop::Params;
   using EpilogueArguments = typename CollectiveEpilogue::Arguments;
@@ -118,7 +120,8 @@ public:
     using MainloopPipelineState = typename CollectiveMainloop::PipelineState;
     using EpiloguePipelineState = typename CollectiveEpilogue::PipelineState;
 
-    MainloopPipeline mainloop_pipeline(item);
+    uint32_t local_id = item.get_local_linear_id();
+    MainloopPipeline mainloop_pipeline(local_id);
     EpiloguePipeline epilogue_pipeline(item);
 
     CollectiveMainloop collective_mainloop;
@@ -131,11 +134,26 @@ public:
     auto K = get<2>(problem_shape);
     auto wg_k = get<2>(TileShape{});
     uint32_t k_tile_count = (K + wg_k -1) / wg_k;
-    uint32_t local_id = item.get_local_linear_id();
 
     auto accumulator = make_tensor(reinterpret_cast<ElementAccumulator *>(shared_storage->smem_Acc.data()), SmemLayoutC {});
     auto blk_coord = cute::make_tuple(item.get_group(1), item.get_group(2), 0);
     auto cluster_mask = collective_mainloop.calculateClusterMasks(params.mainloop.wg_id);
+
+    auto cluster_wait_fn = [&] () {
+      // We need this to guarantee that the Pipeline init is visible
+      // To all producers and consumer thread blocks in the Cluster
+      if constexpr (size(ClusterShape{}) > 1) {
+        cbar_arrive();
+        return [] () { cbar_wait(); };
+      }
+      else {
+        item.barrier(access::fence_space::local_space);
+        return [] () {}; // do nothing
+      }
+    } ();
+
+    // Wait for all thread blocks in the Cluster
+    cluster_wait_fn();
 
     if (local_id == 0) {
       auto load_inputs = collective_mainloop.load_init(problem_shape, params.mainloop);

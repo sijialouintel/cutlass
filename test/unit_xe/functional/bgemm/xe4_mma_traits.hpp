@@ -156,10 +156,13 @@ struct MMA_Traits<XE4_ASYNC_GMMA<TD, TC, TA, TB, Shape_MNK_, IsRowMajorA, IsRowM
   using BLayout = xe4::ABLayout<get<1>(Shape_MNK{}), get<2>(Shape_MNK{})>;
   using CLayout = xe4::ABLayout<get<0>(Shape_MNK{}), get<1>(Shape_MNK{})>;
 
-  template<typename MMA_Op, class... TraitsArgs>
+  AMMA::ScaleOut accumulate_ = AMMA::ScaleOut::One;
+
+  template<class... TraitsArgs>
   CUTE_HOST_DEVICE auto
-  with(MMA_Op && mma_op, Abarrier const& abarrier, [[maybe_unused]] TraitsArgs&&... args) const {
-    return MMA_Traits<XE4_ASYNC_GMMA_OP, MMA_Op>{abarrier};
+  with(Abarrier const& abarrier, [[maybe_unused]] TraitsArgs&&... args) const {
+    using MMA_Op = XE4_ASYNC_GMMA<TD, TC, TA, TB, Shape_MNK_, IsRowMajorA, IsRowMajorB, MatDesc, Abarrier>;
+    return MMA_Traits<XE4_ASYNC_GMMA_OP, MMA_Op>{{}, accumulate_, abarrier};
   }
 };
 
@@ -167,9 +170,8 @@ template<typename MMA_Op>
 struct MMA_Traits<XE4_ASYNC_GMMA_OP, MMA_Op>: public MMA_Traits<MMA_Op> {
   using Abarrier = typename MMA_Op::Abarrier;
 
-  const Abarrier abarrier_;
-
-  CUTE_HOST_DEVICE MMA_Traits(Abarrier const& abarrier) : abarrier_(abarrier) {}
+  AMMA::ScaleOut accumulate_;
+  Abarrier const abar_;
 
   template <class TD, class DLayout,
             class TA, class ALayout,
@@ -184,7 +186,7 @@ struct MMA_Traits<XE4_ASYNC_GMMA_OP, MMA_Op>: public MMA_Traits<MMA_Op> {
        Tensor<TC, CLayout> const& C)
   {
     return detail::explode_tuple(detail::CallFMA<MMA_Op>{},
-                                 make_tuple(traits.abarrier_, *D.data(), *C.data(), *A.data(), *B.data()), seq<0,1,2,3,4>{});
+                                 make_tuple(traits.abar_, *D.data(), *C.data(), *A.data(), *B.data(), traits.accumulate_), seq<0,1,2,3,4,5>{});
   }
 };
 
@@ -209,10 +211,13 @@ struct MMA_Traits<XE4_ASYNC_GMMA_MULTICAST<TD, TC, TA, TB, Shape_MNK_, IsRowMajo
   using BLayout = xe4::ABLayout<get<1>(Shape_MNK{}), get<2>(Shape_MNK{})>;
   using CLayout = xe4::ABLayout<get<0>(Shape_MNK{}), get<1>(Shape_MNK{})>;
 
-  template<typename MMA_Op, class... TraitsArgs>
+  AMMA::ScaleOut accumulate_ = AMMA::ScaleOut::One;
+
+  template<class... TraitsArgs>
   CUTE_HOST_DEVICE auto
-  with(MMA_Op && mma_op, TraitsArgs&&... args) const {
-    return MMA_Traits<XE4_ASYNC_GMMA_MULTICAST_OP, MMA_Op>{{}, {static_cast<TraitsArgs&&>(args)...}};
+  with(TraitsArgs&&... args) const {
+    using MMA_Op = XE4_ASYNC_GMMA_MULTICAST<TD, TC, TA, TB, Shape_MNK_, IsRowMajorA, IsRowMajorB, MatDesc, Abarrier>;
+    return MMA_Traits<XE4_ASYNC_GMMA_MULTICAST_OP, MMA_Op>{{}, accumulate_, {static_cast<TraitsArgs&&>(args)...}};
   }
 };
 
@@ -220,6 +225,7 @@ template<typename MMA_Op>
 struct MMA_Traits<XE4_ASYNC_GMMA_MULTICAST_OP, MMA_Op>: public MMA_Traits<MMA_Op> {
   using Abarrier = typename MMA_Op::Abarrier;
 
+  AMMA::ScaleOut accumulate_;
   tuple<Abarrier, uint32_t, uint32_t> const opargs_;
 
   template <class TD, class DLayout,
@@ -236,7 +242,7 @@ struct MMA_Traits<XE4_ASYNC_GMMA_MULTICAST_OP, MMA_Op>: public MMA_Traits<MMA_Op
   {
     return detail::explode_tuple(detail::CallFMA<MMA_Op>{},
                                  traits.opargs_, tuple_seq<decltype(traits.opargs_)>{},
-                                 make_tuple(*D.data(), *C.data(), *A.data(), *B.data()), seq<0,1,2,3>{});
+                                 make_tuple(*D.data(), *C.data(), *A.data(), *B.data(), traits.accumulate_), seq<0,1,2,3,4>{});
   }
 };
 

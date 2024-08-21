@@ -76,7 +76,7 @@ int main()
 
     using ClusterShape = Shape<Int<cluster_size_y>,Int<cluster_size_x>,_1>;
     using TileShape = Shape<Int<wg_m>, Int<wg_n>, Int<wg_k>>;
-    using MMA_Op = XE4_ASYNC_GMMA<dtypeAcc, void, dtypeA, dtypeB, TileShape, is_row_major_a, is_row_major_b, uint32_t, uint64_t*>;
+    using MMA_Op = XE4_ASYNC_GMMA_MULTICAST<dtypeAcc, dtypeAcc, dtypeA, dtypeB, TileShape, is_row_major_a, is_row_major_b, uint32_t, uint64_t*>;
 
     using SmemLayoutAtomA = std::conditional_t<is_row_major_a,
         Layout<Shape<Int<wg_m>,Int<wg_k>,Int<stage>>, Stride<Int<wg_k>,_1,Int<wg_m*wg_k>>>,

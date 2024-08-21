@@ -87,7 +87,7 @@ struct CollectiveMma<
     SmemCopyAtomB_,
     TransformB_>
 {
-
+  using DispatchPolicy = MainloopXe4DmaGmma<Stages, ClusterShape, KernelSchedule>;
   using TileShape = TileShape_;
   using ElementA = ElementA_;
   using StrideA = StrideA_;
@@ -250,15 +250,6 @@ struct CollectiveMma<
     }
   }
 
-  template<class TD, class TC = void>
-  using MMA_Op_NORMAL = XE4_ASYNC_GMMA<TD, TC, ElementA, ElementB, TileShape, IsRowMajorA, IsRowMajorB, MatrixDesc, AbarrierPtr>;
-
-  template<class TD, class TC = void>
-  using MMA_Op = cute::conditional_t<size(ClusterShape{}) == 1,
-      XE4_ASYNC_GMMA<TD, TC, ElementA, ElementB, TileShape, IsRowMajorA, IsRowMajorB, MatrixDesc, AbarrierPtr>,
-      XE4_ASYNC_GMMA_MULTICAST<TD, TC, ElementA, ElementB, TileShape, IsRowMajorA, IsRowMajorB, MatrixDesc, AbarrierPtr>
-  >;
-
   template <class FrgTensorC, class ClusterMask>
   CUTLASS_DEVICE void
   mma(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState slm_pipe_read, FrgTensorC& accumulator, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
@@ -269,39 +260,40 @@ struct CollectiveMma<
     auto [cluster_mask_a, cluster_mask_b] = cluster_mask;
 
     TiledMma tiled_mma;
+    tiled_mma.accumulate_ = AMMA::ScaleOut::Zero;
+
     auto thread_mma = tiled_mma.get_thread_slice(0);
 
     auto tCrA = thread_mma.partition_fragment_A(sA);    // (MMA,MMA_M,MMA_K,PIPE)
     auto tCrB = thread_mma.partition_fragment_B(sB);    // (MMA,MMA_N,MMA_K,PIPE)
-
     auto accum = thread_mma.partition_fragment_C(accumulator); // (MMA,MMA_M,MMA_N)
 
     if (k_tile_count == 1) {
       pipeline.consumer_try_wait(slm_pipe_read);
       auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
-      cute::gemm(tiled_mma.with(MMA_Op_NORMAL<ElementC>{}, abar_cons, cluster_mask_a, cluster_mask_b), tCrA(_,_,_,0), tCrB(_,_,_,0), accum);
+      cute::gemm(tiled_mma.with(abar_cons), tCrA(_,_,_,0), tCrB(_,_,_,0), accum);
       pipeline.consumer_commit(slm_pipe_read);
       pipeline.producer_try_wait(slm_pipe_read);
       return;
     }
 
-    auto tiled_mma_cluster = cute::make_tiled_mma(MMA_Op<ElementC>{});
     constexpr uint32_t expect_tx = (size(ClusterShape{}) == 1) ? 1 : (size<0>(ClusterShape{}) + size<1>(ClusterShape{}));
 
     if (k_tile_count >= 2) {
-      PipelineState slm_pipe_read;
       pipeline.consumer_try_wait(slm_pipe_read);
       uint32_t index = slm_pipe_read.index();
       auto abar_cons = pipeline.consumer_get_barrier(index);
-      cute::gemm(tiled_mma_cluster.with(MMA_Op<ElementAccumulator>{}, abar_cons, cluster_mask_a, cluster_mask_b), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
+      cute::gemm(tiled_mma.with(abar_cons, cluster_mask_a, cluster_mask_b), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
       pipeline.consumer_commit(slm_pipe_read, expect_tx);
+
+      tiled_mma.accumulate_ = AMMA::ScaleOut::One;
 
       for (uint32_t i = 1; i < k_tile_count - 1; i++) {
           ++slm_pipe_read;
           uint32_t index = slm_pipe_read.index();
           auto abar_cons = pipeline.consumer_get_barrier(index);
           pipeline.consumer_try_wait(slm_pipe_read);
-          cute::gemm(tiled_mma_cluster.with(MMA_Op<ElementAccumulator, ElementAccumulator>{}, abar_cons, cluster_mask_a, cluster_mask_b), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
+          cute::gemm(tiled_mma.with(abar_cons, cluster_mask_a, cluster_mask_b), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
           pipeline.consumer_commit(slm_pipe_read, expect_tx);
       }
       {
@@ -314,7 +306,7 @@ struct CollectiveMma<
           uint32_t phase = ((k_tile_count - 1) / Stages) & 1u;
           pipeline.consumer_try_wait(index, phase);
 
-          cute::gemm(tiled_mma.with(MMA_Op_NORMAL<ElementC, ElementAccumulator>{}, abar_cons, cluster_mask_a, cluster_mask_b), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
+          cute::gemm(tiled_mma.with(abar_cons), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
           pipeline.consumer_commit(slm_pipe_read);
           pipeline.producer_try_wait(slm_pipe_read);
       }

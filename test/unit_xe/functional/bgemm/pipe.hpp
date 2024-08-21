@@ -117,9 +117,7 @@ public:
   BarrierPtr abar_prod_base = nullptr;
   BarrierPtr abar_cons_base = nullptr;
 
-  template<int N>
-  PipelineTmaAsync(sycl::nd_item<N> item) {
-    uint32_t local_id = item.get_local_linear_id();
+  PipelineTmaAsync(uint32_t local_id) {
     abar_prod_base = allocate_abar<0,Stages>();
     abar_cons_base = allocate_abar<1,Stages>();
     if (local_id == 0) {
@@ -133,7 +131,6 @@ public:
         abarrier_init(abar_cons_base + i, 1);
       }
     }
-    item.barrier(access::fence_space::local_space);
   }
 
   CUTLASS_DEVICE
