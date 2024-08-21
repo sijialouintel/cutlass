@@ -22,8 +22,8 @@ using namespace cute::detail;
 /// Applies an element wise operation to all elements within the fragment
 /// and writes them out to destination storage.
 template <
-  int StagesC_,
   class StrideC_,
+  class StrideD_,
   class ThreadEpilogueOp_,
   class EpilogueSchedule_
 >
@@ -32,22 +32,28 @@ public:
   using ThreadEpilogueOp = ThreadEpilogueOp_;
   using ElementOutput = typename ThreadEpilogueOp::ElementOutput;
   using ElementAccumulator = typename ThreadEpilogueOp::ElementAccumulator;
-  using ElementC = ElementOutput;
+  using ElementC = ElementAccumulator;
+  using ElementD = ElementOutput;
   using StrideC = StrideC_;
+  using StrideD = StrideD_;
   using TileShape = typename ThreadEpilogueOp::TileShape;
-
-  constexpr static int StagesC = StagesC_;
 
   using TensorDescPtr = uint64_t*;
   using AbarrierPtr = uint64_t*;
 
   using SmemLayoutC = typename ThreadEpilogueOp::SmemLayoutOutput;
-  using GmemTiledCopyC = cute::xe4::ASYNC_TENSOR_STORE;
-
+  using GmemTiledCopyC = cute::xe4::ASYNC_TENSOR_LOAD;
   using AuxParamsC = AuxParams<slm_matrix_type::type1, TensorDescPtr, 2>;
+  
+  using SmemLayoutD = typename ThreadEpilogueOp::SmemLayoutOutput;
+  using GmemTiledCopyD = cute::xe4::ASYNC_TENSOR_STORE;
+  using AuxParamsD = AuxParams<slm_matrix_type::type1, TensorDescPtr, 3>;
 
-  using EpiloguePipeline = cutlass::xe4::PipelineTmaStore<StagesC, AbarrierPtr>;
-  using PipelineState = typename EpiloguePipeline::PipelineState;
+  using EpilogueLoadPipeline = cutlass::xe4::PipelineTmaAsync<1, AbarrierPtr>;
+  using LoadPipelineState = typename EpilogueLoadPipeline::PipelineState;
+
+  using EpilogueStorePipeline = cutlass::xe4::PipelineTmaStore<1, AbarrierPtr>;
+  using StorePipelineState = typename EpilogueStorePipeline::PipelineState;
 
   static_assert(cute::rank(StrideC{}) == 3, "StrideC must be rank-3: [M, N, L]");
 
@@ -56,6 +62,7 @@ public:
     struct TensorStorage
     {
       cute::array<ElementC, cute::cosize_v<SmemLayoutC>> smem_C;
+      cute::array<ElementD, cute::cosize_v<SmemLayoutD>> smem_D;
     };
   };
 
@@ -65,16 +72,23 @@ public:
   struct Arguments {
     ElementC const* ptr_C = nullptr;
     StrideC dC{};
+    ElementD const* ptr_D = nullptr;
+    StrideC dD{};
   };
 
   // Device side epilogue params
   struct Params
   {
-    using TiledStoreC = decltype(make_xe4_copy<GmemTiledCopyC, AuxParamsC>(
+    using TiledLoadC = decltype(make_xe4_copy<GmemTiledCopyC, AuxParamsC>(
       make_tensor(static_cast<ElementC const*>(nullptr), repeat_like(StrideC{}, int32_t(0)), StrideC{}),
       SmemLayoutC{}, make_shape(shape<0>(TileShape{}), shape<1>(TileShape{}))));
 
-    TiledStoreC store_c;
+    using TiledStoreD = decltype(make_xe4_copy<GmemTiledCopyD, AuxParamsD>(
+      make_tensor(static_cast<ElementD const*>(nullptr), repeat_like(StrideD{}, int32_t(0)), StrideD{}),
+      SmemLayoutD{}, make_shape(shape<0>(TileShape{}), shape<1>(TileShape{}))));
+
+    TiledLoadC load_c;
+    TiledStoreD store_d;
   };
 
   //
@@ -89,10 +103,14 @@ public:
       [[maybe_unused]] void* workspace) {
 
     auto [M, N, K, L] = problem_shape;
-    auto C = make_tensor(args.ptr_C, make_layout(make_shape(M, N, L), args.dC));
-    auto store_c = make_xe4_copy<GmemTiledCopyC, AuxParamsC>(C, SmemLayoutC{}, make_shape(shape<0>(TileShape{}), shape<1>(TileShape{})));
 
-    return {store_c};
+    auto C = make_tensor(args.ptr_C, make_layout(make_shape(M, N, L), args.dC));
+    auto load_c = make_xe4_copy<GmemTiledCopyC, AuxParamsC>(C, SmemLayoutC {}, make_shape(shape<0>(TileShape {}), shape<1>(TileShape {})));
+
+    auto D = make_tensor(args.ptr_D, make_layout(make_shape(M, N, L), args.dD));
+    auto store_d = make_xe4_copy<GmemTiledCopyD, AuxParamsD>(D, SmemLayoutD {}, make_shape(shape<0>(TileShape {}), shape<1>(TileShape {})));
+
+    return {load_c, store_d};
   }
 
   // Note: SharedStorage is unused for DefaultEpilogue
@@ -100,42 +118,71 @@ public:
   DefaultEpilogue(Params const& params_)
       : params(params_), epilogue_op() { }
 
+  template <class ProblemShape, class BlockCoord>
+  CUTLASS_DEVICE auto
+  load(EpilogueLoadPipeline epilogue_load_pipeline, LoadPipelineState pipe_load_state,
+    ProblemShape const& problem_shape, BlockCoord const& blk_coord_mnl, TensorStorage& shared_tensors) {
+      auto [M, N, K, L] = problem_shape;
+      auto sC = make_tensor(reinterpret_cast<ElementC *>(shared_tensors.smem_C.data()), SmemLayoutC {});
+      auto mC_mnl = params.load_c.get_tma_tensor(make_shape(M, N, L)); // (m,n,l)
+      auto gC_mnl = flat_divide(mC_mnl,make_shape(shape<0>(TileShape {}), shape<1>(TileShape {}))); // (BLK_M,BLK_N,m,n,l)
+      auto block_load_c = params.load_c.get_slice(0);
+      auto [m_coord, n_coord, l_coord] = blk_coord_mnl;
+      auto gC = gC_mnl(_, _, m_coord, n_coord, 0); // (BLK_M,BLK_N)
+      auto tCgC = block_load_c.partition_S(gC); // (TMA,TMA_M,TMA_N)
+      auto tCsC = block_load_c.partition_D(sC); // (TMA,TMA_M,TMA_N)
+
+      epilogue_load_pipeline.producer_try_wait(pipe_load_state);
+      auto abar_prod = epilogue_load_pipeline.producer_get_barrier(pipe_load_state);
+      constexpr uint32_t slm_bytes_load = sizeof(ElementC) * size(SmemLayoutC {});
+      copy(params.load_c.with(abar_prod), tCgC, tCsC);
+      epilogue_load_pipeline.producer_commit(pipe_load_state, sizeof(TensorStorage::smem_C));
+      epilogue_load_pipeline.consumer_try_wait(pipe_load_state.index(), 0);
+  }
+
   template<
-    class ProblemShape,
-    class BlockCoordMNL,
     class TensorAccumulator
   >
   CUTLASS_DEVICE void
   operator()(
-      EpiloguePipeline epilogue_pipeline,
-      PipelineState pipe_store_state,
+      TensorAccumulator smem_accumulator,
+      TensorStorage& shared_tensors,
+      uint32_t subgroup_num,
+      uint32_t local_id)
+  {
+    auto sD = make_tensor(reinterpret_cast<ElementD *>(shared_tensors.smem_D.data()), SmemLayoutD {});
+
+    epilogue_op(smem_accumulator, sD, subgroup_num, local_id);
+  }
+
+  template<
+    class ProblemShape,
+    class BlockCoordMNL
+  >
+  CUTLASS_DEVICE void
+  store(
+      EpilogueStorePipeline epilogue_store_pipeline,
+      StorePipelineState pipe_store_state,
       ProblemShape const& problem_shape,
       BlockCoordMNL blk_coord_mnl,
-      TensorAccumulator smem_accumulator,
-      uint32_t local_id,
       TensorStorage& shared_tensors)
   {
-    auto sC = make_tensor(reinterpret_cast<ElementC *>(shared_tensors.smem_C.data()), SmemLayoutC {});
+    auto sD = make_tensor(reinterpret_cast<ElementD *>(shared_tensors.smem_D.data()), SmemLayoutD {});
+    auto [M, N, K, L] = problem_shape;
+    auto mD_mnl = params.store_d.get_tma_tensor(make_shape(M, N, L)); // (m,n,l)
+    auto gD_mnl = flat_divide(mD_mnl, make_shape(shape<0>(TileShape {}), shape<1>(TileShape {}))); // (BLK_M,BLK_N,m,n,l)
+    auto block_store_d = params.store_d.get_slice(0);
+    auto [m_coord, n_coord, l_coord] = blk_coord_mnl;
 
-    epilogue_op(smem_accumulator, sC);
+    auto gD = gD_mnl(_, _, m_coord, n_coord, l_coord);  // (BLK_M,BLK_N)
+    auto tDgD = block_store_d.partition_S(gD);           // (TMA,TMA_M,TMA_N)
+    auto tDsD = block_store_d.partition_D(sD);    // (TMA,TMA_M,TMA_N)
 
-    if (local_id == 0) {
-      auto [M, N, K, L] = problem_shape;
-      auto mC_mnl = params.store_c.get_tma_tensor(make_shape(M, N, L)); // (m,n,l)
-      auto gC_mnl = flat_divide(mC_mnl, make_shape(shape<0>(TileShape {}), shape<1>(TileShape {}))); // (BLK_M,BLK_N,m,n,l)
-      auto block_load_c = params.store_c.get_slice(0);
-      auto [m_coord, n_coord, l_coord] = blk_coord_mnl;
-
-      auto gC = gC_mnl(_, _, m_coord, n_coord, l_coord);  // (BLK_M,BLK_N)
-      auto tCgC = block_load_c.partition_S(gC);           // (TMA,TMA_M,TMA_N)
-      auto tCsC = block_load_c.partition_D(smem_accumulator);    // (TMA,TMA_M,TMA_N)
-
-      auto abar_store = epilogue_pipeline.store_get_barrier(pipe_store_state);
-      constexpr uint32_t slm_bytes_store = sizeof(ElementC) * size(SmemLayoutC {});
-      copy(params.store_c.with(abar_store), tCsC, tCgC);
-      epilogue_pipeline.store_commit(pipe_store_state, slm_bytes_store);
-      epilogue_pipeline.store_try_wait(pipe_store_state);
-    }
+    auto abar_store = epilogue_store_pipeline.store_get_barrier(pipe_store_state);
+    constexpr uint32_t slm_bytes_store = sizeof(ElementD) * size(SmemLayoutD {});
+    copy(params.store_d.with(abar_store), tDsD, tDgD);
+    epilogue_store_pipeline.store_commit(pipe_store_state, slm_bytes_store);
+    epilogue_store_pipeline.store_try_wait(pipe_store_state);
   }
 
 private:

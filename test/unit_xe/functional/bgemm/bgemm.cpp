@@ -42,7 +42,7 @@ int run_test()
     using dtypeA = bf16;
     using dtypeB = bf16;
     using dtypeAcc = float;
-    using dtypeC = float;
+    using dtypeC = fp16;
 
     static constexpr bool is_row_major_a = (layout_a == mem_layout::row_major);
     static constexpr bool is_row_major_b = (layout_b == mem_layout::row_major);
@@ -107,9 +107,9 @@ int run_test()
     >;
 
     using CollectiveEpilogue = cutlass::epilogue::collective::DefaultEpilogue<
-        1,
         StrideC,
-        DummyConverter<decltype(take<0, 2>(TileShape{})), dtypeC, dtypeAcc>,
+        StrideC,
+        DMAPostOPConvert<decltype(take<0, 2>(TileShape{})), dtypeC, dtypeAcc>,
         cutlass::gemm::EpilogueDefault
     >;
 
@@ -133,6 +133,7 @@ int run_test()
                 B_s, cutlass::make_cute_packed_stride(StrideB{}, cute::make_shape(mat_n, mat_k, mat_l)),
             },
             {
+                nullptr, cutlass::make_cute_packed_stride(StrideC{}, cute::make_shape(mat_m, mat_n, mat_l)),
                 C_s, cutlass::make_cute_packed_stride(StrideC{}, cute::make_shape(mat_m, mat_n, mat_l)),
             }
         };

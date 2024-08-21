@@ -18,7 +18,8 @@ INCLUDE_PATHS="-I$CUTLASS_PISA_PATH/include \
                -I/usr/local/cuda/include \
                -I$XE4_TEST_PATH/pisa_tests \
                -I$CUTLASS_PISA_PATH/tools/util/include \
-               -I$CUTLASS_PISA_PATH/test/unit_xe/functional/bgemm"
+               -I$CUTLASS_PISA_PATH/test/unit_xe/functional/bgemm \
+               -I$CUTLASS_PISA_PATH/test/unit_xe/functional/xe4_dma_postop_cvt"
 
 ORIGIN_PATH=$(pwd)
 BUILD_PATH=$ORIGIN_PATH/build

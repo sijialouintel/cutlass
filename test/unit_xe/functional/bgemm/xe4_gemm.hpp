@@ -8,6 +8,7 @@
 
 #include "conversion_op.hpp"
 #include "xe4_default_epilogue.hpp"
+#include "xe4_conversion_op.hpp"
 
 namespace cutlass::gemm::kernel {
 
@@ -56,7 +57,6 @@ public:
   using EpilogueArguments = typename CollectiveEpilogue::Arguments;
   using EpilogueParams = typename CollectiveEpilogue::Params;
 
-  using ElementC  = typename CollectiveEpilogue::ElementC;
   using SmemLayoutC = typename CollectiveEpilogue::SmemLayoutC;
 
   using SlmTensorAcc = decltype(make_tensor(static_cast<ElementAccumulator*>(nullptr), SmemLayoutC{}));
@@ -116,19 +116,19 @@ public:
     auto shared_storage = params.shared_storage;
 
     using MainloopPipeline = typename CollectiveMainloop::MainloopPipeline;
-    using EpiloguePipeline = typename CollectiveEpilogue::EpiloguePipeline;
+    using EpilogueStorePipeline = typename CollectiveEpilogue::EpilogueStorePipeline;
     using MainloopPipelineState = typename CollectiveMainloop::PipelineState;
-    using EpiloguePipelineState = typename CollectiveEpilogue::PipelineState;
+    using EpilogueStorePipelineState = typename CollectiveEpilogue::StorePipelineState;
 
     uint32_t local_id = item.get_local_linear_id();
     MainloopPipeline mainloop_pipeline(local_id);
-    EpiloguePipeline epilogue_pipeline(item);
+    EpilogueStorePipeline epilogue_store_pipeline(item);
 
     CollectiveMainloop collective_mainloop;
     CollectiveEpilogue collective_epilogue(params.epilogue);
 
     MainloopPipelineState mainloop_pipe_consumer_state;
-    EpiloguePipelineState epilogue_pipe_store_state;
+    EpilogueStorePipelineState epilogue_pipe_store_state;
     auto mainloop_pipe_producer_state = cutlass::xe4::make_producer_start_state<MainloopPipeline>();
 
     auto K = get<2>(problem_shape);
@@ -164,7 +164,15 @@ public:
 
     item.barrier(access::fence_space::local_space);
 
-    collective_epilogue(epilogue_pipeline, epilogue_pipe_store_state, problem_shape, blk_coord, accumulator, local_id, shared_storage->tensors.epilogue);
+    if (local_id >= 128) {
+      collective_epilogue(accumulator, shared_storage->tensors.epilogue, item.get_local_range().size() / 32 - 4, local_id - 128);
+    }
+
+    item.barrier(access::fence_space::local_space);
+
+    if (local_id == 0) {
+      collective_epilogue.store(epilogue_store_pipeline, epilogue_pipe_store_state, problem_shape, blk_coord, shared_storage->tensors.epilogue);
+    }
   }
 };
 
