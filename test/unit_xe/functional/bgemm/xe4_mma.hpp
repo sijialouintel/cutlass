@@ -44,20 +44,6 @@ struct XE4_ASYNC_GMMA
       async_gmma<TD, TA, TB, Tile_M, Tile_N, Tile_K, layout_a, layout_b>(mat_desc_d, mat_desc_a, mat_desc_b, abar_cons);
     }
   }
-
-  template<typename ConstScaleOut>
-  CUTE_HOST_DEVICE static void
-  fma(ConstScaleOut const& scale_D,
-      Abarrier const& abar_cons,
-      [[maybe_unused]] uint32_t const& cluster_mask_a,
-      [[maybe_unused]] uint32_t const& cluster_mask_b,
-      MatDesc const& mat_desc_d,
-      MatDesc const& mat_desc_c,
-      MatDesc const& mat_desc_a,
-      MatDesc const& mat_desc_b)
-  {
-    return fma(scale_D, abar_cons, mat_desc_d, mat_desc_c, mat_desc_a, mat_desc_b);
-  }
 };
 
 template <class TD, class TC, class TA, class TB, class Shape_MNK_, bool IsRowMajorA, bool IsRowMajorB, class MatDesc, class Abarrier_=uint64_t*>
@@ -96,18 +82,6 @@ struct XE4_ASYNC_GMMA_MULTICAST
       async_gmma<TD, TA, TB, Tile_M, Tile_N, Tile_K, layout_a, layout_b>(
         mat_desc_d, mat_desc_a, mat_desc_b, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b);
     }
-  }
-
-  template<typename ConstScaleOut>
-  CUTE_HOST_DEVICE static void
-  fma(ConstScaleOut const& scale_D,
-      Abarrier const& abar_cons,
-      MatDesc const& mat_desc_d,
-      MatDesc const& mat_desc_c,
-      MatDesc const& mat_desc_a,
-      MatDesc const& mat_desc_b)
-  {
-    return XE4_ASYNC_GMMA<TD, TC, TA, TB, Shape_MNK_, IsRowMajorA, IsRowMajorB, MatDesc, Abarrier>::fma(scale_D, abar_cons, mat_desc_d, mat_desc_c, mat_desc_a, mat_desc_b);
   }
 };
 

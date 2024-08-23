@@ -71,21 +71,21 @@ template <
   class SmemCopyAtomB_,
   class TransformB_>
 struct CollectiveMma<
-    MainloopXe4DmaGmma<Stages, ClusterShape, KernelSchedule>,
-    TileShape_,
-    ElementA_,
-    StrideA_,
-    ElementB_,
-    StrideB_,
-    TiledMma_,
-    GmemTiledCopyA_,
-    SmemLayoutAtomA_,
-    SmemCopyAtomA_,
-    TransformA_,
-    GmemTiledCopyB_,
-    SmemLayoutAtomB_,
-    SmemCopyAtomB_,
-    TransformB_>
+  MainloopXe4DmaGmma<Stages, ClusterShape, KernelSchedule>,
+  TileShape_,
+  ElementA_,
+  StrideA_,
+  ElementB_,
+  StrideB_,
+  TiledMma_,
+  GmemTiledCopyA_,
+  SmemLayoutAtomA_,
+  SmemCopyAtomA_,
+  TransformA_,
+  GmemTiledCopyB_,
+  SmemLayoutAtomB_,
+  SmemCopyAtomB_,
+  TransformB_>
 {
   using DispatchPolicy = MainloopXe4DmaGmma<Stages, ClusterShape, KernelSchedule>;
   using TileShape = TileShape_;
@@ -143,12 +143,12 @@ struct CollectiveMma<
   // Device side kernel params
   struct Params {
     using TiledLoadA = decltype(make_xe4_copy<GmemTiledCopyA, AuxParamsA>(
-        make_tensor(static_cast<ElementA const*>(nullptr), repeat_like(StrideA{}, int32_t(0)), StrideA{}),
-        SmemLayoutA{}, make_shape(shape<0>(TileShape{}), shape<2>(TileShape{})), size<1>(ClusterShape{})));
+      make_tensor(static_cast<ElementA const*>(nullptr), repeat_like(StrideA{}, int32_t(0)), StrideA{}),
+      SmemLayoutA{}, make_shape(shape<0>(TileShape{}), shape<2>(TileShape{})), size<1>(ClusterShape{})));
 
     using TiledLoadB = decltype(make_xe4_copy<GmemTiledCopyB, AuxParamsB>(
-        make_tensor(static_cast<ElementB const*>(nullptr), repeat_like(StrideB{}, int32_t(0)), StrideB{}),
-        SmemLayoutB{}, make_shape(shape<1>(TileShape{}), shape<2>(TileShape{})), size<0>(ClusterShape{})));
+      make_tensor(static_cast<ElementB const*>(nullptr), repeat_like(StrideB{}, int32_t(0)), StrideB{}),
+      SmemLayoutB{}, make_shape(shape<1>(TileShape{}), shape<2>(TileShape{})), size<0>(ClusterShape{})));
 
     uint32_t wg_id {0};
     TiledLoadA load_a;
@@ -264,14 +264,14 @@ struct CollectiveMma<
     constexpr auto scaleOutZero = C<AMMA::ScaleOut::Zero>{};
 
     auto thread_mma = tiled_mma.get_thread_slice(0);
-    auto tCrA = thread_mma.partition_fragment_A(sA);    // (MMA,MMA_M,MMA_K,PIPE)
-    auto tCrB = thread_mma.partition_fragment_B(sB);    // (MMA,MMA_N,MMA_K,PIPE)
-    auto accum = thread_mma.partition_fragment_C(accumulator); // (MMA,MMA_M,MMA_N)
+    auto tCsA = thread_mma.partition_fragment_A(sA);            // (MMA,MMA_M,MMA_K,PIPE)
+    auto tCsB = thread_mma.partition_fragment_B(sB);            // (MMA,MMA_N,MMA_K,PIPE)
+    auto accum = thread_mma.partition_fragment_C(accumulator);  // (MMA,MMA_M,MMA_N)
 
     if (k_tile_count == 1) {
       pipeline.consumer_try_wait(slm_pipe_read);
       auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
-      cute::gemm(tiled_mma.with(scaleOutZero, abar_cons), tCrA(_,_,_,0), tCrB(_,_,_,0), accum);
+      cute::gemm(tiled_mma.with(scaleOutZero, abar_cons), tCsA(_,_,_,0), tCsB(_,_,_,0), accum);
       pipeline.consumer_commit(slm_pipe_read);
       pipeline.producer_try_wait(slm_pipe_read);
       return;
@@ -283,30 +283,30 @@ struct CollectiveMma<
       pipeline.consumer_try_wait(slm_pipe_read);
       uint32_t index = slm_pipe_read.index();
       auto abar_cons = pipeline.consumer_get_barrier(index);
-      cute::gemm(tiled_mma.with(scaleOutZero, abar_cons, cluster_mask_a, cluster_mask_b), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
+      cute::gemm(tiled_mma.with(scaleOutZero, abar_cons, cluster_mask_a, cluster_mask_b), tCsA(_,_,_,index), tCsB(_,_,_,index), accum);
       pipeline.consumer_commit(slm_pipe_read, expect_tx);
 
       for (uint32_t i = 1; i < k_tile_count - 1; i++) {
-          ++slm_pipe_read;
-          uint32_t index = slm_pipe_read.index();
-          auto abar_cons = pipeline.consumer_get_barrier(index);
-          pipeline.consumer_try_wait(slm_pipe_read);
-          cute::gemm(tiled_mma.with(scaleOutOne, abar_cons, cluster_mask_a, cluster_mask_b), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
-          pipeline.consumer_commit(slm_pipe_read, expect_tx);
+        ++slm_pipe_read;
+        uint32_t index = slm_pipe_read.index();
+        auto abar_cons = pipeline.consumer_get_barrier(index);
+        pipeline.consumer_try_wait(slm_pipe_read);
+        cute::gemm(tiled_mma.with(scaleOutOne, abar_cons, cluster_mask_a, cluster_mask_b), tCsA(_,_,_,index), tCsB(_,_,_,index), accum);
+        pipeline.consumer_commit(slm_pipe_read, expect_tx);
       }
       {
-          ++slm_pipe_read;
-          uint32_t index = slm_pipe_read.index();
+        ++slm_pipe_read;
+        uint32_t index = slm_pipe_read.index();
 
-          auto abar_cons = pipeline.consumer_get_barrier(index);
-          auto abar_prod = pipeline.producer_get_barrier(index);
+        auto abar_cons = pipeline.consumer_get_barrier(index);
+        auto abar_prod = pipeline.producer_get_barrier(index);
 
-          uint32_t phase = ((k_tile_count - 1) / Stages) & 1u;
-          pipeline.consumer_try_wait(index, phase);
+        uint32_t phase = ((k_tile_count - 1) / Stages) & 1u;
+        pipeline.consumer_try_wait(index, phase);
 
-          cute::gemm(tiled_mma.with(scaleOutOne, abar_cons), tCrA(_,_,_,index), tCrB(_,_,_,index), accum);
-          pipeline.consumer_commit(slm_pipe_read);
-          pipeline.producer_try_wait(slm_pipe_read);
+        cute::gemm(tiled_mma.with(scaleOutOne, abar_cons), tCsA(_,_,_,index), tCsB(_,_,_,index), accum);
+        pipeline.consumer_commit(slm_pipe_read);
+        pipeline.producer_try_wait(slm_pipe_read);
       }
     }
   }
