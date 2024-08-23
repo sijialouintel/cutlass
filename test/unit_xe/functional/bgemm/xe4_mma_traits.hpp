@@ -156,22 +156,19 @@ struct MMA_Traits<XE4_ASYNC_GMMA<TD, TC, TA, TB, Shape_MNK_, IsRowMajorA, IsRowM
   using BLayout = xe4::ABLayout<get<1>(Shape_MNK{}), get<2>(Shape_MNK{})>;
   using CLayout = xe4::ABLayout<get<0>(Shape_MNK{}), get<1>(Shape_MNK{})>;
 
-  AMMA::ScaleOut accumulate_ = AMMA::ScaleOut::One;
-
-  template<class... TraitsArgs>
-  CUTE_HOST_DEVICE auto
-  with(Abarrier const& abarrier, [[maybe_unused]] TraitsArgs&&... args) const {
+  template<class ConstScaleOut, class... TraitsArgs>
+  CUTE_HOST_DEVICE static auto
+  with(ConstScaleOut const& scale_D, Abarrier const& abarrier, [[maybe_unused]] TraitsArgs&&... args) {
     using MMA_Op = XE4_ASYNC_GMMA<TD, TC, TA, TB, Shape_MNK_, IsRowMajorA, IsRowMajorB, MatDesc, Abarrier>;
-    return MMA_Traits<XE4_ASYNC_GMMA_OP, MMA_Op>{{}, accumulate_, abarrier};
+    return MMA_Traits<XE4_ASYNC_GMMA_OP, ConstScaleOut, MMA_Op>{{}, {scale_D, abarrier}};
   }
 };
 
-template<typename MMA_Op>
-struct MMA_Traits<XE4_ASYNC_GMMA_OP, MMA_Op>: public MMA_Traits<MMA_Op> {
+template<typename ConstScaleOut, typename MMA_Op>
+struct MMA_Traits<XE4_ASYNC_GMMA_OP, ConstScaleOut, MMA_Op>: public MMA_Traits<MMA_Op> {
   using Abarrier = typename MMA_Op::Abarrier;
 
-  AMMA::ScaleOut accumulate_;
-  Abarrier const abar_;
+  tuple<ConstScaleOut, Abarrier> const opargs_;
 
   template <class TD, class DLayout,
             class TA, class ALayout,
@@ -186,7 +183,8 @@ struct MMA_Traits<XE4_ASYNC_GMMA_OP, MMA_Op>: public MMA_Traits<MMA_Op> {
        Tensor<TC, CLayout> const& C)
   {
     return detail::explode_tuple(detail::CallFMA<MMA_Op>{},
-                                 make_tuple(traits.abar_, *D.data(), *C.data(), *A.data(), *B.data(), traits.accumulate_), seq<0,1,2,3,4,5>{});
+                                 traits.opargs_, tuple_seq<decltype(traits.opargs_)>{},
+                                 make_tuple(*D.data(), *C.data(), *A.data(), *B.data()), seq<0,1,2,3>{});
   }
 };
 
@@ -211,22 +209,25 @@ struct MMA_Traits<XE4_ASYNC_GMMA_MULTICAST<TD, TC, TA, TB, Shape_MNK_, IsRowMajo
   using BLayout = xe4::ABLayout<get<1>(Shape_MNK{}), get<2>(Shape_MNK{})>;
   using CLayout = xe4::ABLayout<get<0>(Shape_MNK{}), get<1>(Shape_MNK{})>;
 
-  AMMA::ScaleOut accumulate_ = AMMA::ScaleOut::One;
-
-  template<class... TraitsArgs>
-  CUTE_HOST_DEVICE auto
-  with(TraitsArgs&&... args) const {
-    using MMA_Op = XE4_ASYNC_GMMA_MULTICAST<TD, TC, TA, TB, Shape_MNK_, IsRowMajorA, IsRowMajorB, MatDesc, Abarrier>;
-    return MMA_Traits<XE4_ASYNC_GMMA_MULTICAST_OP, MMA_Op>{{}, accumulate_, {static_cast<TraitsArgs&&>(args)...}};
+  template<class ConstScaleOut, class... TraitsArgs>
+  CUTE_HOST_DEVICE static auto
+  with(ConstScaleOut const& scale_D, Abarrier const& abarrier, TraitsArgs&&... args) {
+    if constexpr (sizeof...(args) == 0) {
+      return MMA_Traits<XE4_ASYNC_GMMA<TD, TC, TA, TB, Shape_MNK_, IsRowMajorA, IsRowMajorB, MatDesc, Abarrier>>::with(scale_D, abarrier);
+    } else if constexpr (sizeof...(args) == 2) {
+      using MMA_Op = XE4_ASYNC_GMMA_MULTICAST<TD, TC, TA, TB, Shape_MNK_, IsRowMajorA, IsRowMajorB, MatDesc, Abarrier>;
+      return MMA_Traits<XE4_ASYNC_GMMA_MULTICAST_OP, ConstScaleOut, MMA_Op>{{}, {scale_D, abarrier, static_cast<TraitsArgs&&>(args)...}};
+    } else {
+      static_assert(sizeof...(args) == 2, "Invalid number of arguments");
+    }
   }
 };
 
-template<typename MMA_Op>
-struct MMA_Traits<XE4_ASYNC_GMMA_MULTICAST_OP, MMA_Op>: public MMA_Traits<MMA_Op> {
+template<typename ConstScaleOut, typename MMA_Op>
+struct MMA_Traits<XE4_ASYNC_GMMA_MULTICAST_OP, ConstScaleOut, MMA_Op>: public MMA_Traits<MMA_Op> {
   using Abarrier = typename MMA_Op::Abarrier;
 
-  AMMA::ScaleOut accumulate_;
-  tuple<Abarrier, uint32_t, uint32_t> const opargs_;
+  tuple<ConstScaleOut, Abarrier, uint32_t, uint32_t> const opargs_;
 
   template <class TD, class DLayout,
             class TA, class ALayout,
@@ -242,7 +243,7 @@ struct MMA_Traits<XE4_ASYNC_GMMA_MULTICAST_OP, MMA_Op>: public MMA_Traits<MMA_Op
   {
     return detail::explode_tuple(detail::CallFMA<MMA_Op>{},
                                  traits.opargs_, tuple_seq<decltype(traits.opargs_)>{},
-                                 make_tuple(*D.data(), *C.data(), *A.data(), *B.data(), traits.accumulate_), seq<0,1,2,3,4>{});
+                                 make_tuple(*D.data(), *C.data(), *A.data(), *B.data()), seq<0,1,2,3>{});
   }
 };
 

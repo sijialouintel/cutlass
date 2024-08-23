@@ -26,7 +26,6 @@ BUILD_PATH=$ORIGIN_PATH/build
 rm -rf $BUILD_PATH
 
 test_cases=("ROW_ROW" "COL_ROW" "ROW_COL" "COL_COL")
-# test_cases=("ROW_ROW" "COL_ROW")
 
 for test_case in "${test_cases[@]}"; do
     WORK_DIR=$BUILD_PATH/$test_case

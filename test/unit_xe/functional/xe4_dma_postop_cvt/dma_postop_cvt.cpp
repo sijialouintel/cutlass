@@ -105,7 +105,8 @@ int main()
 
             typename CollectiveEpilogue::Params params = CollectiveEpilogue::to_underlying_arguments(problem_shape, args, nullptr);
 
-            SrcLoadPipeline src_load_pipeline(item);
+            uint32_t local_id = item.get_local_linear_id();
+            SrcLoadPipeline src_load_pipeline(local_id);
             SrcLoadPipelineState src_load_state = cutlass::xe4::make_producer_start_state<SrcLoadPipeline>();
             typename CollectiveEpilogue::EpilogueStorePipeline epilogue_store_pipeline(item);
 
@@ -113,7 +114,6 @@ int main()
 
             auto blk_coord_mnl = cute::make_tuple(item.get_group(1), item.get_group(2), 0);
 
-            uint32_t local_id = item.get_local_linear_id();
             if (local_id == 0) {
                 auto [M, N, K, L] = problem_shape;
                 auto src = make_tensor(A_d, make_layout(make_shape(M, N, L), cutlass::make_cute_packed_stride(StrideA{}, cute::make_shape(gmemSizeY, gmemSizeX, 1))));
