@@ -64,7 +64,7 @@ int run_test()
     auto C_s = malloc_shared<dtypeC>(sizeC, q);
     std::fill_n(C_s, sizeC, dtypeC(0));
 
-    range<3> local_range(1, 1, 64);
+    range<3> local_range(1, 20, 32);
     uint32_t group_range_m = (mat_m + wg_m - 1) / wg_m;
     uint32_t group_range_n = (mat_n + wg_n - 1) / wg_n;
     range<3> group_range(1, group_range_m, group_range_n);
