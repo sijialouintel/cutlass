@@ -61,7 +61,6 @@ public:
   {
     struct TensorStorage
     {
-      cute::array<ElementC, cute::cosize_v<SmemLayoutC>> smem_C;
       cute::array<ElementD, cute::cosize_v<SmemLayoutD>> smem_D;
     };
   };
@@ -117,28 +116,6 @@ public:
   CUTLASS_HOST_DEVICE
   DefaultEpilogue(Params const& params_)
       : params(params_), epilogue_op() { }
-
-  template <class ProblemShape, class BlockCoord>
-  CUTLASS_DEVICE auto
-  load(EpilogueLoadPipeline epilogue_load_pipeline, LoadPipelineState pipe_load_state,
-    ProblemShape const& problem_shape, BlockCoord const& blk_coord_mnl, TensorStorage& shared_tensors) {
-      auto [M, N, K, L] = problem_shape;
-      auto sC = make_tensor(reinterpret_cast<ElementC *>(shared_tensors.smem_C.data()), SmemLayoutC {});
-      auto mC_mnl = params.load_c.get_tma_tensor(make_shape(M, N, L)); // (m,n,l)
-      auto gC_mnl = flat_divide(mC_mnl,make_shape(shape<0>(TileShape {}), shape<1>(TileShape {}))); // (BLK_M,BLK_N,m,n,l)
-      auto block_load_c = params.load_c.get_slice(0);
-      auto [m_coord, n_coord, l_coord] = blk_coord_mnl;
-      auto gC = gC_mnl(_, _, m_coord, n_coord, 0); // (BLK_M,BLK_N)
-      auto tCgC = block_load_c.partition_S(gC); // (TMA,TMA_M,TMA_N)
-      auto tCsC = block_load_c.partition_D(sC); // (TMA,TMA_M,TMA_N)
-
-      epilogue_load_pipeline.producer_try_wait(pipe_load_state);
-      auto abar_prod = epilogue_load_pipeline.producer_get_barrier(pipe_load_state);
-      constexpr uint32_t slm_bytes_load = sizeof(ElementC) * size(SmemLayoutC {});
-      copy(params.load_c.with(abar_prod), tCgC, tCsC);
-      epilogue_load_pipeline.producer_commit(pipe_load_state, sizeof(TensorStorage::smem_C));
-      epilogue_load_pipeline.consumer_try_wait(pipe_load_state.index(), 0);
-  }
 
   template<
     class TensorAccumulator
