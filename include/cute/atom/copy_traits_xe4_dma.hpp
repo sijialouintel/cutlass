@@ -1,7 +1,6 @@
 #pragma once
 
-#include "xe4_copy_async.hpp"
-
+#include "cute/arch/copy_xe4_dma.hpp"
 #include "cutlass/detail/layout.hpp"
 
 namespace cute

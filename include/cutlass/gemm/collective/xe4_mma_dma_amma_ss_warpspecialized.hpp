@@ -1,11 +1,11 @@
 #pragma once
 
-#include "xe4_mma_traits.hpp"
-#include "xe4_copy_traits.hpp"
-#include "xe4_copy_async.hpp"
+#include "cute/atom/mma_traits_xe4_amma.hpp"
+#include "cute/atom/copy_traits_xe4_dma.hpp"
+#include "cute/arch/copy_xe4_dma.hpp"
 #include "inline_pisa.hpp"
-#include "xe4_mma.hpp"
-#include "pipe.hpp"
+#include "cute/arch/mma_xe4_amma.hpp"
+#include "cutlass/pipeline/xe4_pipeline.hpp"
 
 #include "cutlass/util/packed_stride.hpp"
 #include "cutlass/gemm/dispatch_policy.hpp"

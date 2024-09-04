@@ -5,10 +5,9 @@
 #include <CL/sycl.hpp>
 
 #include "inline_pisa.hpp"
-#include "xe4_conversion_op.hpp"
-#include "xe4_copy_traits.hpp"
-#include "xe4_default_epilogue.hpp"
-#include "conversion_op.hpp"
+#include "cutlass/epilogue/thread/xe4_conversion_op.hpp"
+#include "cute/atom/copy_traits_xe4_dma.hpp"
+#include "cutlass/epilogue/collective/xe4_epilogue_dma_warpspecialized.hpp"
 
 using namespace sycl;
 using namespace cute;

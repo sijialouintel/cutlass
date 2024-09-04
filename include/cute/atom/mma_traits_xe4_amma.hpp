@@ -1,6 +1,6 @@
 #pragma once
 
-#include "xe4_mma.hpp"
+#include "cute/arch/mma_xe4_amma.hpp"
 #include "util.hpp"
 
 namespace cute::xe4 {

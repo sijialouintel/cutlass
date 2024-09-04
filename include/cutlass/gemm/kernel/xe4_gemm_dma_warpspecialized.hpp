@@ -3,12 +3,10 @@
 #include <sycl/sycl.hpp>
 #include <cute/tensor.hpp>
 
-#include "collective_mma.hpp"
-#include "xe4_copy_async.hpp"
-
-#include "conversion_op.hpp"
-#include "xe4_default_epilogue.hpp"
-#include "xe4_conversion_op.hpp"
+#include "cute/arch/copy_xe4_dma.hpp"
+#include "cutlass/epilogue/thread/xe4_conversion_op.hpp"
+#include "cutlass/gemm/collective/xe4_mma_dma_amma_ss_warpspecialized.hpp"
+#include "cutlass/epilogue/collective/xe4_epilogue_dma_warpspecialized.hpp"
 
 namespace cutlass::gemm::kernel {
 

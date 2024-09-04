@@ -5,7 +5,7 @@
 #include "cutlass/detail/layout.hpp"
 #include "cutlass/util/packed_stride.hpp"
 
-#include "xe4_gemm.hpp"
+#include "cutlass/gemm/kernel/xe4_gemm_dma_warpspecialized.hpp"
 #include "validation.hpp"
 
 using namespace cute;

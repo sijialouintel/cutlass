@@ -4,7 +4,7 @@
 #include "cute/tensor.hpp"
 #include "cute/container/array.hpp"
 
-#include "pipe.hpp"
+#include "cutlass/pipeline/xe4_pipeline.hpp"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -44,7 +44,7 @@ public:
   using SmemLayoutC = typename ThreadEpilogueOp::SmemLayoutOutput;
   using GmemTiledCopyC = cute::xe4::ASYNC_TENSOR_LOAD;
   using AuxParamsC = AuxParams<slm_matrix_type::type1, TensorDescPtr, 2>;
-  
+
   using SmemLayoutD = typename ThreadEpilogueOp::SmemLayoutOutput;
   using GmemTiledCopyD = cute::xe4::ASYNC_TENSOR_STORE;
   using AuxParamsD = AuxParams<slm_matrix_type::type1, TensorDescPtr, 3>;
