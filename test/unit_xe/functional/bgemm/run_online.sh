@@ -21,14 +21,18 @@ INCLUDE_PATHS="-I$CUTLASS_PISA_PATH/include \
 
 ORIGIN_PATH=$(pwd)
 BUILD_PATH=$ORIGIN_PATH/build
-rm -rf $BUILD_PATH
+rm -rf $BUILD_PATH; mkdir -p $BUILD_PATH
+
+GEN_HEADER_PATH=$BUILD_PATH/generated_headers/async_gmma.hpp
+python3 $XE4_TEST_PATH/generator/gen_mma.py --output $GEN_HEADER_PATH --shape 256x512x128 --dtype bf16_bf16_bf16 f32_f32_bf16_bf16 f32_bf16_bf16 bf16_f32_bf16_bf16
 
 test_cases=("ROW_ROW" "COL_ROW" "ROW_COL" "COL_COL")
 
 for test_case in "${test_cases[@]}"; do
+    echo "Building $test_case"
     WORK_DIR=$BUILD_PATH/$test_case
     mkdir -p $WORK_DIR; cd $WORK_DIR
-    icpx -fsycl -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -DTEST_$test_case $INCLUDE_PATHS $ORIGIN_PATH/bgemm.cpp -o $WORK_DIR/bgemm
+    icpx -fsycl -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -DTEST_$test_case -DAMMA_HEADER_PATH=$GEN_HEADER_PATH $INCLUDE_PATHS $ORIGIN_PATH/bgemm.cpp -o $WORK_DIR/bgemm
     cd $ORIG_PATH
 done
 
