@@ -46,8 +46,8 @@ int main()
     q.memcpy(A_d, A_h.data(), gmemSize * sizeof(dtype_src)).wait();
     q.memcpy(B_d, B_h.data(), gmemSize * sizeof(dtype_dst)).wait();
 
-    constexpr int32_t boxSizeX = 64;
-    constexpr int32_t boxSizeY = 32;
+    constexpr int32_t boxSizeX = 128;
+    constexpr int32_t boxSizeY = 128;
     constexpr int32_t boxSize = boxSizeX * boxSizeY;
 
     constexpr uint32_t group_range_Y = (gmemSizeY + boxSizeY - 1) / boxSizeY;
@@ -70,7 +70,7 @@ int main()
             using CollectiveEpilogue = cutlass::epilogue::collective::DefaultEpilogue<
                 StrideA,
                 StrideB,
-                DMAPostOPConvert<TileShape, dtype_dst, dtype_src>,
+                DMAPostOPConvert<TileShape, dtype_dst, dtype_src, 16>,
                 cutlass::gemm::EpilogueDefault
             >;
 
@@ -103,7 +103,6 @@ int main()
             };
 
             typename CollectiveEpilogue::Params params = CollectiveEpilogue::to_underlying_arguments(problem_shape, args, nullptr);
-
             uint32_t local_id = item.get_local_linear_id();
             SrcLoadPipeline src_load_pipeline(local_id);
             SrcLoadPipelineState src_load_state = cutlass::xe4::make_producer_start_state<SrcLoadPipeline>();
@@ -141,7 +140,7 @@ int main()
                         reinterpret_cast<ElementSrc *>(shared_storage->src.data()),
                         SmemLayoutSrc {});
                 collective_epilogue(tensor_src, shared_storage->tensors.epilogue,
-                        item.get_local_range().size() / 32 - 4, local_id - 128);
+                        4, local_id);
             }
 
             item.barrier(access::fence_space::local_space);

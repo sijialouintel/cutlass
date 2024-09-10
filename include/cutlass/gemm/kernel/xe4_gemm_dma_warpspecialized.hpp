@@ -163,7 +163,7 @@ public:
     item.barrier(access::fence_space::local_space);
 
     if (local_id >= 128) {
-      collective_epilogue(accumulator, shared_storage->tensors.epilogue, item.get_local_range().size() / 32 - 4, local_id - 128);
+      collective_epilogue(accumulator, shared_storage->tensors.epilogue, 4, local_id);
     }
 
     item.barrier(access::fence_space::local_space);

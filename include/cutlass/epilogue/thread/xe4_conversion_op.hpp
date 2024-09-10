@@ -17,7 +17,8 @@ constexpr uint32_t const_log2(uint32_t n) {
 template<
     class TileShape_,
     class ElementOutput_,
-    class ElementAccumulator_
+    class ElementAccumulator_,
+    uint32_t SubGroupNum
 >
 class DMAPostOPConvert {
 public:
@@ -30,7 +31,7 @@ public:
     using SrcTensor= decltype(make_tensor(static_cast<ElementAccumulator*>(nullptr), SmemLayoutOutput {}));
 
     template <class SrcTensor, class DstTensor>
-    void operator()(SrcTensor const &tensor_src, DstTensor &tensor_dst, uint32_t sg_num, uint32_t local_id) const {
+    void operator()(SrcTensor const &tensor_src, DstTensor &tensor_dst, uint32_t num_control_sg, uint32_t local_id) const {
 
         using dtype_src = typename SrcTensor::reference;
         using dtype_dst = typename DstTensor::reference;
@@ -38,10 +39,13 @@ public:
         constexpr uint32_t boxSizeY = size<0>(SrcTensor{});
         constexpr uint32_t boxSizeX = size<1>(SrcTensor{});
         constexpr uint32_t sg_size = 32;
-        uint32_t sg_id = local_id / sg_size;
-        uint32_t lane_id = local_id % sg_size;
+        uint32_t worker_id = local_id - num_control_sg * sg_size;
+        uint32_t sg_id = worker_id / sg_size;
+        uint32_t lane_id = worker_id % sg_size;
         constexpr uint32_t src_cm_size_x = 32 / sizeof(dtype_src);
         constexpr uint32_t dst_cm_size_x = 32 / sizeof(dtype_dst);
+        // for current design, each item works for 32B on one row of dst core matrix iteratively
+        static_assert(boxSizeY * boxSizeX / (SubGroupNum * sg_size) >= dst_cm_size_x);
         constexpr uint32_t core_tile_size = 64;
         constexpr uint32_t core_tile_offset = 256;
         constexpr uint32_t cm_size_y = 32;
@@ -79,7 +83,7 @@ public:
         auto tile_shape_dst = make_tile(Int<dst_cm_size_x>{}, cm_row_shape, make_shape(Int<1>{}, Int<1>{}));
 
         // copy slm_tiled to regs_tiled
-        for(int i = 0; i < cm_num_y * cm_num_dst_x; i += sg_num){
+        for(int i = 0; i < cm_num_y * cm_num_dst_x; i += SubGroupNum){
             auto tile_coord = make_coord(_, make_coord(_, _, _), sg_id + i);
             auto tile_sSrc = local_tile(sSrc, tile_shape_src, tile_coord);
             auto tile_sSrc_v = group_modes<3,rank(tile_sSrc)>(tile_sSrc);

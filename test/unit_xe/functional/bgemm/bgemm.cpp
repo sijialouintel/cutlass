@@ -109,7 +109,7 @@ int run_test()
     using CollectiveEpilogue = cutlass::epilogue::collective::DefaultEpilogue<
         StrideC,
         StrideC,
-        DMAPostOPConvert<decltype(take<0, 2>(TileShape{})), dtypeC, dtypeAcc>,
+        DMAPostOPConvert<decltype(take<0, 2>(TileShape{})), dtypeC, dtypeAcc, 16>,
         cutlass::gemm::EpilogueDefault
     >;
 
