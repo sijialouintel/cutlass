@@ -1,3 +1,4 @@
+#define __RUN_ON_CPU__ 0
 #include <cute/tensor.hpp>
 #include <cutlass/gemm/dispatch_policy.hpp>
 #include <cutlass/util/packed_stride.hpp>
@@ -46,8 +47,8 @@ int main()
     q.memcpy(A_d, A_h.data(), gmemSize * sizeof(dtype_src)).wait();
     q.memcpy(B_d, B_h.data(), gmemSize * sizeof(dtype_dst)).wait();
 
-    constexpr int32_t boxSizeX = 128;
-    constexpr int32_t boxSizeY = 128;
+    constexpr int32_t boxSizeX = 64;
+    constexpr int32_t boxSizeY = 32;
     constexpr int32_t boxSize = boxSizeX * boxSizeY;
 
     constexpr uint32_t group_range_Y = (gmemSizeY + boxSizeY - 1) / boxSizeY;
@@ -64,13 +65,17 @@ int main()
             using StrideA = cutlass::detail::TagToStrideC_t<LayoutA>;
             using LayoutB = cutlass::layout::RowMajor;
             using StrideB = cutlass::detail::TagToStrideC_t<LayoutB>;
-
+            using SmemLayout = Layout<Shape<Int<boxSizeY>, Int<boxSizeX>>, Stride<Int<boxSizeX>, _1>>;
+            
             auto problem_shape = make_shape(gmemSizeY, gmemSizeX, 0, 1);
 
             using CollectiveEpilogue = cutlass::epilogue::collective::DefaultEpilogue<
                 StrideA,
                 StrideB,
-                DMAPostOPConvert<TileShape, dtype_dst, dtype_src, 16>,
+                SmemLayout,
+                SmemLayout,
+                TileShape,
+                DMAPostOPConvert<dtype_dst, dtype_src, 16, 32>,
                 cutlass::gemm::EpilogueDefault
             >;
 

@@ -39,6 +39,13 @@
 
 #define PRINT(x) print(#x); print(": "); print(x); print("\n");
 
+
+#ifndef __SYCL_DEVICE_ONLY__
+#define HOST_PRINT(x) PRINT(x)
+#else
+#define HOST_PRINT(x)
+#endif
+
 namespace cute
 {
 

@@ -88,6 +88,8 @@ int run_test()
         Layout<Shape<Int<wg_n>,Int<wg_k>,Int<stage>>, Stride<Int<wg_k>,_1,Int<wg_k*wg_n>>>
     >;
 
+    using SmemLayoutAtomC = Layout<Shape<Int<wg_m>, Int<wg_n>>, Stride<Int<wg_n>, _1>>;
+
     using CollectiveMainloop = CollectiveMma<
         MainloopXe4DmaGmma<stage>,                                                              // MainloopXe4DmaGmma
         TileShape,                                                                              // TileShape
@@ -109,7 +111,10 @@ int run_test()
     using CollectiveEpilogue = cutlass::epilogue::collective::DefaultEpilogue<
         StrideC,
         StrideC,
-        DMAPostOPConvert<decltype(take<0, 2>(TileShape{})), dtypeC, dtypeAcc, 16>,
+        SmemLayoutAtomC,
+        SmemLayoutAtomC,
+        decltype(take<0, 2>(TileShape{})),
+        DMAPostOPConvert<dtypeC, dtypeAcc, 16, 32>,
         cutlass::gemm::EpilogueDefault
     >;
 
