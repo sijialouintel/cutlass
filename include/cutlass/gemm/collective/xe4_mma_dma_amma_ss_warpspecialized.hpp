@@ -98,6 +98,8 @@ struct CollectiveMma<
   using GmemTiledCopyB = GmemTiledCopyB_;
   using SmemLayoutA = SmemLayoutAtomA_;
   using SmemLayoutB = SmemLayoutAtomB_;
+  using SmemCopyAtomA = SmemCopyAtomA_;
+  using SmemCopyAtomB = SmemCopyAtomB_;
 
   using TensorDescPtr = uint64_t*;
   using AbarrierPtr = uint64_t*;
@@ -119,6 +121,12 @@ struct CollectiveMma<
 
   using MainloopPipeline = cutlass::xe4::PipelineTmaAsync<Stages, AbarrierPtr>;
   using PipelineState = cutlass::xe4::PipelineState<Stages>;
+
+  static_assert(DispatchPolicy::Stages >= 2, "Specialization requires Stages set to value 2 or more.");
+  static_assert(cute::is_same_v<GmemTiledCopyA, cute::xe4::ASYNC_TENSOR_LOAD> || cute::is_same_v<GmemTiledCopyA, cute::xe4::ASYNC_TENSOR_LOAD_MULTICAST>,
+      "GmemTiledCopy - invalid XE4 DMA copy atom specified.");
+  static_assert(cute::is_same_v<GmemTiledCopyB, cute::xe4::ASYNC_TENSOR_LOAD> || cute::is_same_v<GmemTiledCopyB, cute::xe4::ASYNC_TENSOR_LOAD_MULTICAST>,
+      "GmemTiledCopy - invalid XE4 DMA copy atom specified.");
 
   struct SharedStorage
   {
@@ -253,6 +261,13 @@ struct CollectiveMma<
   template <class FrgTensorC, class ClusterMask>
   CUTLASS_DEVICE void
   mma(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState slm_pipe_read, FrgTensorC& accumulator, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
+    static_assert(cute::rank(SmemLayoutA{}) == 3, "Smem layout must be rank 3.");
+    static_assert(cute::rank(SmemLayoutB{}) == 3, "Smem layout must be rank 3.");
+    static_assert(cute::is_void_v<SmemCopyAtomA>,
+      "XE4 GMMA mainloops cannot have a non-void copy atom for smem sourced instructions.");
+    static_assert(cute::is_void_v<SmemCopyAtomB>,
+      "XE4 GMMA mainloops cannot have a non-void copy atom for smem sourced instructions.");
+
     auto sA = make_tensor(reinterpret_cast<ElementA *>(shared_tensors.smem_A.data()), SmemLayoutA {});
     auto sB = make_tensor(reinterpret_cast<ElementB *>(shared_tensors.smem_B.data()), SmemLayoutB {});
 
@@ -267,6 +282,13 @@ struct CollectiveMma<
     auto tCsA = thread_mma.partition_fragment_A(sA);            // (MMA,MMA_M,MMA_K,PIPE)
     auto tCsB = thread_mma.partition_fragment_B(sB);            // (MMA,MMA_N,MMA_K,PIPE)
     auto accum = thread_mma.partition_fragment_C(accumulator);  // (MMA,MMA_M,MMA_N)
+
+    CUTE_STATIC_ASSERT_V(size<1>(tCsA) == size<1>(accum));                           // M
+    CUTE_STATIC_ASSERT_V(size<1>(tCsB) == size<2>(accum));                           // N
+    CUTE_STATIC_ASSERT_V(size<2>(tCsA) == size<2>(tCsB));                            // K
+    CUTE_STATIC_ASSERT_V(size<3>(tCsA) == size<3>(tCsB));                         // PIPE
+    CUTE_STATIC_ASSERT_V(Int<DispatchPolicy::Stages>{} == size<2>(sA));           // PIPE
+    CUTE_STATIC_ASSERT_V(Int<DispatchPolicy::Stages>{} == size<2>(sB));           // PIPE
 
     if (k_tile_count == 1) {
       pipeline.consumer_try_wait(slm_pipe_read);

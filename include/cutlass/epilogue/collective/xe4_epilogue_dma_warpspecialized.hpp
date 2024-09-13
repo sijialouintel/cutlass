@@ -73,8 +73,6 @@ public:
 
   // Host side epilogue arguments
   struct Arguments {
-    ElementC const* ptr_C = nullptr;
-    StrideC dC{};
     ElementD const* ptr_D = nullptr;
     StrideC dD{};
   };
@@ -82,15 +80,10 @@ public:
   // Device side epilogue params
   struct Params
   {
-    using TiledLoadC = decltype(make_xe4_copy<GmemTiledCopyC, AuxParamsC>(
-      make_tensor(static_cast<ElementC const*>(nullptr), repeat_like(StrideC{}, int32_t(0)), StrideC{}),
-      SmemLayoutC{}, make_shape(shape<0>(TileShape{}), shape<1>(TileShape{}))));
-
     using TiledStoreD = decltype(make_xe4_copy<GmemTiledCopyD, AuxParamsD>(
       make_tensor(static_cast<ElementD const*>(nullptr), repeat_like(StrideD{}, int32_t(0)), StrideD{}),
       SmemLayoutD{}, make_shape(shape<0>(TileShape{}), shape<1>(TileShape{}))));
 
-    TiledLoadC load_c;
     TiledStoreD store_d;
   };
 
@@ -106,14 +99,10 @@ public:
       [[maybe_unused]] void* workspace) {
 
     auto [M, N, K, L] = problem_shape;
-
-    auto C = make_tensor(args.ptr_C, make_layout(make_shape(M, N, L), args.dC));
-    auto load_c = make_xe4_copy<GmemTiledCopyC, AuxParamsC>(C, SmemLayoutC {}, make_shape(shape<0>(TileShape {}), shape<1>(TileShape {})));
-
     auto D = make_tensor(args.ptr_D, make_layout(make_shape(M, N, L), args.dD));
     auto store_d = make_xe4_copy<GmemTiledCopyD, AuxParamsD>(D, SmemLayoutD {}, make_shape(shape<0>(TileShape {}), shape<1>(TileShape {})));
 
-    return {load_c, store_d};
+    return {store_d};
   }
 
   // Note: SharedStorage is unused for DefaultEpilogue

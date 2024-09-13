@@ -36,9 +36,14 @@ class GemmUniversal<
   TileScheduler_>
 {
 public:
+  //
+  // Type Aliases
+  //
   using ProblemShape = ProblemShape_;
+  static_assert(cute::rank(ProblemShape{}) == 3 or cute::rank(ProblemShape{}) == 4,
+    "ProblemShape{} should be <M,N,K> or <M,N,K,L>");
+  // Mainloop derived types
   using CollectiveMainloop = CollectiveMainloop_;
-  using CollectiveEpilogue = CollectiveEpilogue_;
   using TileShape = typename CollectiveMainloop::TileShape;
   using TiledMma  = typename CollectiveMainloop::TiledMma;
   using ElementA  = typename CollectiveMainloop::ElementA;
@@ -52,12 +57,12 @@ public:
   using ClusterShape = typename DispatchPolicy::ClusterShape;
   using MainloopArguments = typename CollectiveMainloop::Arguments;
   using MainloopParams = typename CollectiveMainloop::Params;
+
+  // Epilogue derived types
+  using CollectiveEpilogue = CollectiveEpilogue_;
   using EpilogueArguments = typename CollectiveEpilogue::Arguments;
   using EpilogueParams = typename CollectiveEpilogue::Params;
-
   using SmemLayoutC = typename CollectiveEpilogue::SmemLayoutC;
-
-  using SlmTensorAcc = decltype(make_tensor(static_cast<ElementAccumulator*>(nullptr), SmemLayoutC{}));
 
   struct SharedStorage
   {
@@ -72,6 +77,8 @@ public:
 
     cute::array<ElementAccumulator, cute::cosize_v<SmemLayoutC>> smem_Acc;
   };
+
+  static constexpr int SharedStorageSize = sizeof(SharedStorage);
 
   // Device side arguments
   struct Arguments {
@@ -95,7 +102,7 @@ public:
   to_underlying_arguments(Arguments const& args, void* workspace) {
     (void) workspace;
 
-    auto ptr = sycl::ext::oneapi::group_local_memory_for_overwrite<uint8_t[sizeof(SharedStorage)]>(args.item.get_group());
+    auto ptr = sycl::ext::oneapi::group_local_memory_for_overwrite<uint8_t[SharedStorageSize]>(args.item.get_group());
 
     return {
       args.item,
@@ -155,6 +162,7 @@ public:
 
     if (local_id == 0) {
       auto load_inputs = collective_mainloop.load_init(problem_shape, params.mainloop);
+      static_assert(cute::tuple_size_v<decltype(load_inputs)> >= 2, "Output of load_init must have at least two elements (A, B)");
       collective_mainloop.load(params.mainloop, mainloop_pipeline, mainloop_pipe_producer_state, load_inputs, blk_coord, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
     } else if (local_id == 32) {
       collective_mainloop.mma(params.mainloop, mainloop_pipeline, mainloop_pipe_consumer_state, accumulator, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
