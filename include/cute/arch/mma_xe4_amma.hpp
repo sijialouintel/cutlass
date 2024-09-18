@@ -4,7 +4,7 @@
 
 namespace cute {
 
-namespace AMMA {
+namespace xe4::AMMA {
 enum class ScaleOut {
   Zero = 0,
   One  = 1
@@ -38,7 +38,7 @@ struct XE4_ASYNC_GMMA
     constexpr mem_layout layout_a = IsRowMajorA ? mem_layout::row_major: mem_layout::col_major;
     constexpr mem_layout layout_b = IsRowMajorB ? mem_layout::row_major: mem_layout::col_major;
 
-    if constexpr (ConstScaleOut::value == AMMA::ScaleOut::One) {
+    if constexpr (ConstScaleOut::value == xe4::AMMA::ScaleOut::One) {
       async_gmma<TD, TC, TA, TB, Tile_M, Tile_N, Tile_K, layout_a, layout_b>(mat_desc_d, mat_desc_c, mat_desc_a, mat_desc_b, abar_cons);
     } else {
       async_gmma<TD, TA, TB, Tile_M, Tile_N, Tile_K, layout_a, layout_b>(mat_desc_d, mat_desc_a, mat_desc_b, abar_cons);
@@ -75,7 +75,7 @@ struct XE4_ASYNC_GMMA_MULTICAST
     constexpr mem_layout layout_a = IsRowMajorA ? mem_layout::row_major: mem_layout::col_major;
     constexpr mem_layout layout_b = IsRowMajorB ? mem_layout::row_major: mem_layout::col_major;
 
-    if constexpr (ConstScaleOut::value == AMMA::ScaleOut::One) {
+    if constexpr (ConstScaleOut::value == xe4::AMMA::ScaleOut::One) {
       async_gmma<TD, TC, TA, TB, Tile_M, Tile_N, Tile_K, layout_a, layout_b>(
         mat_desc_d, mat_desc_c, mat_desc_a, mat_desc_b, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b);
     } else {

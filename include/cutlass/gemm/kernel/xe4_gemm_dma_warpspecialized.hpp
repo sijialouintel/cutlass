@@ -140,7 +140,10 @@ public:
     auto wg_k = get<2>(TileShape{});
     uint32_t k_tile_count = (K + wg_k -1) / wg_k;
 
-    auto accumulator = make_tensor(reinterpret_cast<ElementAccumulator *>(shared_storage->smem_Acc.data()), SmemLayoutC {});
+    auto cmLayoutC = upcast<sizeof(ElementAccumulator)>(make_layout(Shape<_32,_32>{}, GenRowMajor{}));
+    auto slmLayoutC = tile_to_shape(cmLayoutC, SmemLayoutC{}, Step<_2,_1>{});
+    auto accumulator = make_tensor(reinterpret_cast<ElementAccumulator *>(shared_storage->smem_Acc.data()), slmLayoutC);
+
     auto blk_coord = cute::make_tuple(item.get_group(1), item.get_group(2), 0);
     auto cluster_mask = collective_mainloop.calculateClusterMasks(params.mainloop.wg_id);
 

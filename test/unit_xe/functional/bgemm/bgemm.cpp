@@ -5,6 +5,7 @@
 #include "cutlass/detail/layout.hpp"
 #include "cutlass/util/packed_stride.hpp"
 
+#include "cute/arch/mma_xe4.hpp"
 #include "cutlass/gemm/kernel/xe4_gemm_dma_warpspecialized.hpp"
 #include "validation.hpp"
 
@@ -26,13 +27,13 @@ int run_test()
     std::cout << "Running on " << dev.get_info<info::device::name>() << "\n";
     auto ctxt = q.get_context();
 
-    int mat_m = 256;
+    int mat_m = 512;
     int mat_n = 512;
     int mat_k = 512;
     int mat_l = 1;
-    constexpr uint32_t wg_m = 256;
+    constexpr uint32_t wg_m = 512;
     constexpr uint32_t wg_n = 512;
-    constexpr uint32_t wg_k = 128;
+    constexpr uint32_t wg_k = 256;
     constexpr uint32_t stage = 4;
 
     uint32_t sizeA = mat_m * mat_k;
@@ -76,17 +77,10 @@ int run_test()
     using StrideC = cutlass::detail::TagToStrideC_t<LayoutC>;
 
     using TileShape = Shape<Int<wg_m>, Int<wg_n>, Int<wg_k>>;
-    using MMA_Op = XE4_ASYNC_GMMA<dtypeAcc, dtypeAcc, dtypeA, dtypeB, TileShape, is_row_major_a, is_row_major_b, uint32_t, uint64_t*>;
+    using TiledMma = decltype(cute::make_tiled_mma(AMMA::ss_op_selector<AMMA::OpType::NoneCluster, dtypeA, dtypeB, dtypeAcc, TileShape, is_row_major_a, is_row_major_b>()));
 
-    using SmemLayoutAtomA = std::conditional_t<is_row_major_a,
-        Layout<Shape<Int<wg_m>,Int<wg_k>,Int<stage>>, Stride<Int<wg_k>,_1,Int<wg_m*wg_k>>>,
-        Layout<Shape<Int<wg_m>,Int<wg_k>,Int<stage>>, Stride<_1,Int<wg_m>,Int<wg_m*wg_k>>>
-    >;
-
-    using SmemLayoutAtomB = std::conditional_t<is_row_major_b,
-        Layout<Shape<Int<wg_n>,Int<wg_k>,Int<stage>>, Stride<_1,Int<wg_n>,Int<wg_k*wg_n>>>,
-        Layout<Shape<Int<wg_n>,Int<wg_k>,Int<stage>>, Stride<Int<wg_k>,_1,Int<wg_k*wg_n>>>
-    >;
+    using SmemLayoutAtomA = decltype(upcast<sizeof(dtypeA)>(make_layout(Shape<_32,_32>{}, GenRowMajor{})));
+    using SmemLayoutAtomB = decltype(upcast<sizeof(dtypeB)>(make_layout(Shape<_32,_32>{}, std::conditional_t<is_row_major_b, GenColMajor, GenRowMajor>{})));
 
     using SmemLayoutAtomC = Layout<Shape<Int<wg_m>, Int<wg_n>>, Stride<Int<wg_n>, _1>>;
 
@@ -97,7 +91,7 @@ int run_test()
         StrideA,                                                                                // StrideA
         dtypeB,                                                                                 // ElementB
         StrideB,                                                                                // StrideB
-        decltype(cute::make_tiled_mma(MMA_Op{})),                                               // TiledMma
+        TiledMma,                                                                               // TiledMma
         ASYNC_TENSOR_LOAD,                                                                      // GmemTiledCopyA
         SmemLayoutAtomA,                                                                        // SmemLayoutAtomA
         void,                                                                                   // SmemCopyAtomA

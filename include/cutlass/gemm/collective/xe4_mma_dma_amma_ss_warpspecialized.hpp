@@ -96,8 +96,8 @@ struct CollectiveMma<
   using TiledMma = TiledMma_;
   using GmemTiledCopyA = GmemTiledCopyA_;
   using GmemTiledCopyB = GmemTiledCopyB_;
-  using SmemLayoutA = SmemLayoutAtomA_;
-  using SmemLayoutB = SmemLayoutAtomB_;
+  using SmemLayoutAtomA = SmemLayoutAtomA_;
+  using SmemLayoutAtomB = SmemLayoutAtomB_;
   using SmemCopyAtomA = SmemCopyAtomA_;
   using SmemCopyAtomB = SmemCopyAtomB_;
 
@@ -127,6 +127,16 @@ struct CollectiveMma<
       "GmemTiledCopy - invalid XE4 DMA copy atom specified.");
   static_assert(cute::is_same_v<GmemTiledCopyB, cute::xe4::ASYNC_TENSOR_LOAD> || cute::is_same_v<GmemTiledCopyB, cute::xe4::ASYNC_TENSOR_LOAD_MULTICAST>,
       "GmemTiledCopy - invalid XE4 DMA copy atom specified.");
+
+  // Tile along modes in a way that maximizes the TMA box size.
+  using SmemLayoutA = decltype(tile_to_shape(
+      SmemLayoutAtomA{},
+      make_shape(shape<0>(TileShape{}), shape<2>(TileShape{}), Int<DispatchPolicy::Stages>{}),
+      cute::conditional_t<IsRowMajorA, Step<_2,_1,_3>, Step<_1,_2,_3>>{}));
+  using SmemLayoutB = decltype(tile_to_shape(
+      SmemLayoutAtomB{},
+      make_shape(shape<1>(TileShape{}), shape<2>(TileShape{}), Int<DispatchPolicy::Stages>{}),
+      cute::conditional_t<!IsRowMajorB, Step<_2,_1,_3>, Step<_1,_2,_3>>{}));
 
   struct SharedStorage
   {
@@ -275,8 +285,8 @@ struct CollectiveMma<
     auto [cluster_mask_a, cluster_mask_b] = cluster_mask;
 
     TiledMma tiled_mma;
-    constexpr auto scaleOutOne = C<AMMA::ScaleOut::One>{};
-    constexpr auto scaleOutZero = C<AMMA::ScaleOut::Zero>{};
+    constexpr auto scaleOutOne = C<cute::xe4::AMMA::ScaleOut::One>{};
+    constexpr auto scaleOutZero = C<cute::xe4::AMMA::ScaleOut::Zero>{};
 
     auto thread_mma = tiled_mma.get_thread_slice(0);
     auto tCsA = thread_mma.partition_fragment_A(sA);            // (MMA,MMA_M,MMA_K,PIPE)
@@ -290,23 +300,31 @@ struct CollectiveMma<
     CUTE_STATIC_ASSERT_V(Int<DispatchPolicy::Stages>{} == size<2>(sA));           // PIPE
     CUTE_STATIC_ASSERT_V(Int<DispatchPolicy::Stages>{} == size<2>(sB));           // PIPE
 
+    auto cshape = ClusterShape{};
+    auto wg_expect_tx = size<1>(accum) * size<2>(accum) * size<2>(tCsA);
+    auto cluster_expect_tx = (size(cshape) == 1) ? wg_expect_tx : (wg_expect_tx * (size<0>(cshape) + size<1>(cshape)));
+
     if (k_tile_count == 1) {
       pipeline.consumer_try_wait(slm_pipe_read);
       auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
-      cute::gemm(tiled_mma.with(scaleOutZero, abar_cons), tCsA(_,_,_,0), tCsB(_,_,_,0), accum);
-      pipeline.consumer_commit(slm_pipe_read);
+      cute::gemm(tiled_mma.with(scaleOutZero, abar_cons), tCsA(_,_,0,0), tCsB(_,_,0,0), accum);
+      for (int k_block = 1; k_block < size<2>(tCsA); ++k_block) {
+        cute::gemm(tiled_mma.with(scaleOutOne, abar_cons), tCsA(_,_,k_block,0), tCsB(_,_,k_block,0), accum);
+      }
+      pipeline.consumer_commit(slm_pipe_read, wg_expect_tx);
       pipeline.producer_try_wait(slm_pipe_read);
       return;
     }
-
-    constexpr uint32_t expect_tx = (size(ClusterShape{}) == 1) ? 1 : (size<0>(ClusterShape{}) + size<1>(ClusterShape{}));
 
     if (k_tile_count >= 2) {
       pipeline.consumer_try_wait(slm_pipe_read);
       uint32_t index = slm_pipe_read.index();
       auto abar_cons = pipeline.consumer_get_barrier(index);
-      cute::gemm(tiled_mma.with(scaleOutZero, abar_cons, cluster_mask_a, cluster_mask_b), tCsA(_,_,_,index), tCsB(_,_,_,index), accum);
-      pipeline.consumer_commit(slm_pipe_read, expect_tx);
+      cute::gemm(tiled_mma.with(scaleOutZero, abar_cons, cluster_mask_a, cluster_mask_b), tCsA(_,_,0,index), tCsB(_,_,0,index), accum);
+      for (int k_block = 1; k_block < size<2>(tCsA); ++k_block) {
+        cute::gemm(tiled_mma.with(scaleOutOne, abar_cons, cluster_mask_a, cluster_mask_b), tCsA(_,_,k_block,index), tCsB(_,_,k_block,index), accum);
+      }
+      pipeline.consumer_commit(slm_pipe_read, cluster_expect_tx);
 
       for (uint32_t i = 1; i < k_tile_count - 1; i++) {
         ++slm_pipe_read;
@@ -314,7 +332,7 @@ struct CollectiveMma<
         auto abar_cons = pipeline.consumer_get_barrier(index);
         pipeline.consumer_try_wait(slm_pipe_read);
         cute::gemm(tiled_mma.with(scaleOutOne, abar_cons, cluster_mask_a, cluster_mask_b), tCsA(_,_,_,index), tCsB(_,_,_,index), accum);
-        pipeline.consumer_commit(slm_pipe_read, expect_tx);
+        pipeline.consumer_commit(slm_pipe_read, cluster_expect_tx);
       }
       {
         ++slm_pipe_read;
@@ -327,7 +345,7 @@ struct CollectiveMma<
         pipeline.consumer_try_wait(index, phase);
 
         cute::gemm(tiled_mma.with(scaleOutOne, abar_cons), tCsA(_,_,_,index), tCsB(_,_,_,index), accum);
-        pipeline.consumer_commit(slm_pipe_read);
+        pipeline.consumer_commit(slm_pipe_read, wg_expect_tx);
         pipeline.producer_try_wait(slm_pipe_read);
       }
     }
