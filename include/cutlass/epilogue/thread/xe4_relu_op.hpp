@@ -1,14 +1,33 @@
+#include <vector>
+
 #include <cute/tensor.hpp>
 #include <cute/util/print.hpp>
 
 using namespace sycl;
 using namespace cute;
 
-template <class Dst>
-struct Conversion {
-    template <class Src>
-    CUTLASS_HOST_DEVICE Dst operator()(Src value) const {
-        return static_cast<Dst>(value);
+struct ReLu {
+    template <class T>
+    CUTLASS_HOST_DEVICE
+    T operator()(T value) const {
+        return max(value, T{});
+    }
+
+    template <class Engine, class Layout>
+    CUTLASS_HOST_DEVICE
+    void operator()(Tensor<Engine, Layout>& tensor) const {
+        CUTLASS_PRAGMA_UNROLL
+        for (int i = 0; i < tensor.size(); ++i) {
+            tensor(i) = operator()(tensor(i));
+        }
+    }
+
+    /* Use for calculating golden value. */
+    template <class T>
+    void run(std::vector<T>& vec){
+        for (auto &val : vec) {
+            val = operator()(val);
+        }
     }
 };
 
@@ -18,7 +37,7 @@ template<
     uint32_t SubGroupNum_,
     uint32_t SubGroupSize_
 >
-class DMAPostOPConvert {
+class DMAPostOPReLu {
 public:
     using ElementOutput = ElementOutput_;
     using ElementAccumulator = ElementAccumulator_;
@@ -62,6 +81,7 @@ public:
 
             // each lane converts src_regs data to dst_regs
             static_assert(lane_rSrc.size() == lane_rDst.size());
+            ReLu{}(lane_rSrc);
             copy(lane_rSrc, lane_rDst);
 
             // copy dst_regs to dst_slm

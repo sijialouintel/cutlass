@@ -18,8 +18,12 @@ class BGEMM_ROW_ROW;
 class BGEMM_COL_ROW;
 class BGEMM_ROW_COL;
 class BGEMM_COL_COL;
+class BGEMM_ROW_ROW_RELU;
+class BGEMM_COL_ROW_RELU;
+class BGEMM_ROW_COL_RELU;
+class BGEMM_COL_COL_RELU;
 
-template<typename test, mem_layout layout_a, mem_layout layout_b>
+template<typename test, mem_layout layout_a, mem_layout layout_b, typename PostOp>
 int run_test()
 {
     queue q;
@@ -47,6 +51,9 @@ int run_test()
 
     static constexpr bool is_row_major_a = (layout_a == mem_layout::row_major);
     static constexpr bool is_row_major_b = (layout_b == mem_layout::row_major);
+
+    using EpilogueOp = std::conditional_t<std::is_same_v<PostOp, ReLu>,
+            DMAPostOPReLu<dtypeC, dtypeAcc, 16, 32>, DMAPostOPConvert<dtypeC, dtypeAcc, 16, 32>>;
 
     using LayoutA = std::conditional_t<is_row_major_a, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
     using LayoutB = std::conditional_t<is_row_major_b, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
@@ -108,7 +115,7 @@ int run_test()
         SmemLayoutAtomC,
         SmemLayoutAtomC,
         decltype(take<0, 2>(TileShape{})),
-        DMAPostOPConvert<dtypeC, dtypeAcc, 16, 32>,
+        EpilogueOp,
         cutlass::gemm::EpilogueDefault
     >;
 
@@ -141,7 +148,7 @@ int run_test()
         kernel(params);
      }).wait();
 
-    uint32_t err_cnt = validate_gemm_result(A_s, B_s, C_s, mat_m, mat_n, mat_k, layout_a, layout_b);
+    uint32_t err_cnt = validate_gemm_result(A_s, B_s, C_s, mat_m, mat_n, mat_k, layout_a, layout_b, PostOp{});
     if (err_cnt > 0) {
         std::cout << "Test Failed!" << std::endl;
         return -1;
@@ -155,13 +162,21 @@ int main()
 {
 
 #if defined(TEST_ROW_ROW)
-    run_test<BGEMM_ROW_ROW, mem_layout::row_major, mem_layout::row_major>();
+    run_test<BGEMM_ROW_ROW, mem_layout::row_major, mem_layout::row_major, DoNothing>();
 #elif defined(TEST_COL_ROW)
-    run_test<BGEMM_COL_ROW, mem_layout::col_major, mem_layout::row_major>();
+    run_test<BGEMM_COL_ROW, mem_layout::col_major, mem_layout::row_major, DoNothing>();
 #elif defined(TEST_ROW_COL)
-    run_test<BGEMM_ROW_COL, mem_layout::row_major, mem_layout::col_major>();
+    run_test<BGEMM_ROW_COL, mem_layout::row_major, mem_layout::col_major, DoNothing>();
 #elif defined(TEST_COL_COL)
-    run_test<BGEMM_COL_COL, mem_layout::col_major, mem_layout::col_major>();
+    run_test<BGEMM_COL_COL, mem_layout::col_major, mem_layout::col_major, DoNothing>();
+#elif defined(TEST_ROW_ROW_RELU)
+    run_test<BGEMM_ROW_ROW_RELU, mem_layout::row_major, mem_layout::row_major, ReLu>();
+#elif defined(TEST_COL_ROW_RELU)
+    run_test<BGEMM_COL_ROW_RELU, mem_layout::col_major, mem_layout::row_major, ReLu>();
+#elif defined(TEST_ROW_COL_RELU)
+    run_test<BGEMM_ROW_COL_RELU, mem_layout::row_major, mem_layout::col_major, ReLu>();
+#elif defined(TEST_COL_COL_RELU)
+    run_test<BGEMM_COL_COL_RELU, mem_layout::col_major, mem_layout::col_major, ReLu>();
 #endif
 
     return 0;

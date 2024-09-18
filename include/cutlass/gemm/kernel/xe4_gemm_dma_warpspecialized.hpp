@@ -5,6 +5,7 @@
 
 #include "cute/arch/copy_xe4_dma.hpp"
 #include "cutlass/epilogue/thread/xe4_conversion_op.hpp"
+#include "cutlass/epilogue/thread/xe4_relu_op.hpp"
 #include "cutlass/gemm/collective/xe4_mma_dma_amma_ss_warpspecialized.hpp"
 #include "cutlass/epilogue/collective/xe4_epilogue_dma_warpspecialized.hpp"
 

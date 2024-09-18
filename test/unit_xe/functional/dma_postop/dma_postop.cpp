@@ -7,6 +7,7 @@
 
 #include "inline_pisa.hpp"
 #include "cutlass/epilogue/thread/xe4_conversion_op.hpp"
+#include "cutlass/epilogue/thread/xe4_relu_op.hpp"
 #include "cute/atom/copy_traits_xe4_dma.hpp"
 #include "cutlass/epilogue/collective/xe4_epilogue_dma_warpspecialized.hpp"
 
@@ -75,11 +76,14 @@ int main()
                 SmemLayout,
                 SmemLayout,
                 TileShape,
+#if __EPILOGUE_OP__ == RELU
+                DMAPostOPReLu<dtype_dst, dtype_src, 16, 32>,
+#elif __EPILOGUE_OP__ == CONVERSION
                 DMAPostOPConvert<dtype_dst, dtype_src, 16, 32>,
+#endif
                 cutlass::gemm::EpilogueDefault
             >;
 
-            using TiledLoadSrc = typename CollectiveEpilogue::Params::TiledLoadC;
             using ElementSrc = typename CollectiveEpilogue::ElementC;
             using SmemLayoutSrc = typename CollectiveEpilogue::SmemLayoutC;
             using GmemTiledCopySrc = typename CollectiveEpilogue::GmemTiledCopyC;
@@ -103,7 +107,6 @@ int main()
             SharedStorage* shared_storage = reinterpret_cast<SharedStorage*>(*ptr);
 
             typename CollectiveEpilogue::Arguments args = {
-                nullptr, cutlass::make_cute_packed_stride(StrideA{}, cute::make_shape(gmemSizeY, gmemSizeX, 1)),
                 B_d, cutlass::make_cute_packed_stride(StrideB{}, cute::make_shape(gmemSizeY, gmemSizeX, 1)),
             };
 
@@ -161,17 +164,23 @@ int main()
 
     q.memcpy(B_h.data(), B_d, gmemSize * sizeof(dtype_dst)).wait();
 
+#if __EPILOGUE_OP__ == RELU
+    ReLu post_op;
+#elif __EPILOGUE_OP__ == CONVERSION
+    Conversion<dtype_dst> post_op;
+#endif
+
     uint32_t err_cnt = 0;
     for (auto i = 0; i != gmemSizeY; i++)
     {
         for (auto j = 0; j != gmemSizeX; j++)
         {
             uint32_t idx = i * gmemSizeX + j;
-            if (B_h[idx] != dtype_dst(A_h[idx]))
+            if (B_h[idx] != static_cast<dtype_dst>(post_op(A_h[idx])))
             {
                 err_cnt++;
-                std::cout << " B: " << static_cast<uint32_t>(B_h[idx])
-                          << " mismatch with A: " << static_cast<uint32_t>(dtype_dst(A_h[idx]))
+                std::cout << " B: " << B_h[idx]
+                          << " mismatch with A: " << static_cast<dtype_dst>(post_op(A_h[idx]))
                           << " at idx = " << idx << std::endl;
             }
         }
@@ -187,15 +196,6 @@ int main()
         std::cout << "Test Pass!" << std::endl;
         rtn = 0;
     }
-    // for (auto i = 0; i != gmemSizeY; i++)
-    // {
-    //     for (auto j = 0; j != gmemSizeX; j++)
-    //     {
-    //         uint32_t idx = i * gmemSizeX + j;
-    //         std::cout << B_h[idx] << std::endl;
-    //     }
-    //     std::cout << std::endl;
-    // }
     free(A_d, q);
     free(B_d, q);
 
