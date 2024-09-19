@@ -121,6 +121,13 @@ public:
     auto& problem_shape = params.problem_shape;
     auto shared_storage = params.shared_storage;
 
+    enum class SubGroupRole {
+      Producer = 0,
+      Consumer = 1,
+      Epilogue = 2,
+      Other
+    };
+
     using MainloopPipeline = typename CollectiveMainloop::MainloopPipeline;
     using EpilogueStorePipeline = typename CollectiveEpilogue::EpilogueStorePipeline;
     using MainloopPipelineState = typename CollectiveMainloop::PipelineState;
@@ -128,7 +135,7 @@ public:
 
     uint32_t local_id = item.get_local_linear_id();
     MainloopPipeline mainloop_pipeline(local_id);
-    EpilogueStorePipeline epilogue_store_pipeline(item);
+    EpilogueStorePipeline epilogue_store_pipeline(local_id);
 
     CollectiveMainloop collective_mainloop;
     CollectiveEpilogue collective_epilogue(params.epilogue);
@@ -146,7 +153,19 @@ public:
     auto accumulator = make_tensor(reinterpret_cast<ElementAccumulator *>(shared_storage->smem_Acc.data()), slmLayoutC);
 
     auto blk_coord = cute::make_tuple(item.get_group(1), item.get_group(2), 0);
-    auto cluster_mask = collective_mainloop.calculateClusterMasks(params.mainloop.wg_id);
+    auto cluster_mask = collective_mainloop.calculateClusterMasks();
+
+    auto warp_group_role = [=]() {
+      if (local_id == 0) {
+        return SubGroupRole::Producer;
+      } else if (local_id == 32) {
+        return SubGroupRole::Consumer;
+      } else if (local_id >= 128) {
+        return SubGroupRole::Epilogue;
+      } else {
+        return SubGroupRole::Other;
+      }
+    } ();
 
     auto cluster_wait_fn = [&] () {
       // We need this to guarantee that the Pipeline init is visible
@@ -164,23 +183,23 @@ public:
     // Wait for all thread blocks in the Cluster
     cluster_wait_fn();
 
-    if (local_id == 0) {
+    if (warp_group_role == SubGroupRole::Producer) {
       auto load_inputs = collective_mainloop.load_init(problem_shape, params.mainloop);
       static_assert(cute::tuple_size_v<decltype(load_inputs)> >= 2, "Output of load_init must have at least two elements (A, B)");
       collective_mainloop.load(params.mainloop, mainloop_pipeline, mainloop_pipe_producer_state, load_inputs, blk_coord, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
-    } else if (local_id == 32) {
+    } else if (warp_group_role == SubGroupRole::Consumer) {
       collective_mainloop.mma(params.mainloop, mainloop_pipeline, mainloop_pipe_consumer_state, accumulator, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
     }
 
     item.barrier(access::fence_space::local_space);
 
-    if (local_id >= 128) {
+    if (warp_group_role == SubGroupRole::Epilogue) {
       collective_epilogue(accumulator, shared_storage->tensors.epilogue, 4, local_id);
     }
 
     item.barrier(access::fence_space::local_space);
 
-    if (local_id == 0) {
+    if (warp_group_role == SubGroupRole::Producer) {
       collective_epilogue.store(epilogue_store_pipeline, epilogue_pipe_store_state, problem_shape, blk_coord, shared_storage->tensors.epilogue);
     }
   }

@@ -29,7 +29,6 @@ int run_test()
     queue q;
     auto dev = q.get_device();
     std::cout << "Running on " << dev.get_info<info::device::name>() << "\n";
-    auto ctxt = q.get_context();
 
     int mat_m = 512;
     int mat_n = 512;
@@ -39,6 +38,8 @@ int run_test()
     constexpr uint32_t wg_n = 512;
     constexpr uint32_t wg_k = 256;
     constexpr uint32_t stage = 4;
+
+    assert(((mat_k + wg_k - 1) / wg_k) > 1);
 
     uint32_t sizeA = mat_m * mat_k;
     uint32_t sizeB = mat_n * mat_k;
@@ -127,14 +128,10 @@ int run_test()
     >;
 
     q.parallel_for<test>(Range, [=](nd_item<3> item) {
-        uint32_t wg_id = item.get_group().get_group_linear_id();
-        auto problem_shape = make_shape(mat_m, mat_n, mat_k, mat_l);
-
         auto args = typename GemmKernel::Arguments {
             item,
-            problem_shape,
+            make_shape(mat_m, mat_n, mat_k, mat_l),
             {
-                wg_id,
                 A_s, cutlass::make_cute_packed_stride(StrideA{}, cute::make_shape(mat_m, mat_k, mat_l)),
                 B_s, cutlass::make_cute_packed_stride(StrideB{}, cute::make_shape(mat_n, mat_k, mat_l)),
             },
