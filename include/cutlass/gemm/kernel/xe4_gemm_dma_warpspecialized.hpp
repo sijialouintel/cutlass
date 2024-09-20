@@ -199,7 +199,7 @@ public:
 
     item.barrier(access::fence_space::local_space);
 
-    if (warp_group_role == SubGroupRole::Producer) {
+    if (warp_group_role == SubGroupRole::Consumer) {
       collective_epilogue.store(epilogue_store_pipeline, epilogue_pipe_store_state, problem_shape, blk_coord, shared_storage->tensors.epilogue);
     }
   }
