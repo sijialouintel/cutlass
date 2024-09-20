@@ -38,8 +38,8 @@ int run_test()
     int mat_l = 1;
     constexpr uint32_t wg_m = 128;
     constexpr uint32_t wg_n = 128;
-    constexpr uint32_t wg_k = 256;
-    constexpr uint32_t stage = 4;
+    constexpr uint32_t wg_k = 128;
+    constexpr uint32_t stage = 3;
     constexpr uint32_t cluster_size_x = 2;
     constexpr uint32_t cluster_size_y = 2;
 

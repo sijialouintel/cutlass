@@ -68,7 +68,7 @@ export L0SIM_SELECT_DEVICES=XE4ISAI
 
 export XE4_LOG_ON="1"
 export XE4_LOG_FOLDER_PATH="./logdump"
-export ZESIM_ROOT=/root/zesim/debug/zesim
+export ZESIM_ROOT=/root/zesim/debug-sys20/zesim
 export LD_LIBRARY_PATH=$ZESIM_ROOT:$LD_LIBRARY_PATH
 
 for ((i=0; i<limit; i++)); do

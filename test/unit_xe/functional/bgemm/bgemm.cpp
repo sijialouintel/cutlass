@@ -30,14 +30,14 @@ int run_test()
     auto dev = q.get_device();
     std::cout << "Running on " << dev.get_info<info::device::name>() << "\n";
 
-    int mat_m = 512;
-    int mat_n = 512;
+    int mat_m = 256;
+    int mat_n = 256;
     int mat_k = 512;
     int mat_l = 1;
-    constexpr uint32_t wg_m = 512;
-    constexpr uint32_t wg_n = 512;
-    constexpr uint32_t wg_k = 256;
-    constexpr uint32_t stage = 4;
+    constexpr uint32_t wg_m = 128;
+    constexpr uint32_t wg_n = 128;
+    constexpr uint32_t wg_k = 128;
+    constexpr uint32_t stage = 3;
 
     assert(((mat_k + wg_k - 1) / wg_k) > 1);
 
