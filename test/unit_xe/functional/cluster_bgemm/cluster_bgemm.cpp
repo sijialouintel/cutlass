@@ -130,7 +130,6 @@ int run_test()
 
     q.parallel_for<test>(Range, [=](nd_item<3> item) {
         auto args = typename GemmKernel::Arguments {
-            item,
             make_shape(mat_m, mat_n, mat_k, mat_l),
             {
                 A_s, cutlass::make_cute_packed_stride(StrideA{}, cute::make_shape(mat_m, mat_k, mat_l)),
@@ -143,7 +142,7 @@ int run_test()
 
         GemmKernel kernel;
         auto params = kernel.to_underlying_arguments(args, nullptr);
-        kernel(params);
+        kernel(params, item);
      }).wait();
 
     uint32_t err_cnt = validate_gemm_result(A_s, B_s, C_s, mat_m, mat_n, mat_k, layout_a, layout_b);

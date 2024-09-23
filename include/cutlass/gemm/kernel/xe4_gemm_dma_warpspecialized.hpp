@@ -83,7 +83,6 @@ public:
 
   // Device side arguments
   struct Arguments {
-    sycl::nd_item<3> item;
     ProblemShape problem_shape;
     MainloopArguments mainloop;
     EpilogueArguments epilogue;
@@ -91,11 +90,9 @@ public:
 
   // Kernel entry point API
   struct Params {
-    sycl::nd_item<3> item;
     ProblemShape problem_shape;
     MainloopParams mainloop;
     EpilogueParams epilogue;
-    SharedStorage* shared_storage = nullptr;
   };
 
   static
@@ -103,23 +100,20 @@ public:
   to_underlying_arguments(Arguments const& args, void* workspace) {
     (void) workspace;
 
-    auto ptr = sycl::ext::oneapi::group_local_memory_for_overwrite<uint8_t[SharedStorageSize]>(args.item.get_group());
-
     return {
-      args.item,
       args.problem_shape,
       CollectiveMainloop::to_underlying_arguments(args.problem_shape, args.mainloop),
-      CollectiveEpilogue::to_underlying_arguments(args.problem_shape, args.epilogue, nullptr),
-      reinterpret_cast<SharedStorage*>(*ptr)
+      CollectiveEpilogue::to_underlying_arguments(args.problem_shape, args.epilogue, nullptr)
     };
   }
 
   CUTLASS_DEVICE
   void
-  operator()(Params const& params) {
-    auto& item = params.item;
+  operator()(Params const& params, sycl::nd_item<3> item) {
     auto& problem_shape = params.problem_shape;
-    auto shared_storage = params.shared_storage;
+
+    auto ptr = alloc_slm_buffer<uint8_t, SharedStorageSize>(item.get_group());
+    auto shared_storage = reinterpret_cast<SharedStorage*>(ptr);
 
     enum class SubGroupRole {
       Producer = 0,
