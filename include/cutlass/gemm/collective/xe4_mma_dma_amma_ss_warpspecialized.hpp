@@ -249,13 +249,13 @@ struct CollectiveMma<
     for (int i = 0; i < k_tile_count; ++i, ++slm_pipe_write) {
       pipeline.producer_try_wait(slm_pipe_write);
 
-      uint32_t index = slm_pipe_write.index();
-      auto abar_prod = pipeline.producer_get_barrier(index);
+      uint32_t write_stage = slm_pipe_write.index();
+      auto abar_prod = pipeline.producer_get_barrier(slm_pipe_write);
 
-      copy(load_a.with(abar_prod, cluster_mask_a), tAgA(_,_,_,i), tAsA(_,_,_,index));
-      copy(load_b.with(abar_prod, cluster_mask_b), tBgB(_,_,_,i), tBsB(_,_,_,index));
+      copy(load_a.with(abar_prod, cluster_mask_a), tAgA(_,_,_,i), tAsA(_,_,_,write_stage));
+      copy(load_b.with(abar_prod, cluster_mask_b), tBgB(_,_,_,i), tBsB(_,_,_,write_stage));
 
-      pipeline.producer_commit(index, slm_bytes_load);
+      pipeline.producer_commit(slm_pipe_write, slm_bytes_load);
     }
   }
 
@@ -296,33 +296,28 @@ struct CollectiveMma<
     auto cluster_expect_tx = (size(cshape) == 1) ? wg_expect_tx : (wg_expect_tx * (size<0>(cshape) + size<1>(cshape)));
 
     pipeline.consumer_try_wait(slm_pipe_read);
-    uint32_t index = slm_pipe_read.index();
-    auto abar_cons = pipeline.consumer_get_barrier(index);
-    cute::gemm(tiled_mma.with(scaleOutZero, abar_cons, cluster_mask_a, cluster_mask_b), tCsA(_,_,0,index), tCsB(_,_,0,index), accum);
+    uint32_t read_stage = slm_pipe_read.index();
+    auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
+    cute::gemm(tiled_mma.with(scaleOutZero, abar_cons, cluster_mask_a, cluster_mask_b), tCsA(_,_,0,read_stage), tCsB(_,_,0,read_stage), accum);
     for (int k_block = 1; k_block < size<2>(tCsA); ++k_block) {
-      cute::gemm(tiled_mma.with(scaleOutOne, abar_cons, cluster_mask_a, cluster_mask_b), tCsA(_,_,k_block,index), tCsB(_,_,k_block,index), accum);
+      cute::gemm(tiled_mma.with(scaleOutOne, abar_cons, cluster_mask_a, cluster_mask_b), tCsA(_,_,k_block,read_stage), tCsB(_,_,k_block,read_stage), accum);
     }
     pipeline.consumer_commit(slm_pipe_read, cluster_expect_tx);
+    ++slm_pipe_read;
 
-    for (uint32_t i = 1; i < k_tile_count - 1; i++) {
-      ++slm_pipe_read;
-      uint32_t index = slm_pipe_read.index();
-      auto abar_cons = pipeline.consumer_get_barrier(index);
+    for (uint32_t i = 1; i < k_tile_count-1; ++i, ++slm_pipe_read) {
+      uint32_t read_stage = slm_pipe_read.index();
       pipeline.consumer_try_wait(slm_pipe_read);
-      cute::gemm(tiled_mma.with(scaleOutOne, abar_cons, cluster_mask_a, cluster_mask_b), tCsA(_,_,_,index), tCsB(_,_,_,index), accum);
+      auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
+      cute::gemm(tiled_mma.with(scaleOutOne, abar_cons, cluster_mask_a, cluster_mask_b), tCsA(_,_,_,read_stage), tCsB(_,_,_,read_stage), accum);
       pipeline.consumer_commit(slm_pipe_read, cluster_expect_tx);
     }
 
     {
-      ++slm_pipe_read;
-      uint32_t index = slm_pipe_read.index();
-      auto abar_cons = pipeline.consumer_get_barrier(index);
-      auto abar_prod = pipeline.producer_get_barrier(index);
-
-      uint32_t phase = ((k_tile_count - 1) / Stages) & 1u;
-      pipeline.consumer_try_wait(index, phase);
-
-      cute::gemm(tiled_mma.with(scaleOutOne, abar_cons), tCsA(_,_,_,index), tCsB(_,_,_,index), accum);
+      uint32_t read_stage = slm_pipe_read.index();
+      pipeline.consumer_try_wait(slm_pipe_read);
+      auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
+      cute::gemm(tiled_mma.with(scaleOutOne, abar_cons), tCsA(_,_,_,read_stage), tCsB(_,_,_,read_stage), accum);
       pipeline.consumer_commit(slm_pipe_read, wg_expect_tx);
       pipeline.producer_try_wait(slm_pipe_read);
     }
