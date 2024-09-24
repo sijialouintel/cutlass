@@ -259,9 +259,9 @@ struct CollectiveMma<
     }
   }
 
-  template <class FrgTensorC, class ClusterMask>
+  template <class FinalPipeline, class FinalPipelineState, class FrgTensorC, class ClusterMask>
   CUTLASS_DEVICE void
-  mma(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState slm_pipe_read, FrgTensorC& accumulator, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
+  mma(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState slm_pipe_read, FinalPipeline finalPipeline, FinalPipelineState& finalPipelineState, FrgTensorC& accumulator, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
     static_assert(cute::rank(SmemLayoutA{}) == 3, "Smem layout must be rank 3.");
     static_assert(cute::rank(SmemLayoutB{}) == 3, "Smem layout must be rank 3.");
     static_assert(cute::is_void_v<SmemCopyAtomA>,
@@ -293,14 +293,14 @@ struct CollectiveMma<
 
     auto cshape = ClusterShape{};
     auto wg_expect_tx = size<1>(accum) * size<2>(accum) * size<2>(tCsA);
-    auto cluster_expect_tx = (size(cshape) == 1) ? wg_expect_tx : (wg_expect_tx * (size<0>(cshape) + size<1>(cshape)));
+    auto cluster_expect_tx = wg_expect_tx * (size<0>(cshape) + size<1>(cshape));
 
     pipeline.consumer_try_wait(slm_pipe_read);
     uint32_t read_stage = slm_pipe_read.index();
     auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
-    cute::gemm(tiled_mma.with(scaleOutZero, abar_cons, cluster_mask_a, cluster_mask_b), tCsA(_,_,0,read_stage), tCsB(_,_,0,read_stage), accum);
+    cute::gemm(tiled_mma.with(scaleOutZero, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,0,read_stage), tCsB(_,_,0,read_stage), accum);
     for (int k_block = 1; k_block < size<2>(tCsA); ++k_block) {
-      cute::gemm(tiled_mma.with(scaleOutOne, abar_cons, cluster_mask_a, cluster_mask_b), tCsA(_,_,k_block,read_stage), tCsB(_,_,k_block,read_stage), accum);
+      cute::gemm(tiled_mma.with(scaleOutOne, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,k_block,read_stage), tCsB(_,_,k_block,read_stage), accum);
     }
     pipeline.consumer_commit(slm_pipe_read, cluster_expect_tx);
     ++slm_pipe_read;
@@ -309,7 +309,7 @@ struct CollectiveMma<
       uint32_t read_stage = slm_pipe_read.index();
       pipeline.consumer_try_wait(slm_pipe_read);
       auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
-      cute::gemm(tiled_mma.with(scaleOutOne, abar_cons, cluster_mask_a, cluster_mask_b), tCsA(_,_,_,read_stage), tCsB(_,_,_,read_stage), accum);
+      cute::gemm(tiled_mma.with(scaleOutOne, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,_,read_stage), tCsB(_,_,_,read_stage), accum);
       pipeline.consumer_commit(slm_pipe_read, cluster_expect_tx);
     }
 
@@ -317,9 +317,12 @@ struct CollectiveMma<
       uint32_t read_stage = slm_pipe_read.index();
       pipeline.consumer_try_wait(slm_pipe_read);
       auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
-      cute::gemm(tiled_mma.with(scaleOutOne, abar_cons), tCsA(_,_,_,read_stage), tCsB(_,_,_,read_stage), accum);
-      pipeline.consumer_commit(slm_pipe_read, wg_expect_tx);
-      pipeline.producer_try_wait(slm_pipe_read);
+      auto abar_cons_d = finalPipeline.store_get_barrier(finalPipelineState);
+      cute::gemm(tiled_mma.with(scaleOutOne, abar_cons_d, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,_,read_stage), tCsB(_,_,_,read_stage), accum);
+      pipeline.consumer_commit(slm_pipe_read, cluster_expect_tx);
+      finalPipeline.store_commit(finalPipelineState, 1);
+      finalPipeline.store_try_wait(finalPipelineState);
+      ++finalPipelineState;
     }
   }
 };

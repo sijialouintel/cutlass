@@ -99,19 +99,30 @@ struct MMA_Traits<XE4_ASYNC_GMMA<TD, TC, TA, TB, Shape_MNK_, IsRowMajorA, IsRowM
   using BLayout = xe4::ABLayout<get<1>(Shape_MNK{}), get<2>(Shape_MNK{})>;
   using CLayout = xe4::ABLayout<get<0>(Shape_MNK{}), get<1>(Shape_MNK{})>;
 
-  template<class ConstScaleOut, class... TraitsArgs>
+  template<typename... TraitsArgs, __CUTE_REQUIRES(sizeof...(TraitsArgs) <= 4)>
   CUTE_HOST_DEVICE static auto
-  with(ConstScaleOut const& scale_D, Abarrier const& abarrier, [[maybe_unused]] TraitsArgs&&... args) {
+  with(TraitsArgs&&... args) {
     using MMA_Op = XE4_ASYNC_GMMA<TD, TC, TA, TB, Shape_MNK_, IsRowMajorA, IsRowMajorB, MatDesc, Abarrier>;
-    return MMA_Traits<XE4_ASYNC_GMMA_OP, ConstScaleOut, MMA_Op>{{}, {scale_D, abarrier}};
+    auto opargs = make_tuple(static_cast<TraitsArgs&&>(args)...);
+    return MMA_Traits<XE4_ASYNC_GMMA_OP, decltype(opargs), MMA_Op>{{}, opargs};
+  }
+
+  template<typename... TraitsArgs, __CUTE_REQUIRES(sizeof...(TraitsArgs) >= 5)>
+  CUTE_HOST_DEVICE static auto
+  with(TraitsArgs&&... args) {
+    using MMA_Op = XE4_ASYNC_GMMA<TD, TC, TA, TB, Shape_MNK_, IsRowMajorA, IsRowMajorB, MatDesc, Abarrier>;
+    auto opargs = make_tuple(static_cast<TraitsArgs&&>(args)...);
+    auto tmp_opargs = remove<sizeof...(args)-1>(opargs);
+    auto opargs_reduced = remove<sizeof...(args)-3>(tmp_opargs);
+    return MMA_Traits<XE4_ASYNC_GMMA_OP, decltype(opargs_reduced), MMA_Op>{{}, opargs_reduced};
   }
 };
 
-template<typename ConstScaleOut, typename MMA_Op>
-struct MMA_Traits<XE4_ASYNC_GMMA_OP, ConstScaleOut, MMA_Op>: public MMA_Traits<MMA_Op> {
+template<typename OpArgs, typename MMA_Op>
+struct MMA_Traits<XE4_ASYNC_GMMA_OP, OpArgs, MMA_Op>: public MMA_Traits<MMA_Op> {
   using Abarrier = typename MMA_Op::Abarrier;
 
-  tuple<ConstScaleOut, Abarrier> const opargs_;
+  OpArgs const opargs_;
 
   template <class TD, class DLayout,
             class TA, class ALayout,
@@ -125,14 +136,12 @@ struct MMA_Traits<XE4_ASYNC_GMMA_OP, ConstScaleOut, MMA_Op>: public MMA_Traits<M
        Tensor<TB, BLayout> const& B,
        Tensor<TC, CLayout> const& C)
   {
+    auto matdesc_tuple = make_tuple(*D.data(), *C.data(), *A.data(), *B.data());
     return detail::explode_tuple(detail::CallFMA<MMA_Op>{},
-                                 traits.opargs_, tuple_seq<decltype(traits.opargs_)>{},
-                                 make_tuple(*D.data(), *C.data(), *A.data(), *B.data()), seq<0,1,2,3>{});
+                                 matdesc_tuple, tuple_seq<decltype(matdesc_tuple)>{},
+                                 traits.opargs_, tuple_seq<decltype(traits.opargs_)>{});
   }
 };
-
-
-struct XE4_ASYNC_GMMA_MULTICAST_OP {};
 
 template <class TD, class TC, class TA, class TB, class Shape_MNK_, bool IsRowMajorA, bool IsRowMajorB, class MatDesc, class Abarrier>
 struct MMA_Traits<XE4_ASYNC_GMMA_MULTICAST<TD, TC, TA, TB, Shape_MNK_, IsRowMajorA, IsRowMajorB, MatDesc, Abarrier>>
@@ -152,41 +161,20 @@ struct MMA_Traits<XE4_ASYNC_GMMA_MULTICAST<TD, TC, TA, TB, Shape_MNK_, IsRowMajo
   using BLayout = xe4::ABLayout<get<1>(Shape_MNK{}), get<2>(Shape_MNK{})>;
   using CLayout = xe4::ABLayout<get<0>(Shape_MNK{}), get<1>(Shape_MNK{})>;
 
-  template<class ConstScaleOut, class... TraitsArgs>
+  template<typename... TraitsArgs, __CUTE_REQUIRES(sizeof...(TraitsArgs) <= 4)>
   CUTE_HOST_DEVICE static auto
-  with(ConstScaleOut const& scale_D, Abarrier const& abarrier, TraitsArgs&&... args) {
-    if constexpr (sizeof...(args) == 0) {
-      return MMA_Traits<XE4_ASYNC_GMMA<TD, TC, TA, TB, Shape_MNK_, IsRowMajorA, IsRowMajorB, MatDesc, Abarrier>>::with(scale_D, abarrier);
-    } else if constexpr (sizeof...(args) == 2) {
-      using MMA_Op = XE4_ASYNC_GMMA_MULTICAST<TD, TC, TA, TB, Shape_MNK_, IsRowMajorA, IsRowMajorB, MatDesc, Abarrier>;
-      return MMA_Traits<XE4_ASYNC_GMMA_MULTICAST_OP, ConstScaleOut, MMA_Op>{{}, {scale_D, abarrier, static_cast<TraitsArgs&&>(args)...}};
-    } else {
-      static_assert(sizeof...(args) == 2, "Invalid number of arguments");
+  with(TraitsArgs&&... args) {
+    if constexpr (sizeof...(args) <= 4) {
+      return MMA_Traits<XE4_ASYNC_GMMA<TD, TC, TA, TB, Shape_MNK_, IsRowMajorA, IsRowMajorB, MatDesc, Abarrier>>::with(static_cast<TraitsArgs&&>(args)...);
     }
   }
-};
 
-template<typename ConstScaleOut, typename MMA_Op>
-struct MMA_Traits<XE4_ASYNC_GMMA_MULTICAST_OP, ConstScaleOut, MMA_Op>: public MMA_Traits<MMA_Op> {
-  using Abarrier = typename MMA_Op::Abarrier;
-
-  tuple<ConstScaleOut, Abarrier, uint32_t, uint32_t> const opargs_;
-
-  template <class TD, class DLayout,
-            class TA, class ALayout,
-            class TB, class BLayout,
-            class TC, class CLayout>
-  CUTE_HOST_DEVICE friend constexpr
-  void
-  mma_unpack(MMA_Traits const& traits,
-       Tensor<TD, DLayout>      & D,
-       Tensor<TA, ALayout> const& A,
-       Tensor<TB, BLayout> const& B,
-       Tensor<TC, CLayout> const& C)
-  {
-    return detail::explode_tuple(detail::CallFMA<MMA_Op>{},
-                                 traits.opargs_, tuple_seq<decltype(traits.opargs_)>{},
-                                 make_tuple(*D.data(), *C.data(), *A.data(), *B.data()), seq<0,1,2,3>{});
+  template<typename... TraitsArgs, __CUTE_REQUIRES(sizeof...(TraitsArgs) > 4)>
+  CUTE_HOST_DEVICE static auto
+  with(TraitsArgs&&... args) {
+    using MMA_Op = XE4_ASYNC_GMMA_MULTICAST<TD, TC, TA, TB, Shape_MNK_, IsRowMajorA, IsRowMajorB, MatDesc, Abarrier>;
+    auto opargs = make_tuple(static_cast<TraitsArgs&&>(args)...);
+    return MMA_Traits<XE4_ASYNC_GMMA_OP, decltype(opargs), MMA_Op>{{}, opargs};
   }
 };
 
