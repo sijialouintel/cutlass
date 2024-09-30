@@ -106,7 +106,7 @@ PipelineState<Pipeline::Stages> make_producer_start_state() {
   return {InitialProducerStage, InitialProducerPhase, InitialProducerCount};
 }
 
-template <int Stages_, typename BarrierPtr = uint64_t*>
+template <int Stages_, int AllocId = 0, typename BarrierPtr = uint64_t*>
 class PipelineTmaAsync {
 public:
   using ProducerBarrier = BarrierPtr;
@@ -118,7 +118,7 @@ public:
   BarrierPtr abar_cons_base = nullptr;
 
   PipelineTmaAsync(uint32_t local_id) {
-    abar_prod_base = allocate_abar<0, 2*Stages>();;
+    abar_prod_base = allocate_abar<AllocId, 2*Stages>();;
     abar_cons_base = abar_prod_base + Stages;
     if (local_id == 0) {
       #pragma unroll
@@ -194,7 +194,7 @@ public:
   }
 };
 
-template <int Stages_, typename BarrierPtr = uint64_t*>
+template <int Stages_, int AllocId = 1, typename BarrierPtr = uint64_t*>
 class PipelineTmaStore {
 public:
   static constexpr int Stages = Stages_;
@@ -203,12 +203,12 @@ public:
 
   BarrierPtr abar_store_base = nullptr;
 
-  PipelineTmaStore(uint32_t local_id) {
-    abar_store_base = allocate_abar<1, Stages>();
+  PipelineTmaStore(uint32_t local_id, uint32_t total_arrive_cnt = 1) {
+    abar_store_base = allocate_abar<AllocId, Stages>();
     if (local_id == 0) {
       #pragma unroll
       for (int i = 0; i < Stages; i++) {
-        abarrier_init(abar_store_base + i, 1);
+        abarrier_init(abar_store_base + i, total_arrive_cnt);
       }
     }
   }

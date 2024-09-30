@@ -53,10 +53,10 @@ public:
   using GmemTiledCopyD = cute::xe4::ASYNC_TENSOR_STORE;
   using AuxParamsD = AuxParams<slm_matrix_type::type1, TensorDescPtr, 3>;
 
-  using EpilogueLoadPipeline = cutlass::xe4::PipelineTmaAsync<1, AbarrierPtr>;
+  using EpilogueLoadPipeline = cutlass::xe4::PipelineTmaAsync<1, 1, AbarrierPtr>;
   using LoadPipelineState = typename EpilogueLoadPipeline::PipelineState;
 
-  using EpilogueStorePipeline = cutlass::xe4::PipelineTmaStore<1, AbarrierPtr>;
+  using EpilogueStorePipeline = cutlass::xe4::PipelineTmaStore<1, 2, AbarrierPtr>;
   using StorePipelineState = typename EpilogueStorePipeline::PipelineState;
 
   static_assert(cute::rank(StrideC{}) == 3, "StrideC must be rank-3: [M, N, L]");
@@ -175,7 +175,6 @@ public:
   operator()(
       TensorAccumulator smem_accumulator,
       TensorStorage& shared_tensors,
-      uint32_t subgroup_num,
       uint32_t local_id)
   {
     auto acc_cm_layout = construct_cm_layout<ElementAccumulator>();
@@ -189,7 +188,7 @@ public:
 
     auto sAcc = make_tensor(smem_accumulator.data(), acc_swizzled_cm_grid_layout);
     auto sD = make_tensor(reinterpret_cast<ElementD *>(shared_tensors.smem_D.data()), d_swizzled_cm_grid_layout);
-    epilogue_op(sAcc, sD, subgroup_num, local_id);
+    epilogue_op(sAcc, sD, local_id);
   }
 
   template<

@@ -64,6 +64,7 @@ public:
   using EpilogueArguments = typename CollectiveEpilogue::Arguments;
   using EpilogueParams = typename CollectiveEpilogue::Params;
   using SmemLayoutC = typename CollectiveEpilogue::SmemLayoutC;
+  using ThreadEpilogueOp = typename CollectiveEpilogue::ThreadEpilogueOp;
 
   struct SharedStorage
   {
@@ -118,7 +119,7 @@ public:
     enum class SubGroupRole {
       Producer = 0,
       Consumer = 1,
-      Epilogue = 2,
+      EpiloguePostOp = 2,
       Other
     };
 
@@ -155,7 +156,7 @@ public:
       } else if (local_id == 32) {
         return SubGroupRole::Consumer;
       } else if (local_id >= 128) {
-        return SubGroupRole::Epilogue;
+        return SubGroupRole::EpiloguePostOp;
       } else {
         return SubGroupRole::Other;
       }
@@ -187,8 +188,8 @@ public:
 
     item.barrier(access::fence_space::local_space);
 
-    if (warp_group_role == SubGroupRole::Epilogue) {
-      collective_epilogue(accumulator, shared_storage->tensors.epilogue, 4, local_id);
+    if (warp_group_role == SubGroupRole::EpiloguePostOp) {
+      collective_epilogue(accumulator, shared_storage->tensors.epilogue, local_id);
     }
 
     item.barrier(access::fence_space::local_space);

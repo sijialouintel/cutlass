@@ -57,9 +57,6 @@ int run_test()
     static constexpr bool is_row_major_a = (layout_a == mem_layout::row_major);
     static constexpr bool is_row_major_b = (layout_b == mem_layout::row_major);
 
-    using EpilogueOp = std::conditional_t<std::is_same_v<PostOp, ReLu>,
-            DMAPostOPReLu<dtypeC, dtypeAcc, 16, 32>, DMAPostOPConvert<dtypeC, dtypeAcc, 16, 32>>;
-
     using LayoutA = std::conditional_t<is_row_major_a, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
     using LayoutB = std::conditional_t<is_row_major_b, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
     using LayoutC = cutlass::layout::RowMajor;
@@ -73,7 +70,10 @@ int run_test()
     auto C_s = malloc_shared<dtypeC>(sizeC, q);
     std::fill_n(C_s, sizeC, dtypeC(0));
 
-    range<3> local_range(1, 20, 32);
+    constexpr uint32_t SubGroupSize = 32;
+    constexpr uint32_t NumControlSubGroup = 4;
+    constexpr uint32_t NumPostOpSubGroup = 16;
+    range<3> local_range(1, NumControlSubGroup + NumPostOpSubGroup, SubGroupSize);
     uint32_t group_range_m = (mat_m + wg_m - 1) / wg_m;
     uint32_t group_range_n = (mat_n + wg_n - 1) / wg_n;
     range<3> group_range(1, group_range_m, group_range_n);
@@ -111,13 +111,18 @@ int run_test()
         void                                                                                    // TransformB
     >;
 
+    using EpilogueOp = std::conditional_t<std::is_same_v<PostOp, ReLu>,
+        DMAPostOPReLu<dtypeC, dtypeAcc, SubGroupSize, NumControlSubGroup, NumPostOpSubGroup>,
+        DMAPostOPConvert<dtypeC, dtypeAcc, SubGroupSize, NumControlSubGroup, NumPostOpSubGroup>
+    >;
+
     using CollectiveEpilogue = cutlass::epilogue::collective::DefaultEpilogue<
         StrideC,
         StrideC,
         SmemLayoutAtomC,
         SmemLayoutAtomC,
         decltype(take<0, 2>(TileShape{})),
-        DMAPostOPConvert<dtypeC, dtypeAcc, 16, 32>,
+        EpilogueOp,
         cutlass::gemm::EpilogueDefault
     >;
 

@@ -383,7 +383,7 @@ using remove_cvref_t = typename remove_cvref<T>::type;
 // Type relationships <type_traits>
 //-----------------------------------------------------------------------------
 
-using CUTLASS_STL_NAMESPACE::is_same;  
+using CUTLASS_STL_NAMESPACE::is_same;
 using CUTLASS_STL_NAMESPACE::is_same_v;
 
 #if defined(__CUDACC_RTC__) || (!defined(_MSC_VER) && (__cplusplus < 201103L)) || (defined(_MSC_VER) && (_MSC_VER < 1500))
@@ -545,7 +545,7 @@ using CUTLASS_STL_NAMESPACE::is_unsigned_v;
 //-----------------------------------------------------------------------------
 
 using CUTLASS_STL_NAMESPACE::declval;
-  
+
 //-----------------------------------------------------------------------------
 // bit_cast <bit>
 //-----------------------------------------------------------------------------

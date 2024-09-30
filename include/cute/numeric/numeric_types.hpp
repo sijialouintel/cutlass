@@ -41,7 +41,7 @@ namespace cute {
 template <typename T>
 struct sizeof_bits : public cutlass::sizeof_bits<T> {};
 
-// DO NOT change auto to int, sizeof_bits<sparse_elem> use integral_ratio instead of int 
+// DO NOT change auto to int, sizeof_bits<sparse_elem> use integral_ratio instead of int
 template <class T>
 static constexpr auto sizeof_bits_v = sizeof_bits<T>::value;
 

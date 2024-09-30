@@ -15,21 +15,23 @@ struct Conversion {
 template<
     class ElementOutput_,
     class ElementAccumulator_,
-    uint32_t SubGroupNum_,
-    uint32_t SubGroupSize_
+    uint32_t SubGroupSize_,
+    uint32_t NumControlSubGroup_,
+    uint32_t NumPostOpSubGroup_
 >
 class DMAPostOPConvert {
 public:
     using ElementOutput = ElementOutput_;
     using ElementAccumulator = ElementAccumulator_;
-    static constexpr uint32_t SubGroupNum = SubGroupNum_;
+
     static constexpr uint32_t SubGroupSize = SubGroupSize_;
+    static constexpr uint32_t NumControlSubGroup = NumControlSubGroup_;
+    static constexpr uint32_t NumPostOpSubGroup = NumPostOpSubGroup_;
 
     template <class SrcTensor, class DstTensor>
-    void operator()(SrcTensor const &tensor_src, DstTensor &tensor_dst, uint32_t num_control_sg, uint32_t local_id) const {
-        uint32_t worker_id = local_id - num_control_sg * SubGroupSize;
-        uint32_t sg_id = worker_id / SubGroupSize;
-        uint32_t lane_id = worker_id % SubGroupSize;
+    void operator()(SrcTensor const &tensor_src, DstTensor &tensor_dst, uint32_t local_id) const {
+        uint32_t sg_id = (local_id / SubGroupSize) - NumControlSubGroup;
+        uint32_t lane_id = local_id % SubGroupSize;
 
         HOST_PRINT(tensor_src);
         HOST_PRINT(tensor_dst);
@@ -42,7 +44,7 @@ public:
         HOST_PRINT(tile_shape_dst);
 
         // copy slm_tiled to regs_tiled
-        for (int i = 0; i < size<2>(tensor_dst.shape()); i += SubGroupNum) {
+        for (int i = 0; i < size<2>(tensor_dst.shape()); i += NumPostOpSubGroup) {
             if (sg_id + i >= size<2>(tensor_dst.shape())) {
                 continue;
             }
