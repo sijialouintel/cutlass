@@ -76,10 +76,10 @@ int main()
                 SmemLayout,
                 SmemLayout,
                 TileShape,
-#if __EPILOGUE_OP__ == RELU
-                DMAPostOPReLu<dtype_dst, dtype_src, 16, 32>,
-#elif __EPILOGUE_OP__ == CONVERSION
-                DMAPostOPConvert<dtype_dst, dtype_src, 16, 32>,
+#if defined(RELU)
+                DMAPostOPReLu<dtype_dst, dtype_src, 32, 4, 16>,
+#elif defined(CONVERSION)
+                DMAPostOPConvert<dtype_dst, dtype_src, 32, 4, 16>,
 #endif
                 cutlass::gemm::EpilogueDefault
             >;
@@ -114,7 +114,7 @@ int main()
             uint32_t local_id = item.get_local_linear_id();
             SrcLoadPipeline src_load_pipeline(local_id);
             SrcLoadPipelineState src_load_state = cutlass::xe4::make_producer_start_state<SrcLoadPipeline>();
-            typename CollectiveEpilogue::EpilogueStorePipeline epilogue_store_pipeline(item);
+            typename CollectiveEpilogue::EpilogueStorePipeline epilogue_store_pipeline(local_id);
 
             CollectiveEpilogue collective_epilogue(params);
 
@@ -147,8 +147,7 @@ int main()
                 auto tensor_src = make_tensor(
                         reinterpret_cast<ElementSrc *>(shared_storage->src.data()),
                         SmemLayoutSrc {});
-                collective_epilogue(tensor_src, shared_storage->tensors.epilogue,
-                        4, local_id);
+                collective_epilogue(tensor_src, shared_storage->tensors.epilogue, local_id);
             }
 
             item.barrier(access::fence_space::local_space);
@@ -164,9 +163,9 @@ int main()
 
     q.memcpy(B_h.data(), B_d, gmemSize * sizeof(dtype_dst)).wait();
 
-#if __EPILOGUE_OP__ == RELU
+#if defined(RELU)
     ReLu post_op;
-#elif __EPILOGUE_OP__ == CONVERSION
+#elif defined(CONVERSION)
     Conversion<dtype_dst> post_op;
 #endif
 
