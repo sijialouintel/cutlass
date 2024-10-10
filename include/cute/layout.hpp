@@ -39,6 +39,8 @@
 #include <cute/numeric/integral_ratio.hpp>
 #include <cute/numeric/numeric_types.hpp>  // cute::sizeof_bits
 
+#define PRINT_LAYOUT(x) print(#x); print(": "); print_layout(x); print("\n");
+
 namespace cute
 {
 
@@ -1874,10 +1876,40 @@ CUTE_HOST std::ostream& operator<<(std::ostream& os, Layout<Shape,Stride> const&
 }
 #endif
 
+template <class Layout>
+CUTE_HOST_DEVICE
+std::enable_if_t<rank(Layout{}) == Int<1>{}, void>
+print_layout(Layout const& layout)  {
+  int idx_width = num_digits(cosize(layout)) + 2;
+  const char* delim = "+-----------------------";
+
+  print(layout); print("\n");
+
+  // Column indices
+  print("    ");
+  for (int n = 0; n < size<0>(layout); ++n) { printf("  %*d ", idx_width-2, n); }
+  printf("\n");
+
+  // Header
+  print("    ");
+  for (int n = 0; n < size<0>(layout); ++n) { printf("%.*s", idx_width+1, delim); }
+  printf("+\n");
+
+  // Values
+  printf(" 0  ");  // Row indices
+  for (int n = 0; n < size<0>(layout); ++n) { printf("| %*d ", idx_width-2, int(layout(n))); }
+  printf("|\n");
+
+  // Footer
+  print("    ");
+  for (int n = 0; n < size<0>(layout); ++n) { printf("%.*s", idx_width+1, delim); }
+  printf("+\n");
+}
+
 // Generic 2D Layout to console table
 template <class Layout>
 CUTE_HOST_DEVICE
-void
+std::enable_if_t<rank(Layout{}) == Int<2>{}, void>
 print_layout(Layout const& layout)  // (m,n) -> idx
 {
   CUTE_STATIC_ASSERT_V(rank(layout) == Int<2>{});
