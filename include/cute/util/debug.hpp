@@ -124,6 +124,8 @@ block([[maybe_unused]] int bid)
 {
 #if defined(__CUDA_ARCH__)
   return blockIdx.x + blockIdx.y*gridDim.x + blockIdx.z*gridDim.x*gridDim.y == bid;
+#elif defined(SYCL_LANGUAGE_VERSION)
+  return sycl::ext::oneapi::experimental::this_group<3>().get_group_linear_id() == bid;
 #else
   return true;
 #endif
@@ -135,6 +137,8 @@ thread([[maybe_unused]] int tid, [[maybe_unused]] int bid)
 {
 #if defined(__CUDA_ARCH__)
   return (threadIdx.x + threadIdx.y*blockDim.x + threadIdx.z*blockDim.x*blockDim.y == tid) && block(bid);
+#elif defined(SYCL_LANGUAGE_VERSION)
+  return (sycl::ext::oneapi::experimental::this_group<3>().get_local_linear_id() == tid) && block(bid);
 #else
   return true;
 #endif

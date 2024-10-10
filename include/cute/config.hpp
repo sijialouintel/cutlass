@@ -142,6 +142,17 @@
 #  include <iomanip>
 #endif
 
+#if defined(SYCL_LANGUAGE_VERSION)
+#include <CL/sycl.hpp>
+
+namespace cute {
+  using sycl::ext::oneapi::experimental::printf;
+}
+
+using bf16 = sycl::ext::oneapi::bfloat16;
+using fp16 = sycl::half;
+#endif
+
 //
 // Debugging utilities
 //
