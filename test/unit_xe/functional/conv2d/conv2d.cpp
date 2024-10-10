@@ -123,246 +123,244 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     uint32_t repeat_c = (C + wg_k - 1) / wg_k;
     uint32_t kloop = repeat_c * S * R;
 
-    q.submit([&](handler &cgh) {
-        using mat_desc_t = uint32_t;
-        using abar_ptr_t = uint64_t*;
-        using tdesc_ptr_t = uint64_t*;
-        constexpr uint32_t cm_bytes = 1024;
-        constexpr uint32_t slm_size_a = wg_m * wg_k;
-        constexpr uint32_t slm_size_b = wg_k * wg_n;
-        constexpr uint32_t slm_size_acc = wg_m * wg_n;
-        constexpr uint32_t slm_size_c = wg_m * wg_n;
-        constexpr uint32_t slm_bytes_a = slm_size_a * sizeof(dtypeA);
-        constexpr uint32_t slm_bytes_b = slm_size_b * sizeof(dtypeB);
-        constexpr uint32_t slm_bytes_acc = slm_size_acc * sizeof(dtypeAcc);
-        constexpr uint32_t slm_bytes_c = slm_size_c * sizeof(dtypeC);
-        constexpr uint32_t slm_bytes = slm_bytes_a * stage + slm_bytes_b * stage + slm_bytes_acc + slm_bytes_c;
+    using mat_desc_t = uint32_t;
+    using abar_ptr_t = uint64_t*;
+    using tdesc_ptr_t = uint64_t*;
+    constexpr uint32_t cm_bytes = 1024;
+    constexpr uint32_t slm_size_a = wg_m * wg_k;
+    constexpr uint32_t slm_size_b = wg_k * wg_n;
+    constexpr uint32_t slm_size_acc = wg_m * wg_n;
+    constexpr uint32_t slm_size_c = wg_m * wg_n;
+    constexpr uint32_t slm_bytes_a = slm_size_a * sizeof(dtypeA);
+    constexpr uint32_t slm_bytes_b = slm_size_b * sizeof(dtypeB);
+    constexpr uint32_t slm_bytes_acc = slm_size_acc * sizeof(dtypeAcc);
+    constexpr uint32_t slm_bytes_c = slm_size_c * sizeof(dtypeC);
+    constexpr uint32_t slm_bytes = slm_bytes_a * stage + slm_bytes_b * stage + slm_bytes_acc + slm_bytes_c;
 
-        cgh.parallel_for<test>(Range, [=](nd_item<3> item) {
-            abar_ptr_t abar_prod_base = allocate_abar<0, stage>();
-            abar_ptr_t abar_cons_base = allocate_abar<1, stage>();
-            abar_ptr_t abar_store = allocate_abar<2,1>();
-            tdesc_ptr_t tdesc_ptrB = allocate_tdesc<0>();
-            auto slm_ptr = alloc_slm_buffer<uint8_t, slm_bytes>(item.get_group());
-            auto slm_base_a = slm_ptr;
-            auto slm_base_b = slm_base_a + slm_bytes_a * stage;
-            auto slm_base_acc = slm_base_b + slm_bytes_b * stage;
-            auto slm_base_c = slm_base_acc + slm_bytes_acc;
+    q.parallel_for<test>(Range, [=](nd_item<3> item) {
+        abar_ptr_t abar_prod_base = allocate_abar<0, stage>();
+        abar_ptr_t abar_cons_base = allocate_abar<1, stage>();
+        abar_ptr_t abar_store = allocate_abar<2,1>();
+        tdesc_ptr_t tdesc_ptrB = allocate_tdesc<0>();
+        auto slm_ptr = alloc_slm_buffer<uint8_t, slm_bytes>(item.get_group());
+        auto slm_base_a = slm_ptr;
+        auto slm_base_b = slm_base_a + slm_bytes_a * stage;
+        auto slm_base_acc = slm_base_b + slm_bytes_b * stage;
+        auto slm_base_c = slm_base_acc + slm_bytes_acc;
 
-            uint32_t local_id = item.get_local_linear_id();
-            uint32_t subgroup_id = local_id / 32;
-            uint32_t wg_id_x = item.get_group(2);
-            uint32_t wg_id_y = item.get_group(1);
+        uint32_t local_id = item.get_local_linear_id();
+        uint32_t subgroup_id = local_id / 32;
+        uint32_t wg_id_x = item.get_group(2);
+        uint32_t wg_id_y = item.get_group(1);
 
-            int start_m = wg_id_y * wg_m;
-            int start_n = wg_id_x * wg_n;
+        int start_m = wg_id_y * wg_m;
+        int start_n = wg_id_x * wg_n;
 
-            if(local_id == 0){
-                #pragma unroll
-                for (int i = 0; i < stage; i++) {
-                    abarrier_init(abar_prod_base + i, 1);
-                }
-                abarrier_init(abar_store, 1);
+        if(local_id == 0){
+            #pragma unroll
+            for (int i = 0; i < stage; i++) {
+                abarrier_init(abar_prod_base + i, 1);
             }
-            else if(local_id == 32){
-                #pragma unroll
-                for (int i = 0; i < stage; i++) {
-                    abarrier_init(abar_cons_base + i, 1);
-                }
+            abarrier_init(abar_store, 1);
+        }
+        else if(local_id == 32){
+            #pragma unroll
+            for (int i = 0; i < stage; i++) {
+                abarrier_init(abar_cons_base + i, 1);
             }
-            item.barrier(access::fence_space::local_space);
+        }
+        item.barrier(access::fence_space::local_space);
 
-            if(subgroup_id == 0){
-                sycl::vec<uint32_t, dim> gmem_shapeB {C, S, R, K};
-                sycl::vec<uint64_t, dim - 1> gmem_strideB {stride0B, stride1B, stride2B};
-                sycl::vec<uint32_t, dim> roi_shapeB {wg_k, 1, 1, wg_n};
-                sycl::vec<uint32_t, dim> elem_stride {1, 1, 1, 1};
+        if(subgroup_id == 0){
+            sycl::vec<uint32_t, dim> gmem_shapeB {C, S, R, K};
+            sycl::vec<uint64_t, dim - 1> gmem_strideB {stride0B, stride1B, stride2B};
+            sycl::vec<uint32_t, dim> roi_shapeB {wg_k, 1, 1, wg_n};
+            sycl::vec<uint32_t, dim> elem_stride {1, 1, 1, 1};
 
-                tensor_desc_fill_global_addr(tdesc_ptrB, B_s);
-                tensor_descriptor_fill_dim_size<dim>(tdesc_ptrB, gmem_shapeB);
-                tensor_descriptor_fill_dim_stride<dim>(tdesc_ptrB, gmem_strideB);
-                tensor_descriptor_fill_traverse_stride<dim>(tdesc_ptrB, elem_stride);
-                tensor_descriptor_fill_roitensor_size<dim>(tdesc_ptrB, roi_shapeB);
-                tensor_descriptor_fill_misc<dtypeB, cm_typeB>(tdesc_ptrB);
+            tensor_desc_fill_global_addr(tdesc_ptrB, B_s);
+            tensor_descriptor_fill_dim_size<dim>(tdesc_ptrB, gmem_shapeB);
+            tensor_descriptor_fill_dim_stride<dim>(tdesc_ptrB, gmem_strideB);
+            tensor_descriptor_fill_traverse_stride<dim>(tdesc_ptrB, elem_stride);
+            tensor_descriptor_fill_roitensor_size<dim>(tdesc_ptrB, roi_shapeB);
+            tensor_descriptor_fill_misc<dtypeB, cm_typeB>(tdesc_ptrB);
 
-                sycl::vec<uint32_t, dim> gmem_shapeC {Out_C, Out_W, Out_H, Out_N};
-                sycl::vec<uint32_t, dim - 1> gmem_strideC {stride0C, stride1C, stride2C};
-                sycl::vec<uint32_t, dim> roi_shapeC {wg_n, Out_W, Out_H, Out_N};
+            sycl::vec<uint32_t, dim> gmem_shapeC {Out_C, Out_W, Out_H, Out_N};
+            sycl::vec<uint32_t, dim - 1> gmem_strideC {stride0C, stride1C, stride2C};
+            sycl::vec<uint32_t, dim> roi_shapeC {wg_n, Out_W, Out_H, Out_N};
 
-                sycl::vec<uint32_t, dim> gmem_shapeA {C, W, H, N};
-                sycl::vec<uint32_t, dim - 1> gmem_strideA {stride0A, stride1A, stride2A};
-                sycl::vec<uint32_t, dim> roi_shapeA {wg_k, Out_W, Out_H, Out_N};
+            sycl::vec<uint32_t, dim> gmem_shapeA {C, W, H, N};
+            sycl::vec<uint32_t, dim - 1> gmem_strideA {stride0A, stride1A, stride2A};
+            sycl::vec<uint32_t, dim> roi_shapeA {wg_k, Out_W, Out_H, Out_N};
 
-                int32_t coord_offset_m_base = start_m + local_id;
-                int32_t coord_table[num_inst * (dim - 1)];
-                bool oob_table[num_inst];
-                #pragma unroll
-                for (uint32_t inst_idx = 0; inst_idx < num_inst; inst_idx++) {
-                    uint32_t index = inst_idx * (dim - 1);
-                    int32_t offset_m = coord_offset_m_base;
+            int32_t coord_offset_m_base = start_m + local_id;
+            int32_t coord_table[num_inst * (dim - 1)];
+            bool oob_table[num_inst];
+            #pragma unroll
+            for (uint32_t inst_idx = 0; inst_idx < num_inst; inst_idx++) {
+                uint32_t index = inst_idx * (dim - 1);
+                int32_t offset_m = coord_offset_m_base;
 
-                    coord_table[index] = offset_m % roi_shapeA[1];
-                    offset_m = offset_m / roi_shapeA[1];
-                    coord_table[index + 1] = offset_m % roi_shapeA[2];
-                    coord_table[index + 2] = offset_m / roi_shapeA[2];
+                coord_table[index] = offset_m % roi_shapeA[1];
+                offset_m = offset_m / roi_shapeA[1];
+                coord_table[index + 1] = offset_m % roi_shapeA[2];
+                coord_table[index + 2] = offset_m / roi_shapeA[2];
 
-                    oob_table[inst_idx] = coord_table[index + 2] < gmem_shapeA[3];
+                oob_table[inst_idx] = coord_table[index + 2] < gmem_shapeA[3];
 
-                    coord_offset_m_base += LANESIZE;
-                }
-
-                uint32_t cyclic_i = 0;
-                uint32_t phase_bit = 1;
-                for (uint32_t iter2 = 0; iter2 < R; iter2++) {
-                    for (uint32_t iter1 = 0; iter1 < S; iter1++) {
-                        for (uint32_t iter0 = 0; iter0 < repeat_c; iter0++) {
-                            abar_ptr_t abar_cons = abar_cons_base + cyclic_i;
-                            abar_ptr_t abar_prod = abar_prod_base + cyclic_i;
-
-                            abarrier_try_wait(abar_cons, phase_bit);
-
-                            // load input with row_copy
-                            int32_t gmem_coord_base0 = iter0 * wg_k;
-                            int32_t gmem_coord_base1 = iter1 * dilation_w;
-                            int32_t gmem_coord_base2 = iter2 * dilation_h;
-
-                            #pragma unroll
-                            for (uint32_t inst_idx = 0; inst_idx < num_inst; inst_idx++) {
-                                auto inst_slm_ptr_a = slm_base_a + cyclic_i * slm_bytes_a + inst_idx * inst_sizeA;
-                                uint32_t index = inst_idx * (dim - 1);
-                                auto coord_offset1 = coord_table[index] * stride_w - padding_left;
-                                auto coord_offset2 = coord_table[index + 1] * stride_h - padding_top;
-                                auto coord_offset3 = coord_table[index + 2];
-
-                                sycl::vec<int32_t, dim> gmem_coord = {gmem_coord_base0,
-                                    gmem_coord_base1 + coord_offset1,
-                                    gmem_coord_base2 + coord_offset2,
-                                    coord_offset3};
-                                bool is_coord_valid = oob_table[inst_idx] && (gmem_coord[1] >= 0) && (gmem_coord[1] < gmem_shapeA[1]);
-                                is_coord_valid = is_coord_valid && (gmem_coord[2] >= 0) && (gmem_coord[2] < gmem_shapeA[2]);
-
-                                uint32_t offset = gmem_coord[0] * sizeof(dtypeA) + gmem_coord[1] * gmem_strideA[0]
-                                    + gmem_coord[2] * gmem_strideA[1] + gmem_coord[3] * gmem_strideA[2];
-                                offset = is_coord_valid ? offset : 0;
-
-                                uint32_t copy_size = is_coord_valid ? get_copy_size<dtypeA, dim>(gmem_coord, gmem_shapeA, width_2dA) : 0;
-                                // uint32_t left_size = (gmem_shapeA[0] - gmem_coord[0]) * sizeof(dtypeA);
-                                // uint32_t copy_size = left_size < width_2dA ? left_size : width_2dA;
-                                // copy_size = is_coord_valid ? copy_size : 0;
-
-                                async_2d_tiled_load<cm_typeA, width_2dA>(inst_slm_ptr_a, A_s, offset, copy_size, abar_prod);
-                            }
-
-                            if(local_id == 0) {
-                                abarrier_workgroup_arrive_expect_tx(abar_prod, slm_bytes_a + slm_bytes_b);
-
-                                // load kernel with tensor_copy
-                                sycl::vec<int32_t, dim> gmem_coord = {iter0 * wg_k, iter1, iter2, start_n};
-                                auto slm_ptr_b = slm_base_b + cyclic_i * slm_bytes_b;
-                                async_tensor_load<dim>(tdesc_ptrB, slm_ptr_b, gmem_coord, abar_prod);
-                            }
-
-                            phase_bit = (cyclic_i == stage - 1) ? (phase_bit ^ 1) : phase_bit;
-                            cyclic_i = (cyclic_i == stage - 1) ? 0 : cyclic_i + 1;
-                        }
-                    }
-                }
-
-                //store out
-                abarrier_try_wait(abar_store, 0);
-
-                if(local_id == 0) {
-                    abarrier_workgroup_arrive_expect_tx(abar_store, slm_bytes_c);
-                }
-
-                #pragma unroll
-                for (uint32_t inst_idx = 0; inst_idx < num_inst; inst_idx++) {
-                    auto inst_slm_ptr_c = slm_base_c + inst_idx * inst_sizeC;
-                    uint32_t index = inst_idx * (dim - 1);
-                    sycl::vec<int32_t, dim> gmem_coord = {start_n,
-                        coord_table[index],
-                        coord_table[index + 1],
-                        coord_table[index + 2]};
-                    bool is_coord_valid = oob_table[inst_idx] && (gmem_coord[1] >= 0) && (gmem_coord[1] < gmem_shapeC[1]);
-                    is_coord_valid = is_coord_valid && (gmem_coord[2] >= 0) && (gmem_coord[2] < gmem_shapeC[2]);
-
-                    uint32_t offset = gmem_coord[0] * sizeof(dtypeC) + gmem_coord[1] * gmem_strideC[0]
-                        + gmem_coord[2] * gmem_strideC[1] + gmem_coord[3] * gmem_strideC[2];
-                    offset = is_coord_valid ? offset : 0;
-
-                    uint32_t copy_size = is_coord_valid ? get_copy_size<dtypeC, dim>(gmem_coord, gmem_shapeC, width_2dC) : 0;
-                    // uint32_t left_size = (gmem_shapeC[0] - gmem_coord[0]) * sizeof(dtypeC);
-                    // uint32_t copy_size = left_size < width_2dC ? left_size : width_2dC;
-                    // copy_size = is_coord_valid ? copy_size : 0;
-
-                    async_2d_tiled_store<cm_typeC, width_2dC>(inst_slm_ptr_c, C_s, offset, copy_size, abar_store);
-                }
-
-                abarrier_try_wait(abar_store, 1);
+                coord_offset_m_base += LANESIZE;
             }
-            else if (subgroup_id == 1){
-                if (local_id == 32){
-                    mat_desc_t mat_desc_a = (uint64_t)slm_base_a >> 9;
-                    mat_desc_t mat_desc_b = (uint64_t)slm_base_b >> 9;
-                    mat_desc_t mat_desc_c = (uint64_t)slm_base_c >> 9;
-                    mat_desc_t mat_desc_acc = (uint64_t)slm_base_acc >> 9;
-                    constexpr uint32_t cm_size_a_x = is_col_major_a ? 32: 32 / sizeof(dtypeA);
-                    constexpr uint32_t cm_num_a_x = is_col_major_a ? wg_m / cm_size_a_x : wg_k / cm_size_a_x;
-                    constexpr uint32_t cm_size_b_x = 32 / sizeof(dtypeB);
-                    constexpr uint32_t cm_num_b_x = is_col_major_b ? wg_k / cm_size_b_x : wg_n / cm_size_b_x;
-                    constexpr uint32_t cm_size_c_x = 32 / sizeof(dtypeC);
-                    constexpr uint32_t cm_num_c_x = wg_n / cm_size_c_x;
-                    constexpr uint32_t cm_size_acc_x = 32 / sizeof(dtypeAcc);
-                    constexpr uint32_t cm_num_acc_x = wg_n / cm_size_acc_x;
-                    constexpr uint32_t cm_stride_a = (cm_bytes * cm_num_a_x) >> 10;
-                    constexpr uint32_t cm_stride_b = (cm_bytes * cm_num_b_x) >> 10;
-                    constexpr uint32_t cm_stride_c = (cm_bytes * cm_num_c_x) >> 10;
-                    constexpr uint32_t cm_stride_acc = (cm_bytes * cm_num_acc_x) >> 10;
-                    mat_desc_a |= (cm_stride_a << 16);
-                    mat_desc_b |= (cm_stride_b << 16);
-                    mat_desc_c |= (cm_stride_c << 16);
-                    mat_desc_acc |= (cm_stride_acc << 16);
 
-                    if (kloop == 1) {
-                        abarrier_try_wait(abar_prod_base, 0);
-                        async_gmma<dtypeC, dtypeA, dtypeB, wg_m, wg_n, wg_k, layout_a, layout_b>(mat_desc_c, mat_desc_a, mat_desc_b, abar_cons_base);
-                        abarrier_workgroup_arrive_expect_tx(abar_cons_base, 1);
-                    } else {
-                        abarrier_try_wait(abar_prod_base, 0);
-                        async_gmma<dtypeAcc, dtypeA, dtypeB, wg_m, wg_n, wg_k, layout_a, layout_b>(
-                                    mat_desc_acc, mat_desc_a, mat_desc_b, abar_cons_base);
-                        abarrier_workgroup_arrive_expect_tx(abar_cons_base, 1);
+            uint32_t cyclic_i = 0;
+            uint32_t phase_bit = 1;
+            for (uint32_t iter2 = 0; iter2 < R; iter2++) {
+                for (uint32_t iter1 = 0; iter1 < S; iter1++) {
+                    for (uint32_t iter0 = 0; iter0 < repeat_c; iter0++) {
+                        abar_ptr_t abar_cons = abar_cons_base + cyclic_i;
+                        abar_ptr_t abar_prod = abar_prod_base + cyclic_i;
 
-                        static_assert(stage > 1);
-                        uint32_t cyclic_i = 1;
-                        uint32_t phase_bit = 0;
-                        for (uint32_t i = 1; i < kloop - 1; i++) {
-                            abar_ptr_t abar_cons = abar_cons_base + cyclic_i;
-                            abar_ptr_t abar_prod = abar_prod_base + cyclic_i;
-                            auto slm_offset_a = (cyclic_i * slm_bytes_a) >> 9;
-                            auto slm_offset_b = (cyclic_i * slm_bytes_b) >> 9;
-                            abarrier_try_wait(abar_prod, phase_bit);
-                            async_gmma<dtypeAcc, dtypeAcc, dtypeA, dtypeB, wg_m, wg_n, wg_k, layout_a, layout_b>(
-                                        mat_desc_acc, mat_desc_acc, mat_desc_a + slm_offset_a, mat_desc_b + slm_offset_b,
-                                        abar_cons);
-                            abarrier_workgroup_arrive_expect_tx(abar_cons, 1);
-                            phase_bit = (cyclic_i == stage - 1) ? (phase_bit ^ 1) : phase_bit;
-                            cyclic_i = (cyclic_i == stage - 1) ? 0 : cyclic_i + 1;
+                        abarrier_try_wait(abar_cons, phase_bit);
+
+                        // load input with row_copy
+                        int32_t gmem_coord_base0 = iter0 * wg_k;
+                        int32_t gmem_coord_base1 = iter1 * dilation_w;
+                        int32_t gmem_coord_base2 = iter2 * dilation_h;
+
+                        #pragma unroll
+                        for (uint32_t inst_idx = 0; inst_idx < num_inst; inst_idx++) {
+                            auto inst_slm_ptr_a = slm_base_a + cyclic_i * slm_bytes_a + inst_idx * inst_sizeA;
+                            uint32_t index = inst_idx * (dim - 1);
+                            auto coord_offset1 = coord_table[index] * stride_w - padding_left;
+                            auto coord_offset2 = coord_table[index + 1] * stride_h - padding_top;
+                            auto coord_offset3 = coord_table[index + 2];
+
+                            sycl::vec<int32_t, dim> gmem_coord = {gmem_coord_base0,
+                                gmem_coord_base1 + coord_offset1,
+                                gmem_coord_base2 + coord_offset2,
+                                coord_offset3};
+                            bool is_coord_valid = oob_table[inst_idx] && (gmem_coord[1] >= 0) && (gmem_coord[1] < gmem_shapeA[1]);
+                            is_coord_valid = is_coord_valid && (gmem_coord[2] >= 0) && (gmem_coord[2] < gmem_shapeA[2]);
+
+                            uint32_t offset = gmem_coord[0] * sizeof(dtypeA) + gmem_coord[1] * gmem_strideA[0]
+                                + gmem_coord[2] * gmem_strideA[1] + gmem_coord[3] * gmem_strideA[2];
+                            offset = is_coord_valid ? offset : 0;
+
+                            uint32_t copy_size = is_coord_valid ? get_copy_size<dtypeA, dim>(gmem_coord, gmem_shapeA, width_2dA) : 0;
+                            // uint32_t left_size = (gmem_shapeA[0] - gmem_coord[0]) * sizeof(dtypeA);
+                            // uint32_t copy_size = left_size < width_2dA ? left_size : width_2dA;
+                            // copy_size = is_coord_valid ? copy_size : 0;
+
+                            async_2d_tiled_load<cm_typeA, width_2dA>(inst_slm_ptr_a, A_s, offset, copy_size, abar_prod);
                         }
-                        {
-                            abar_ptr_t abar_prod = abar_prod_base + cyclic_i;
-                            auto slm_offset_a = (cyclic_i * slm_bytes_a) >> 9;
-                            auto slm_offset_b = (cyclic_i * slm_bytes_b) >> 9;
-                            abarrier_try_wait(abar_prod, phase_bit);
-                            async_gmma<dtypeC, dtypeAcc, dtypeA, dtypeB, wg_m, wg_n, wg_k, layout_a, layout_b>(
-                                mat_desc_c, mat_desc_acc, mat_desc_a + slm_offset_a, mat_desc_b + slm_offset_b, abar_store);
-                            abarrier_workgroup_arrive_expect_tx(abar_store, 1);
+
+                        if(local_id == 0) {
+                            abarrier_workgroup_arrive_expect_tx(abar_prod, slm_bytes_a + slm_bytes_b);
+
+                            // load kernel with tensor_copy
+                            sycl::vec<int32_t, dim> gmem_coord = {iter0 * wg_k, iter1, iter2, start_n};
+                            auto slm_ptr_b = slm_base_b + cyclic_i * slm_bytes_b;
+                            async_tensor_load<dim>(tdesc_ptrB, slm_ptr_b, gmem_coord, abar_prod);
                         }
+
+                        phase_bit = (cyclic_i == stage - 1) ? (phase_bit ^ 1) : phase_bit;
+                        cyclic_i = (cyclic_i == stage - 1) ? 0 : cyclic_i + 1;
                     }
                 }
             }
-         });
-     }).wait();
+
+            //store out
+            abarrier_try_wait(abar_store, 0);
+
+            if(local_id == 0) {
+                abarrier_workgroup_arrive_expect_tx(abar_store, slm_bytes_c);
+            }
+
+            #pragma unroll
+            for (uint32_t inst_idx = 0; inst_idx < num_inst; inst_idx++) {
+                auto inst_slm_ptr_c = slm_base_c + inst_idx * inst_sizeC;
+                uint32_t index = inst_idx * (dim - 1);
+                sycl::vec<int32_t, dim> gmem_coord = {start_n,
+                    coord_table[index],
+                    coord_table[index + 1],
+                    coord_table[index + 2]};
+                bool is_coord_valid = oob_table[inst_idx] && (gmem_coord[1] >= 0) && (gmem_coord[1] < gmem_shapeC[1]);
+                is_coord_valid = is_coord_valid && (gmem_coord[2] >= 0) && (gmem_coord[2] < gmem_shapeC[2]);
+
+                uint32_t offset = gmem_coord[0] * sizeof(dtypeC) + gmem_coord[1] * gmem_strideC[0]
+                    + gmem_coord[2] * gmem_strideC[1] + gmem_coord[3] * gmem_strideC[2];
+                offset = is_coord_valid ? offset : 0;
+
+                uint32_t copy_size = is_coord_valid ? get_copy_size<dtypeC, dim>(gmem_coord, gmem_shapeC, width_2dC) : 0;
+                // uint32_t left_size = (gmem_shapeC[0] - gmem_coord[0]) * sizeof(dtypeC);
+                // uint32_t copy_size = left_size < width_2dC ? left_size : width_2dC;
+                // copy_size = is_coord_valid ? copy_size : 0;
+
+                async_2d_tiled_store<cm_typeC, width_2dC>(inst_slm_ptr_c, C_s, offset, copy_size, abar_store);
+            }
+
+            abarrier_try_wait(abar_store, 1);
+        }
+        else if (subgroup_id == 1){
+            if (local_id == 32){
+                mat_desc_t mat_desc_a = (uint64_t)slm_base_a >> 9;
+                mat_desc_t mat_desc_b = (uint64_t)slm_base_b >> 9;
+                mat_desc_t mat_desc_c = (uint64_t)slm_base_c >> 9;
+                mat_desc_t mat_desc_acc = (uint64_t)slm_base_acc >> 9;
+                constexpr uint32_t cm_size_a_x = is_col_major_a ? 32: 32 / sizeof(dtypeA);
+                constexpr uint32_t cm_num_a_x = is_col_major_a ? wg_m / cm_size_a_x : wg_k / cm_size_a_x;
+                constexpr uint32_t cm_size_b_x = 32 / sizeof(dtypeB);
+                constexpr uint32_t cm_num_b_x = is_col_major_b ? wg_k / cm_size_b_x : wg_n / cm_size_b_x;
+                constexpr uint32_t cm_size_c_x = 32 / sizeof(dtypeC);
+                constexpr uint32_t cm_num_c_x = wg_n / cm_size_c_x;
+                constexpr uint32_t cm_size_acc_x = 32 / sizeof(dtypeAcc);
+                constexpr uint32_t cm_num_acc_x = wg_n / cm_size_acc_x;
+                constexpr uint32_t cm_stride_a = (cm_bytes * cm_num_a_x) >> 10;
+                constexpr uint32_t cm_stride_b = (cm_bytes * cm_num_b_x) >> 10;
+                constexpr uint32_t cm_stride_c = (cm_bytes * cm_num_c_x) >> 10;
+                constexpr uint32_t cm_stride_acc = (cm_bytes * cm_num_acc_x) >> 10;
+                mat_desc_a |= (cm_stride_a << 16);
+                mat_desc_b |= (cm_stride_b << 16);
+                mat_desc_c |= (cm_stride_c << 16);
+                mat_desc_acc |= (cm_stride_acc << 16);
+
+                if (kloop == 1) {
+                    abarrier_try_wait(abar_prod_base, 0);
+                    async_gmma<dtypeC, dtypeA, dtypeB, wg_m, wg_n, wg_k, layout_a, layout_b>(mat_desc_c, mat_desc_a, mat_desc_b, abar_cons_base);
+                    abarrier_workgroup_arrive_expect_tx(abar_cons_base, 1);
+                } else {
+                    abarrier_try_wait(abar_prod_base, 0);
+                    async_gmma<dtypeAcc, dtypeA, dtypeB, wg_m, wg_n, wg_k, layout_a, layout_b>(
+                                mat_desc_acc, mat_desc_a, mat_desc_b, abar_cons_base);
+                    abarrier_workgroup_arrive_expect_tx(abar_cons_base, 1);
+
+                    static_assert(stage > 1);
+                    uint32_t cyclic_i = 1;
+                    uint32_t phase_bit = 0;
+                    for (uint32_t i = 1; i < kloop - 1; i++) {
+                        abar_ptr_t abar_cons = abar_cons_base + cyclic_i;
+                        abar_ptr_t abar_prod = abar_prod_base + cyclic_i;
+                        auto slm_offset_a = (cyclic_i * slm_bytes_a) >> 9;
+                        auto slm_offset_b = (cyclic_i * slm_bytes_b) >> 9;
+                        abarrier_try_wait(abar_prod, phase_bit);
+                        async_gmma<dtypeAcc, dtypeAcc, dtypeA, dtypeB, wg_m, wg_n, wg_k, layout_a, layout_b>(
+                                    mat_desc_acc, mat_desc_acc, mat_desc_a + slm_offset_a, mat_desc_b + slm_offset_b,
+                                    abar_cons);
+                        abarrier_workgroup_arrive_expect_tx(abar_cons, 1);
+                        phase_bit = (cyclic_i == stage - 1) ? (phase_bit ^ 1) : phase_bit;
+                        cyclic_i = (cyclic_i == stage - 1) ? 0 : cyclic_i + 1;
+                    }
+                    {
+                        abar_ptr_t abar_prod = abar_prod_base + cyclic_i;
+                        auto slm_offset_a = (cyclic_i * slm_bytes_a) >> 9;
+                        auto slm_offset_b = (cyclic_i * slm_bytes_b) >> 9;
+                        abarrier_try_wait(abar_prod, phase_bit);
+                        async_gmma<dtypeC, dtypeAcc, dtypeA, dtypeB, wg_m, wg_n, wg_k, layout_a, layout_b>(
+                            mat_desc_c, mat_desc_acc, mat_desc_a + slm_offset_a, mat_desc_b + slm_offset_b, abar_store);
+                        abarrier_workgroup_arrive_expect_tx(abar_store, 1);
+                    }
+                }
+            }
+        }
+    }).wait();
 
     uint32_t err_cnt = validate_conv2d_result_by_onednn(A_s, B_s, C_s, problem_shape);
 
