@@ -67,6 +67,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
 
     using Pipeline = cutlass::xe4::PipelineTmaAsync<stage>;
     using PipelineState = cutlass::xe4::PipelineState<stage>;
+    using PipelineStore = cutlass::xe4::PipelineTmaAsync<stage, 1>;
 
     constexpr mem_layout layout_a = mem_layout::row_major;
     constexpr mem_layout layout_b = mem_layout::col_major;
@@ -148,10 +149,10 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
         uint32_t subgroup_id = local_id / 32;
 
         Pipeline pipeline(local_id);
-        abar_ptr_t abar_prod_base = pipeline.abar_prod_base;
         abar_ptr_t abar_cons_base = pipeline.abar_cons_base;
 
-        abar_ptr_t abar_store = allocate_abar<2,1>();   // todo
+        PipelineStore pipeline_store(local_id);
+
         tdesc_ptr_t tdesc_ptrB = allocate_tdesc<0>();
         auto slm_ptr = alloc_slm_buffer<uint8_t, slm_bytes>(item.get_group());
         auto slm_base_a = slm_ptr;
@@ -164,10 +165,6 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
 
         int start_m = wg_id_y * wg_m;
         int start_n = wg_id_x * wg_n;
-
-        if(local_id == 0){
-            abarrier_init(abar_store, 1);
-        }
 
         if(subgroup_id == 0){
             sycl::vec<uint32_t, dim> gmem_shapeB {C, S, R, K};
@@ -264,10 +261,11 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
             }
 
             //store out
-            abarrier_try_wait(abar_store, 0);
+            PipelineState slm_pipe_store_cons;
+            pipeline_store.consumer_try_wait(slm_pipe_store_cons);
 
             if(local_id == 0) {
-                abarrier_workgroup_arrive_expect_tx(abar_store, slm_bytes_c);
+                pipeline_store.consumer_commit(slm_pipe_store_cons, slm_bytes_c);
             }
 
             #pragma unroll
@@ -290,10 +288,12 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                 // uint32_t copy_size = left_size < width_2dC ? left_size : width_2dC;
                 // copy_size = is_coord_valid ? copy_size : 0;
 
-                async_2d_tiled_store<cm_typeC, width_2dC>(inst_slm_ptr_c, C_s, offset, copy_size, abar_store);
+                uint32_t abar_store_cons_index = slm_pipe_store_cons.index();
+                auto abar_store_cons = pipeline_store.producer_get_barrier(abar_store_cons_index);
+                async_2d_tiled_store<cm_typeC, width_2dC>(inst_slm_ptr_c, C_s, offset, copy_size, abar_store_cons);
             }
 
-            abarrier_try_wait(abar_store, 1);
+            pipeline_store.producer_try_wait(slm_pipe_store_cons.index(), 1);
         }
         else if (subgroup_id == 1){
             if (local_id == 32){
@@ -345,6 +345,10 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                         pipeline.consumer_commit(slm_pipe_read);
                     }
                     {
+                        auto slm_pipe_store_prod = cutlass::xe4::make_producer_start_state<Pipeline>();
+                        uint32_t abar_store_prod_index = slm_pipe_store_prod.index();
+                        auto abar_store_prod = pipeline_store.producer_get_barrier(abar_store_prod_index);
+
                         ++slm_pipe_read;
                         uint32_t abar_index = slm_pipe_read.index();
                         auto slm_offset_a = (abar_index * slm_bytes_a) >> 9;
@@ -357,8 +361,8 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                         pipeline.consumer_try_wait(abar_index, phase);
 
                         async_gmma<dtypeC, dtypeAcc, dtypeA, dtypeB, wg_m, wg_n, wg_k, layout_a, layout_b>(
-                            mat_desc_c, mat_desc_acc, mat_desc_a + slm_offset_a, mat_desc_b + slm_offset_b, abar_store);
-                        abarrier_workgroup_arrive_expect_tx(abar_store, 1);
+                            mat_desc_c, mat_desc_acc, mat_desc_a + slm_offset_a, mat_desc_b + slm_offset_b, abar_store_prod);
+                        pipeline_store.producer_commit(slm_pipe_store_prod, 1);
                     }
                 }
             }
