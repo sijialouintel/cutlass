@@ -1,7 +1,10 @@
 #include <CL/sycl.hpp>
 #include "inline_pisa.hpp"
 #include "validation.hpp"
+#include <cutlass/pipeline/xe4_pipeline.hpp>
+
 using namespace sycl;
+using namespace cutlass::xe4;
 
 class CONV2D_SMALL;
 class CONV2D_LARGE;
@@ -61,6 +64,9 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     constexpr uint32_t wg_n = 128;
     constexpr uint32_t wg_k = 128;
     constexpr uint32_t stage = 3;
+
+    using Pipeline = cutlass::xe4::PipelineTmaAsync<stage>;
+    using PipelineState = cutlass::xe4::PipelineState<stage>;
 
     constexpr mem_layout layout_a = mem_layout::row_major;
     constexpr mem_layout layout_b = mem_layout::col_major;
@@ -138,9 +144,14 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     constexpr uint32_t slm_bytes = slm_bytes_a * stage + slm_bytes_b * stage + slm_bytes_acc + slm_bytes_c;
 
     q.parallel_for<test>(Range, [=](nd_item<3> item) {
-        abar_ptr_t abar_prod_base = allocate_abar<0, stage>();
-        abar_ptr_t abar_cons_base = allocate_abar<1, stage>();
-        abar_ptr_t abar_store = allocate_abar<2,1>();
+        uint32_t local_id = item.get_local_linear_id();
+        uint32_t subgroup_id = local_id / 32;
+
+        Pipeline pipeline(local_id);
+        abar_ptr_t abar_prod_base = pipeline.abar_prod_base;
+        abar_ptr_t abar_cons_base = pipeline.abar_cons_base;
+
+        abar_ptr_t abar_store = allocate_abar<2,1>();   // todo
         tdesc_ptr_t tdesc_ptrB = allocate_tdesc<0>();
         auto slm_ptr = alloc_slm_buffer<uint8_t, slm_bytes>(item.get_group());
         auto slm_base_a = slm_ptr;
@@ -148,8 +159,6 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
         auto slm_base_acc = slm_base_b + slm_bytes_b * stage;
         auto slm_base_c = slm_base_acc + slm_bytes_acc;
 
-        uint32_t local_id = item.get_local_linear_id();
-        uint32_t subgroup_id = local_id / 32;
         uint32_t wg_id_x = item.get_group(2);
         uint32_t wg_id_y = item.get_group(1);
 
@@ -157,19 +166,8 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
         int start_n = wg_id_x * wg_n;
 
         if(local_id == 0){
-            #pragma unroll
-            for (int i = 0; i < stage; i++) {
-                abarrier_init(abar_prod_base + i, 1);
-            }
             abarrier_init(abar_store, 1);
         }
-        else if(local_id == 32){
-            #pragma unroll
-            for (int i = 0; i < stage; i++) {
-                abarrier_init(abar_cons_base + i, 1);
-            }
-        }
-        item.barrier(access::fence_space::local_space);
 
         if(subgroup_id == 0){
             sycl::vec<uint32_t, dim> gmem_shapeB {C, S, R, K};
@@ -210,15 +208,14 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                 coord_offset_m_base += LANESIZE;
             }
 
-            uint32_t cyclic_i = 0;
-            uint32_t phase_bit = 1;
+            auto slm_pipe_write = cutlass::xe4::make_producer_start_state<Pipeline>();
             for (uint32_t iter2 = 0; iter2 < R; iter2++) {
                 for (uint32_t iter1 = 0; iter1 < S; iter1++) {
                     for (uint32_t iter0 = 0; iter0 < repeat_c; iter0++) {
-                        abar_ptr_t abar_cons = abar_cons_base + cyclic_i;
-                        abar_ptr_t abar_prod = abar_prod_base + cyclic_i;
+                        uint32_t abar_index = slm_pipe_write.index();
+                        auto abar_prod = pipeline.producer_get_barrier(abar_index);
 
-                        abarrier_try_wait(abar_cons, phase_bit);
+                        pipeline.producer_try_wait(slm_pipe_write);
 
                         // load input with row_copy
                         int32_t gmem_coord_base0 = iter0 * wg_k;
@@ -227,7 +224,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
 
                         #pragma unroll
                         for (uint32_t inst_idx = 0; inst_idx < num_inst; inst_idx++) {
-                            auto inst_slm_ptr_a = slm_base_a + cyclic_i * slm_bytes_a + inst_idx * inst_sizeA;
+                            auto inst_slm_ptr_a = slm_base_a + abar_index * slm_bytes_a + inst_idx * inst_sizeA;
                             uint32_t index = inst_idx * (dim - 1);
                             auto coord_offset1 = coord_table[index] * stride_w - padding_left;
                             auto coord_offset2 = coord_table[index + 1] * stride_h - padding_top;
@@ -253,16 +250,15 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                         }
 
                         if(local_id == 0) {
-                            abarrier_workgroup_arrive_expect_tx(abar_prod, slm_bytes_a + slm_bytes_b);
+                            pipeline.producer_commit(abar_index, slm_bytes_a + slm_bytes_b);
 
                             // load kernel with tensor_copy
                             sycl::vec<int32_t, dim> gmem_coord = {iter0 * wg_k, iter1, iter2, start_n};
-                            auto slm_ptr_b = slm_base_b + cyclic_i * slm_bytes_b;
+                            auto slm_ptr_b = slm_base_b + abar_index * slm_bytes_b;
                             async_tensor_load<dim>(tdesc_ptrB, slm_ptr_b, gmem_coord, abar_prod);
                         }
 
-                        phase_bit = (cyclic_i == stage - 1) ? (phase_bit ^ 1) : phase_bit;
-                        cyclic_i = (cyclic_i == stage - 1) ? 0 : cyclic_i + 1;
+                        ++slm_pipe_write;
                     }
                 }
             }
@@ -323,36 +319,43 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                 mat_desc_acc |= (cm_stride_acc << 16);
 
                 if (kloop == 1) {
-                    abarrier_try_wait(abar_prod_base, 0);
+                    PipelineState slm_pipe_read;
+                    pipeline.consumer_try_wait(slm_pipe_read);
                     async_gmma<dtypeC, dtypeA, dtypeB, wg_m, wg_n, wg_k, layout_a, layout_b>(mat_desc_c, mat_desc_a, mat_desc_b, abar_cons_base);
-                    abarrier_workgroup_arrive_expect_tx(abar_cons_base, 1);
+                    pipeline.consumer_commit(slm_pipe_read);
                 } else {
-                    abarrier_try_wait(abar_prod_base, 0);
+                    PipelineState slm_pipe_read;
+                    pipeline.consumer_try_wait(slm_pipe_read);
                     async_gmma<dtypeAcc, dtypeA, dtypeB, wg_m, wg_n, wg_k, layout_a, layout_b>(
                                 mat_desc_acc, mat_desc_a, mat_desc_b, abar_cons_base);
-                    abarrier_workgroup_arrive_expect_tx(abar_cons_base, 1);
+                    pipeline.consumer_commit(slm_pipe_read);
 
                     static_assert(stage > 1);
-                    uint32_t cyclic_i = 1;
-                    uint32_t phase_bit = 0;
                     for (uint32_t i = 1; i < kloop - 1; i++) {
-                        abar_ptr_t abar_cons = abar_cons_base + cyclic_i;
-                        abar_ptr_t abar_prod = abar_prod_base + cyclic_i;
-                        auto slm_offset_a = (cyclic_i * slm_bytes_a) >> 9;
-                        auto slm_offset_b = (cyclic_i * slm_bytes_b) >> 9;
-                        abarrier_try_wait(abar_prod, phase_bit);
+                        ++slm_pipe_read;
+                        uint32_t abar_index = slm_pipe_read.index();
+                        auto abar_cons = pipeline.consumer_get_barrier(abar_index);
+                        auto slm_offset_a = (abar_index * slm_bytes_a) >> 9;
+                        auto slm_offset_b = (abar_index * slm_bytes_b) >> 9;
+                        pipeline.consumer_try_wait(slm_pipe_read);
+
                         async_gmma<dtypeAcc, dtypeAcc, dtypeA, dtypeB, wg_m, wg_n, wg_k, layout_a, layout_b>(
                                     mat_desc_acc, mat_desc_acc, mat_desc_a + slm_offset_a, mat_desc_b + slm_offset_b,
                                     abar_cons);
-                        abarrier_workgroup_arrive_expect_tx(abar_cons, 1);
-                        phase_bit = (cyclic_i == stage - 1) ? (phase_bit ^ 1) : phase_bit;
-                        cyclic_i = (cyclic_i == stage - 1) ? 0 : cyclic_i + 1;
+                        pipeline.consumer_commit(slm_pipe_read);
                     }
                     {
-                        abar_ptr_t abar_prod = abar_prod_base + cyclic_i;
-                        auto slm_offset_a = (cyclic_i * slm_bytes_a) >> 9;
-                        auto slm_offset_b = (cyclic_i * slm_bytes_b) >> 9;
-                        abarrier_try_wait(abar_prod, phase_bit);
+                        ++slm_pipe_read;
+                        uint32_t abar_index = slm_pipe_read.index();
+                        auto slm_offset_a = (abar_index * slm_bytes_a) >> 9;
+                        auto slm_offset_b = (abar_index * slm_bytes_b) >> 9;
+
+                        auto abar_cons = pipeline.consumer_get_barrier(abar_index);
+                        auto abar_prod = pipeline.producer_get_barrier(abar_index);
+
+                        uint32_t phase = ((kloop - 1) / stage) & 1u;
+                        pipeline.consumer_try_wait(abar_index, phase);
+
                         async_gmma<dtypeC, dtypeAcc, dtypeA, dtypeB, wg_m, wg_n, wg_k, layout_a, layout_b>(
                             mat_desc_c, mat_desc_acc, mat_desc_a + slm_offset_a, mat_desc_b + slm_offset_b, abar_store);
                         abarrier_workgroup_arrive_expect_tx(abar_store, 1);
