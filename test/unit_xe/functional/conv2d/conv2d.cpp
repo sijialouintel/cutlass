@@ -74,30 +74,14 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     uint32_t sizeB = C * S * R * K;
     uint32_t sizeC = Out_C * Out_W * Out_H * Out_N;
 
-    auto *A_d = malloc_device<dtypeA>(sizeA, q);
-    auto *B_d = malloc_device<dtypeB>(sizeB, q);
-    auto *C_d = malloc_device<dtypeC>(sizeC, q);
+    auto A_s = malloc_shared<dtypeA>(sizeA, q);
+    std::generate_n(A_s, sizeA, [=]() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
 
-    std::vector<dtypeA> A_h(sizeA);
-    std::vector<dtypeB> B_h(sizeB);
-    std::vector<dtypeC> C_h(sizeC);
+    auto B_s = malloc_shared<dtypeB>(sizeB, q);
+    std::generate_n(B_s, sizeB, [=]() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
 
-    for (size_t i = 0; i < sizeA; ++i)
-    {
-        A_h[i] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-    }
-    for (size_t i = 0; i < sizeB; ++i)
-    {
-        B_h[i] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-    }
-    for (size_t i = 0; i < sizeC; ++i)
-    {
-        C_h[i] = 0;
-    }
-
-    q.memcpy(A_d, A_h.data(), sizeA * sizeof(dtypeA)).wait();
-    q.memcpy(B_d, B_h.data(), sizeB * sizeof(dtypeB)).wait();
-    q.memcpy(C_d, C_h.data(), sizeC * sizeof(dtypeC)).wait();
+    auto C_s = malloc_shared<dtypeC>(sizeC, q);
+    std::fill_n(C_s, sizeC, dtypeC(0));
 
     range<3> local_range(1, 1, 64);
     uint32_t mat_m = Out_W * Out_H * Out_N;
@@ -194,7 +178,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                 sycl::vec<uint32_t, dim> roi_shapeB {wg_k, 1, 1, wg_n};
                 sycl::vec<uint32_t, dim> elem_stride {1, 1, 1, 1};
 
-                tensor_desc_fill_global_addr(tdesc_ptrB, B_d);
+                tensor_desc_fill_global_addr(tdesc_ptrB, B_s);
                 tensor_descriptor_fill_dim_size<dim>(tdesc_ptrB, gmem_shapeB);
                 tensor_descriptor_fill_dim_stride<dim>(tdesc_ptrB, gmem_strideB);
                 tensor_descriptor_fill_traverse_stride<dim>(tdesc_ptrB, elem_stride);
@@ -266,7 +250,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                                 // uint32_t copy_size = left_size < width_2dA ? left_size : width_2dA;
                                 // copy_size = is_coord_valid ? copy_size : 0;
 
-                                async_2d_tiled_load<cm_typeA, width_2dA>(inst_slm_ptr_a, A_d, offset, copy_size, abar_prod);
+                                async_2d_tiled_load<cm_typeA, width_2dA>(inst_slm_ptr_a, A_s, offset, copy_size, abar_prod);
                             }
 
                             if(local_id == 0) {
@@ -311,7 +295,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                     // uint32_t copy_size = left_size < width_2dC ? left_size : width_2dC;
                     // copy_size = is_coord_valid ? copy_size : 0;
 
-                    async_2d_tiled_store<cm_typeC, width_2dC>(inst_slm_ptr_c, C_d, offset, copy_size, abar_store);
+                    async_2d_tiled_store<cm_typeC, width_2dC>(inst_slm_ptr_c, C_s, offset, copy_size, abar_store);
                 }
 
                 abarrier_try_wait(abar_store, 1);
@@ -380,9 +364,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
          });
      }).wait();
 
-    q.memcpy(C_h.data(), C_d, sizeC * sizeof(dtypeC)).wait();
-
-    uint32_t err_cnt = validate_conv2d_result_by_onednn(A_h.data(), B_h.data(), C_h.data(), problem_shape);
+    uint32_t err_cnt = validate_conv2d_result_by_onednn(A_s, B_s, C_s, problem_shape);
 
     int rtn = 0;
     if (err_cnt > 0)
@@ -395,9 +377,6 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
         std::cout << "Test Pass!" << std::endl;
         rtn = 0;
     }
-    free(A_d, q);
-    free(B_d, q);
-    free(C_d, q);
 
     return rtn;
 }
