@@ -66,8 +66,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     constexpr uint32_t stage = 3;
 
     using Pipeline = cutlass::xe4::PipelineTmaAsync<stage>;
-    using PipelineState = cutlass::xe4::PipelineState<stage>;
-    using PipelineStore = cutlass::xe4::PipelineTmaAsync<stage, 1>;
+    using PipelineStore = cutlass::xe4::PipelineTmaAsync<1, 1>;
 
     constexpr mem_layout layout_a = mem_layout::row_major;
     constexpr mem_layout layout_b = mem_layout::col_major;
@@ -166,6 +165,8 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
         int start_m = wg_id_y * wg_m;
         int start_n = wg_id_x * wg_n;
 
+        item.barrier(access::fence_space::local_space);
+
         if(subgroup_id == 0){
             sycl::vec<uint32_t, dim> gmem_shapeB {C, S, R, K};
             sycl::vec<uint64_t, dim - 1> gmem_strideB {stride0B, stride1B, stride2B};
@@ -261,7 +262,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
             }
 
             //store out
-            PipelineState slm_pipe_store_cons;
+            PipelineStore::PipelineState slm_pipe_store_cons;
             pipeline_store.consumer_try_wait(slm_pipe_store_cons);
 
             if(local_id == 0) {
@@ -293,7 +294,8 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                 async_2d_tiled_store<cm_typeC, width_2dC>(inst_slm_ptr_c, C_s, offset, copy_size, abar_store_cons);
             }
 
-            pipeline_store.producer_try_wait(slm_pipe_store_cons.index(), 1);
+            ++slm_pipe_store_cons;
+            pipeline_store.producer_try_wait(slm_pipe_store_cons);
         }
         else if (subgroup_id == 1){
             if (local_id == 32){
@@ -319,12 +321,12 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                 mat_desc_acc |= (cm_stride_acc << 16);
 
                 if (kloop == 1) {
-                    PipelineState slm_pipe_read;
+                    Pipeline::PipelineState slm_pipe_read;
                     pipeline.consumer_try_wait(slm_pipe_read);
                     async_gmma<dtypeC, dtypeA, dtypeB, wg_m, wg_n, wg_k, layout_a, layout_b>(mat_desc_c, mat_desc_a, mat_desc_b, abar_cons_base);
                     pipeline.consumer_commit(slm_pipe_read);
                 } else {
-                    PipelineState slm_pipe_read;
+                    Pipeline::PipelineState slm_pipe_read;
                     pipeline.consumer_try_wait(slm_pipe_read);
                     async_gmma<dtypeAcc, dtypeA, dtypeB, wg_m, wg_n, wg_k, layout_a, layout_b>(
                                 mat_desc_acc, mat_desc_a, mat_desc_b, abar_cons_base);
@@ -345,7 +347,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                         pipeline.consumer_commit(slm_pipe_read);
                     }
                     {
-                        auto slm_pipe_store_prod = cutlass::xe4::make_producer_start_state<Pipeline>();
+                        auto slm_pipe_store_prod = cutlass::xe4::make_producer_start_state<PipelineStore>();
                         uint32_t abar_store_prod_index = slm_pipe_store_prod.index();
                         auto abar_store_prod = pipeline_store.producer_get_barrier(abar_store_prod_index);
 
