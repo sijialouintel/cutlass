@@ -76,9 +76,6 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     constexpr bool is_col_major_a = layout_a == mem_layout::col_major;
     constexpr bool is_col_major_b = layout_b == mem_layout::col_major;
 
-    constexpr slm_layout_t slm_layoutA = slm_layout_t::tiled;
-    constexpr slm_layout_t slm_layoutC = slm_layout_t::tiled;
-
     uint32_t sizeA = C * W * H * N;
     uint32_t sizeB = C * S * R * K;
     uint32_t sizeC = Out_C * Out_W * Out_H * Out_N;
@@ -106,22 +103,6 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     constexpr slm_matrix_type cm_typeB = slm_matrix_type::type1;
     constexpr slm_matrix_type cm_typeC = slm_matrix_type::type1;
 
-    // calculate stride here to reduce the burden of GPU calculation
-    // sycl::vec<uint32_t, dim> gmem_shapeA {C, W, H, N};
-    uint32_t stride0A = C * sizeof(dtypeA);
-    uint32_t stride1A = stride0A * W;
-    uint32_t stride2A = stride1A * H;
-
-    // sycl::vec<uint32_t, dim> gmem_shapeB {C, S, R, K};
-    uint64_t stride0B = C * sizeof(dtypeB);
-    uint64_t stride1B = stride0B * S;
-    uint64_t stride2B = stride1B * R;
-
-    // sycl::vec<uint32_t, dim> gmem_shapeC {Out_C, Out_W, Out_H, Out_N};
-    uint32_t stride0C = Out_C * sizeof(dtypeC);
-    uint32_t stride1C = stride0C * Out_W;
-    uint32_t stride2C = stride1C * Out_H;
-
     constexpr uint32_t width_2dA = wg_k * sizeof(dtypeA);
     constexpr uint32_t width_2dC = wg_n * sizeof(dtypeC);
     static_assert(wg_m % LANESIZE == 0);
@@ -147,6 +128,13 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
         PipelineStore pipeline_store(local_id);
 
         tdesc_ptr_t tdesc_ptrB = allocate_tdesc<0>();
+
+        auto layoutA = make_layout(make_shape(C, W, H, N));
+        auto layoutB = make_layout(make_shape(C, S, R, K));
+        auto layoutC = make_layout(make_shape(Out_C, Out_W, Out_H, Out_N));
+        auto A = make_tensor(A_shared, layoutA);
+        auto B = make_tensor(B_shared, layoutB);
+        auto C = make_tensor(C_shared, layoutC);
 
         auto layoutSA = make_layout(Shape<Int<wg_m>, Int<wg_k>, Int<stage>>{}, Stride<Int<wg_k>, _1, Int<wg_m * wg_k>>{});
         auto layoutSB = make_layout(Shape<Int<wg_n>, Int<wg_k>, Int<stage>>{}, Stride<Int<wg_k>, _1, Int<wg_n * wg_k>>{});
@@ -179,25 +167,31 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
         item.barrier(access::fence_space::local_space);
 
         if(subgroup_id == 0){
-            sycl::vec<uint32_t, dim> gmem_shapeB {C, S, R, K};
-            sycl::vec<uint64_t, dim - 1> gmem_strideB {stride0B, stride1B, stride2B};
-            sycl::vec<uint32_t, dim> roi_shapeB {wg_k, 1, 1, wg_n};
+            sycl::vec<uint32_t, dim> gmem_shapeB {shape<0>(B), shape<1>(B), shape<2>(B), shape<3>(B)};
+            sycl::vec<uint64_t, dim - 1> gmem_strideB {stride<1>(B) * sizeof(dtypeB),
+                stride<2>(B) * sizeof(dtypeB),
+                stride<3>(B) * sizeof(dtypeB)};
+            sycl::vec<uint32_t, dim> roi_shapeB {shape<1>(layoutSB), 1, 1, shape<0>(layoutSB)};
             sycl::vec<uint32_t, dim> elem_stride {1, 1, 1, 1};
 
-            tensor_desc_fill_global_addr(tdesc_ptrB, B_shared);
+            tensor_desc_fill_global_addr(tdesc_ptrB, B.data());
             tensor_descriptor_fill_dim_size<dim>(tdesc_ptrB, gmem_shapeB);
             tensor_descriptor_fill_dim_stride<dim>(tdesc_ptrB, gmem_strideB);
             tensor_descriptor_fill_traverse_stride<dim>(tdesc_ptrB, elem_stride);
             tensor_descriptor_fill_roitensor_size<dim>(tdesc_ptrB, roi_shapeB);
             tensor_descriptor_fill_misc<dtypeB, cm_typeB>(tdesc_ptrB);
 
-            sycl::vec<uint32_t, dim> gmem_shapeC {Out_C, Out_W, Out_H, Out_N};
-            sycl::vec<uint32_t, dim - 1> gmem_strideC {stride0C, stride1C, stride2C};
-            sycl::vec<uint32_t, dim> roi_shapeC {wg_n, Out_W, Out_H, Out_N};
+            sycl::vec<uint32_t, dim> gmem_shapeC {shape<0>(C), shape<1>(C), shape<2>(C), shape<3>(C)};
+            sycl::vec<uint32_t, dim - 1> gmem_strideC {stride<1>(C) * sizeof(dtypeC),
+                stride<2>(C) * sizeof(dtypeC),
+                stride<3>(C) * sizeof(dtypeC)};
+            sycl::vec<uint32_t, dim> roi_shapeC {shape<1>(layoutSC), shape<1>(C), shape<2>(C), shape<3>(C)};
 
-            sycl::vec<uint32_t, dim> gmem_shapeA {C, W, H, N};
-            sycl::vec<uint32_t, dim - 1> gmem_strideA {stride0A, stride1A, stride2A};
-            sycl::vec<uint32_t, dim> roi_shapeA {wg_k, Out_W, Out_H, Out_N};
+            sycl::vec<uint32_t, dim> gmem_shapeA {shape<0>(A), shape<1>(A), shape<2>(A), shape<3>(A)};
+            sycl::vec<uint32_t, dim - 1> gmem_strideA {stride<1>(A) * sizeof(dtypeA),
+                stride<2>(A) * sizeof(dtypeA),
+                stride<3>(A) * sizeof(dtypeA)};
+            sycl::vec<uint32_t, dim> roi_shapeA {shape<1>(layoutSA), shape<1>(C), shape<2>(C), shape<3>(C)};
 
             int32_t coord_offset_m_base = start_m + local_id;
             int32_t coord_table[num_inst * (dim - 1)];
