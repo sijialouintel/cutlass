@@ -22,12 +22,28 @@ class CONV2D_ASYNMMETRIC_PAD_ASYNMMETRIC_STRIDE_WITH_DILATION;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// ASYNC_ROW_LOAD: Initiates a async row copy from global memory to shared memory
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+template <typename T>
+inline uint32_t get_copy_size(const int32_t coord, const uint32_t shape, uint32_t width_2d) {
+    uint32_t left_size = (shape - coord) * sizeof(T);
+    uint32_t copy_size = left_size < width_2d ? left_size : width_2d;
+    return copy_size;
+}
+
 struct ASYNC_ROW_LOAD
 {
-  template<class TS, class TG, class CMType, class NumBytesPerCopy, class OffSet, class CopySize>
+  template<class TS, class TG, class CMType, class NumBytesPerCopy, class Tensor>
   CUTE_HOST_DEVICE static void
-  copy(CMType cm_type, NumBytesPerCopy width_2d, uint64_t const* abar_ptr, TS* slm_ptr, TG* gmem_ptr, OffSet offset, CopySize copy_size)
+  copy(CMType cm_type, NumBytesPerCopy width_2d, Tensor gmem, bool flag, uint64_t const* abar_ptr, TS* slm_ptr, TG* gmem_ptr, int32_t crd0, int32_t crd1, int32_t crd2, int32_t crd3)
   {
+    sycl::vec<uint32_t, 4> gmem_shape {shape<0>(gmem), shape<1>(gmem), shape<2>(gmem), shape<3>(gmem)};
+    sycl::vec<uint32_t, 3> gmem_stride {stride<1>(gmem) * sizeof(TG), stride<2>(gmem) * sizeof(TG), stride<3>(gmem) * sizeof(TG)};
+
+    bool is_coord_valid = flag && (crd1 >= 0) && (crd1 < gmem_shape[1]);
+    is_coord_valid = is_coord_valid && (crd2 >= 0) && (crd2 < gmem_shape[2]);
+
+    uint32_t offset = crd0 * sizeof(TG) + crd1 * gmem_stride[0] + crd2  * gmem_stride[1] + crd3  * gmem_stride[2];
+    offset = is_coord_valid ? offset : 0;
+    uint32_t copy_size = is_coord_valid ? get_copy_size<TG>(crd0, gmem_shape[0], width_2d) : 0;
     async_2d_tiled_load<CMType::value, NumBytesPerCopy::value>(slm_ptr, gmem_ptr, offset, copy_size, abar_ptr);
   }
 };
@@ -37,21 +53,22 @@ struct ASYNC_ROW_LOAD
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 struct ASYNC_ROW_STORE
 {
-  template<class TS, class TG, class CMType, class NumBytesPerCopy, class OffSet, class CopySize>
+  template<class TS, class TG, class CMType, class NumBytesPerCopy, class Tensor>
   CUTE_HOST_DEVICE static void
-  copy(CMType cm_type, NumBytesPerCopy width_2d, uint64_t const* abar_ptr, TS* slm_ptr, TG* gmem_ptr, OffSet offset, CopySize copy_size)
+  copy(CMType cm_type, NumBytesPerCopy width_2d, Tensor gmem, bool flag, uint64_t const* abar_ptr, TS* slm_ptr, TG* gmem_ptr, int32_t crd0, int32_t crd1, int32_t crd2, int32_t crd3)
   {
+    sycl::vec<uint32_t, 4> gmem_shape {shape<0>(gmem), shape<1>(gmem), shape<2>(gmem), shape<3>(gmem)};
+    sycl::vec<uint32_t, 3> gmem_stride {stride<1>(gmem) * sizeof(TG), stride<2>(gmem) * sizeof(TG), stride<3>(gmem) * sizeof(TG)};
+
+    bool is_coord_valid = flag && (crd1 >= 0) && (crd1 < gmem_shape[1]);
+    is_coord_valid = is_coord_valid && (crd2 >= 0) && (crd2 < gmem_shape[2]);
+
+    uint32_t offset = crd0 * sizeof(TG) + crd1 * gmem_stride[0] + crd2 * gmem_stride[1] + crd3 * gmem_stride[2];
+    offset = is_coord_valid ? offset : 0;
+    uint32_t copy_size = is_coord_valid ? get_copy_size<TG>(crd0, gmem_shape[0], width_2d) : 0;
     async_2d_tiled_store<CMType::value, NumBytesPerCopy::value>(slm_ptr, gmem_ptr, offset, copy_size, abar_ptr);
   }
 };
-
-
-template <typename T, uint32_t Dim>
-inline uint32_t get_copy_size(const sycl::vec<int32_t, Dim> &coord, const sycl::vec<uint32_t, Dim> &shape, uint32_t width_2d) {
-    uint32_t left_size = (shape[0] - coord[0]) * sizeof(T);
-    uint32_t copy_size = left_size < width_2d ? left_size : width_2d;
-    return copy_size;
-}
 
 template<typename test>
 int run_test(const conv2d::problem_shape_t &problem_shape)
@@ -267,24 +284,8 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                     auto coord_offset2 = coord_table[index + 1] * stride_h - padding_top;
                     auto coord_offset3 = coord_table[index + 2];
 
-                    sycl::vec<int32_t, dim> gmem_coord = {gmem_coord_base0,
-                        gmem_coord_base1 + coord_offset1,
-                        gmem_coord_base2 + coord_offset2,
-                        coord_offset3};
-                    bool is_coord_valid = oob_table[inst_idx] && (gmem_coord[1] >= 0) && (gmem_coord[1] < gmem_shapeA[1]);
-                    is_coord_valid = is_coord_valid && (gmem_coord[2] >= 0) && (gmem_coord[2] < gmem_shapeA[2]);
-
-                    uint32_t offset = gmem_coord[0] * sizeof(dtypeA) + gmem_coord[1] * gmem_strideA[0]
-                        + gmem_coord[2] * gmem_strideA[1] + gmem_coord[3] * gmem_strideA[2];
-                    offset = is_coord_valid ? offset : 0;
-
-                    uint32_t copy_size = is_coord_valid ? get_copy_size<dtypeA, dim>(gmem_coord, gmem_shapeA, width_2dA) : 0;
-                    // uint32_t left_size = (gmem_shapeA[0] - gmem_coord[0]) * sizeof(dtypeA);
-                    // uint32_t copy_size = left_size < width_2dA ? left_size : width_2dA;
-                    // copy_size = is_coord_valid ? copy_size : 0;
-
-                    //async_2d_tiled_load<cm_typeA, width_2dA>(inst_slm_ptr_a, A_shared, offset, copy_size, abar_prod);
-                    ASYNC_ROW_LOAD::copy(cute::C<cm_typeA>{}, cute::C<width_2dA>{}, abar_prod, inst_slm_ptr_a, A_shared, offset, copy_size);
+                    ASYNC_ROW_LOAD::copy(cute::C<cm_typeA>{}, cute::C<width_2dA>{}, A, oob_table[inst_idx], abar_prod, inst_slm_ptr_a, A_shared, 
+                                         gmem_coord_base0, gmem_coord_base1 + coord_offset1, gmem_coord_base2 + coord_offset2, coord_offset3);
                 }
 
                 if(local_id == 0) {
@@ -315,26 +316,10 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
             for (uint32_t inst_idx = 0; inst_idx < num_inst; inst_idx++) {
                 auto inst_slm_ptr_c = slm_ptr_c + inst_idx * inst_sizeC;
                 uint32_t index = inst_idx * (dim - 1);
-                sycl::vec<int32_t, dim> gmem_coord = {start_n,
-                    coord_table[index],
-                    coord_table[index + 1],
-                    coord_table[index + 2]};
-                bool is_coord_valid = oob_table[inst_idx] && (gmem_coord[1] >= 0) && (gmem_coord[1] < gmem_shapeC[1]);
-                is_coord_valid = is_coord_valid && (gmem_coord[2] >= 0) && (gmem_coord[2] < gmem_shapeC[2]);
-
-                uint32_t offset = gmem_coord[0] * sizeof(dtypeC) + gmem_coord[1] * gmem_strideC[0]
-                    + gmem_coord[2] * gmem_strideC[1] + gmem_coord[3] * gmem_strideC[2];
-                offset = is_coord_valid ? offset : 0;
-
-                uint32_t copy_size = is_coord_valid ? get_copy_size<dtypeC, dim>(gmem_coord, gmem_shapeC, width_2dC) : 0;
-                // uint32_t left_size = (gmem_shapeC[0] - gmem_coord[0]) * sizeof(dtypeC);
-                // uint32_t copy_size = left_size < width_2dC ? left_size : width_2dC;
-                // copy_size = is_coord_valid ? copy_size : 0;
 
                 uint32_t abar_store_cons_index = slm_pipe_store_cons.index();
                 auto abar_store_cons = pipeline_store.producer_get_barrier(abar_store_cons_index);
-                //async_2d_tiled_store<cm_typeC, width_2dC>(inst_slm_ptr_c, C_shared, offset, copy_size, abar_store_cons);
-                ASYNC_ROW_STORE::copy(cute::C<cm_typeC>{}, cute::C<width_2dC>{}, abar_store_cons, inst_slm_ptr_c, C_shared, offset, copy_size);
+                ASYNC_ROW_STORE::copy(cute::C<cm_typeC>{}, cute::C<width_2dC>{}, C, oob_table[inst_idx], abar_store_cons, inst_slm_ptr_c, C_shared, start_n, coord_table[index], coord_table[index+1], coord_table[index+2]);
             }
 
             ++slm_pipe_store_cons;

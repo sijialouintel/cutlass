@@ -32,7 +32,7 @@ python3 $XE4_TEST_PATH/generator/gen_mma.py \
   --shape 128x128x128 \
   --dtype bf16_bf16_bf16 f32_f32_bf16_bf16 f32_bf16_bf16 bf16_f32_bf16_bf16
 
-test_cases=("SMALL")
+test_cases=("SMALL" "LARGE" "SMALL_WITH_PAD_WITH_STRIDE" "LARGE_WITH_PAD_WITH_STRIDE" "OTHER_WITH_PAD_WITH_STRIDE" "ASYNMMETRIC_PAD_ASYNMMETRIC_STRIDE" "LARGE_WITH_PAD_WITH_STRIDE_WITH_DILATION" "OTHER_WITH_PAD_WITH_STRIDE_WITH_DILATION" "ASYNMMETRIC_PAD_ASYNMMETRIC_STRIDE_WITH_DILATION")
 
 limit=${1:-${#test_cases[@]}}
 limit=$((limit > 0 && limit <= ${#test_cases[@]} ? limit : ${#test_cases[@]}))
