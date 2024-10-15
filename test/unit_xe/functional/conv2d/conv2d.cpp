@@ -212,62 +212,65 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
             }
 
             auto slm_pipe_write = cutlass::xe4::make_producer_start_state<Pipeline>();
-            for (uint32_t iter2 = 0; iter2 < R; iter2++) {
-                for (uint32_t iter1 = 0; iter1 < S; iter1++) {
-                    for (uint32_t iter0 = 0; iter0 < repeat_c; iter0++) {
-                        uint32_t abar_index = slm_pipe_write.index();
-                        auto abar_prod = pipeline.producer_get_barrier(abar_index);
+            auto k_tile_iter = cute::make_coord_iterator(make_shape(repeat_c, S, R));
+            auto k_tile_count = size(make_shape(repeat_c, S, R));
+            for ( ; k_tile_count > 0; --k_tile_count) {
+                uint32_t iter0 = get<0>(*k_tile_iter);
+                uint32_t iter1 = get<1>(*k_tile_iter);
+                uint32_t iter2 = get<2>(*k_tile_iter);
 
-                        pipeline.producer_try_wait(slm_pipe_write);
+                uint32_t abar_index = slm_pipe_write.index();
+                auto abar_prod = pipeline.producer_get_barrier(abar_index);
 
-                        // load input with row_copy
-                        int32_t gmem_coord_base0 = iter0 * wg_k;
-                        int32_t gmem_coord_base1 = iter1 * dilation_w;
-                        int32_t gmem_coord_base2 = iter2 * dilation_h;
+                pipeline.producer_try_wait(slm_pipe_write);
 
-                        auto tA = sA(_, _, abar_index);
-                        auto slm_ptr_a = slm_space_cast(tA.data());
+                // load input with row_copy
+                int32_t gmem_coord_base0 = iter0 * wg_k;
+                int32_t gmem_coord_base1 = iter1 * dilation_w;
+                int32_t gmem_coord_base2 = iter2 * dilation_h;
 
-                        #pragma unroll
-                        for (uint32_t inst_idx = 0; inst_idx < num_inst; inst_idx++) {
-                            auto inst_slm_ptr_a = slm_ptr_a + inst_idx * inst_sizeA;
-                            uint32_t index = inst_idx * (dim - 1);
-                            auto coord_offset1 = coord_table[index] * stride_w - padding_left;
-                            auto coord_offset2 = coord_table[index + 1] * stride_h - padding_top;
-                            auto coord_offset3 = coord_table[index + 2];
+                auto tA = sA(_, _, abar_index);
+                auto slm_ptr_a = slm_space_cast(tA.data());
 
-                            sycl::vec<int32_t, dim> gmem_coord = {gmem_coord_base0,
-                                gmem_coord_base1 + coord_offset1,
-                                gmem_coord_base2 + coord_offset2,
-                                coord_offset3};
-                            bool is_coord_valid = oob_table[inst_idx] && (gmem_coord[1] >= 0) && (gmem_coord[1] < gmem_shapeA[1]);
-                            is_coord_valid = is_coord_valid && (gmem_coord[2] >= 0) && (gmem_coord[2] < gmem_shapeA[2]);
+                #pragma unroll
+                for (uint32_t inst_idx = 0; inst_idx < num_inst; inst_idx++) {
+                    auto inst_slm_ptr_a = slm_ptr_a + inst_idx * inst_sizeA;
+                    uint32_t index = inst_idx * (dim - 1);
+                    auto coord_offset1 = coord_table[index] * stride_w - padding_left;
+                    auto coord_offset2 = coord_table[index + 1] * stride_h - padding_top;
+                    auto coord_offset3 = coord_table[index + 2];
 
-                            uint32_t offset = gmem_coord[0] * sizeof(dtypeA) + gmem_coord[1] * gmem_strideA[0]
-                                + gmem_coord[2] * gmem_strideA[1] + gmem_coord[3] * gmem_strideA[2];
-                            offset = is_coord_valid ? offset : 0;
+                    sycl::vec<int32_t, dim> gmem_coord = {gmem_coord_base0,
+                        gmem_coord_base1 + coord_offset1,
+                        gmem_coord_base2 + coord_offset2,
+                        coord_offset3};
+                    bool is_coord_valid = oob_table[inst_idx] && (gmem_coord[1] >= 0) && (gmem_coord[1] < gmem_shapeA[1]);
+                    is_coord_valid = is_coord_valid && (gmem_coord[2] >= 0) && (gmem_coord[2] < gmem_shapeA[2]);
 
-                            uint32_t copy_size = is_coord_valid ? get_copy_size<dtypeA, dim>(gmem_coord, gmem_shapeA, width_2dA) : 0;
-                            // uint32_t left_size = (gmem_shapeA[0] - gmem_coord[0]) * sizeof(dtypeA);
-                            // uint32_t copy_size = left_size < width_2dA ? left_size : width_2dA;
-                            // copy_size = is_coord_valid ? copy_size : 0;
+                    uint32_t offset = gmem_coord[0] * sizeof(dtypeA) + gmem_coord[1] * gmem_strideA[0]
+                        + gmem_coord[2] * gmem_strideA[1] + gmem_coord[3] * gmem_strideA[2];
+                    offset = is_coord_valid ? offset : 0;
 
-                            async_2d_tiled_load<cm_typeA, width_2dA>(inst_slm_ptr_a, A_shared, offset, copy_size, abar_prod);
-                        }
+                    uint32_t copy_size = is_coord_valid ? get_copy_size<dtypeA, dim>(gmem_coord, gmem_shapeA, width_2dA) : 0;
+                    // uint32_t left_size = (gmem_shapeA[0] - gmem_coord[0]) * sizeof(dtypeA);
+                    // uint32_t copy_size = left_size < width_2dA ? left_size : width_2dA;
+                    // copy_size = is_coord_valid ? copy_size : 0;
 
-                        if(local_id == 0) {
-                            pipeline.producer_commit(abar_index, slm_bytes_a + slm_bytes_b);
-
-                            // load kernel with tensor_copy
-                            sycl::vec<int32_t, dim> gmem_coord = {iter0 * wg_k, iter1, iter2, start_n};
-                            auto tB = sB(_, _, abar_index);
-                            auto slm_ptr_b = slm_space_cast(tB.data());
-                            async_tensor_load<dim>(tdesc_ptrB, slm_ptr_b, gmem_coord, abar_prod);
-                        }
-
-                        ++slm_pipe_write;
-                    }
+                    async_2d_tiled_load<cm_typeA, width_2dA>(inst_slm_ptr_a, A_shared, offset, copy_size, abar_prod);
                 }
+
+                if(local_id == 0) {
+                    pipeline.producer_commit(abar_index, slm_bytes_a + slm_bytes_b);
+
+                    // load kernel with tensor_copy
+                    sycl::vec<int32_t, dim> gmem_coord = {iter0 * wg_k, iter1, iter2, start_n};
+                    auto tB = sB(_, _, abar_index);
+                    auto slm_ptr_b = slm_space_cast(tB.data());
+                    async_tensor_load<dim>(tdesc_ptrB, slm_ptr_b, gmem_coord, abar_prod);
+                }
+
+                ++k_tile_iter;
+                ++slm_pipe_write;
             }
 
             //store out
