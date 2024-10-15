@@ -1,3 +1,5 @@
+#include "cute/layout.hpp"
+#include "cute/tensor.hpp"
 #include <CL/sycl.hpp>
 #include "inline_pisa.hpp"
 #include "validation.hpp"
@@ -5,6 +7,7 @@
 
 using namespace sycl;
 using namespace cutlass::xe4;
+using namespace cute;
 
 class CONV2D_SMALL;
 class CONV2D_LARGE;
@@ -80,14 +83,14 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     uint32_t sizeB = C * S * R * K;
     uint32_t sizeC = Out_C * Out_W * Out_H * Out_N;
 
-    auto A_s = malloc_shared<dtypeA>(sizeA, q);
-    std::generate_n(A_s, sizeA, [=]() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
+    auto A_shared = malloc_shared<dtypeA>(sizeA, q);
+    std::generate_n(A_shared, sizeA, [=]() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
 
-    auto B_s = malloc_shared<dtypeB>(sizeB, q);
-    std::generate_n(B_s, sizeB, [=]() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
+    auto B_shared = malloc_shared<dtypeB>(sizeB, q);
+    std::generate_n(B_shared, sizeB, [=]() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
 
-    auto C_s = malloc_shared<dtypeC>(sizeC, q);
-    std::fill_n(C_s, sizeC, dtypeC(0));
+    auto C_shared = malloc_shared<dtypeC>(sizeC, q);
+    std::fill_n(C_shared, sizeC, dtypeC(0));
 
     range<3> local_range(1, 1, 64);
     uint32_t mat_m = Out_W * Out_H * Out_N;
@@ -123,8 +126,8 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     constexpr uint32_t width_2dC = wg_n * sizeof(dtypeC);
     static_assert(wg_m % LANESIZE == 0);
     constexpr uint32_t num_inst = wg_m / LANESIZE;
-    constexpr uint32_t inst_sizeA = LANESIZE * width_2dA;
-    constexpr uint32_t inst_sizeC = LANESIZE * width_2dC;
+    constexpr uint32_t inst_sizeA = LANESIZE * wg_k;
+    constexpr uint32_t inst_sizeC = LANESIZE * wg_n;
 
     uint32_t repeat_c = (C + wg_k - 1) / wg_k;
     uint32_t kloop = repeat_c * S * R;
@@ -133,15 +136,6 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     using abar_ptr_t = uint64_t*;
     using tdesc_ptr_t = uint64_t*;
     constexpr uint32_t cm_bytes = 1024;
-    constexpr uint32_t slm_size_a = wg_m * wg_k;
-    constexpr uint32_t slm_size_b = wg_k * wg_n;
-    constexpr uint32_t slm_size_acc = wg_m * wg_n;
-    constexpr uint32_t slm_size_c = wg_m * wg_n;
-    constexpr uint32_t slm_bytes_a = slm_size_a * sizeof(dtypeA);
-    constexpr uint32_t slm_bytes_b = slm_size_b * sizeof(dtypeB);
-    constexpr uint32_t slm_bytes_acc = slm_size_acc * sizeof(dtypeAcc);
-    constexpr uint32_t slm_bytes_c = slm_size_c * sizeof(dtypeC);
-    constexpr uint32_t slm_bytes = slm_bytes_a * stage + slm_bytes_b * stage + slm_bytes_acc + slm_bytes_c;
 
     q.parallel_for<test>(Range, [=](nd_item<3> item) {
         uint32_t local_id = item.get_local_linear_id();
@@ -153,11 +147,28 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
         PipelineStore pipeline_store(local_id);
 
         tdesc_ptr_t tdesc_ptrB = allocate_tdesc<0>();
-        auto slm_ptr = alloc_slm_buffer<uint8_t, slm_bytes>(item.get_group());
-        auto slm_base_a = slm_ptr;
-        auto slm_base_b = slm_base_a + slm_bytes_a * stage;
-        auto slm_base_acc = slm_base_b + slm_bytes_b * stage;
-        auto slm_base_c = slm_base_acc + slm_bytes_acc;
+
+        auto layoutSA = make_layout(Shape<Int<wg_m>, Int<wg_k>, Int<stage>>{}, Stride<Int<wg_k>, _1, Int<wg_m * wg_k>>{});
+        auto layoutSB = make_layout(Shape<Int<wg_n>, Int<wg_k>, Int<stage>>{}, Stride<Int<wg_k>, _1, Int<wg_n * wg_k>>{});
+        auto layoutSAcc = make_layout(Shape<Int<wg_m>, Int<wg_n>>{}, Stride<Int<wg_n>, _1>{});
+        auto layoutSC = make_layout(Shape<Int<wg_m>, Int<wg_n>>{}, Stride<Int<wg_n>, _1>{});
+
+        constexpr uint32_t total_bytes_a = size(layoutSA) * sizeof(dtypeA);
+        constexpr uint32_t total_bytes_b = size(layoutSB) * sizeof(dtypeB);
+        constexpr uint32_t total_bytes_c = size(layoutSC) * sizeof(dtypeC);
+        constexpr uint32_t total_bytes_acc = size(layoutSC) * sizeof(dtypeAcc);
+
+        constexpr uint32_t slm_bytes_a = total_bytes_a / stage;
+        constexpr uint32_t slm_bytes_b = total_bytes_b / stage;
+        constexpr uint32_t slm_bytes_c = total_bytes_c;
+
+        constexpr uint32_t slm_bytes = total_bytes_a + total_bytes_b + total_bytes_c + total_bytes_acc;
+        auto slm_ptr = sycl::ext::oneapi::group_local_memory_for_overwrite<uint8_t[slm_bytes]>(item.get_group());
+
+        auto sA = make_tensor(reinterpret_cast<dtypeA*>(*slm_ptr), layoutSA);
+        auto sB = make_tensor(reinterpret_cast<dtypeB*>(sA.data() + size(layoutSA)), layoutSB);
+        auto sAcc = make_tensor(reinterpret_cast<dtypeAcc*>(sB.data() + size(layoutSB)), layoutSAcc);
+        auto sC = make_tensor(reinterpret_cast<dtypeC*>(sAcc.data() + size(layoutSAcc)), layoutSC);
 
         uint32_t wg_id_x = item.get_group(2);
         uint32_t wg_id_y = item.get_group(1);
@@ -173,7 +184,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
             sycl::vec<uint32_t, dim> roi_shapeB {wg_k, 1, 1, wg_n};
             sycl::vec<uint32_t, dim> elem_stride {1, 1, 1, 1};
 
-            tensor_desc_fill_global_addr(tdesc_ptrB, B_s);
+            tensor_desc_fill_global_addr(tdesc_ptrB, B_shared);
             tensor_descriptor_fill_dim_size<dim>(tdesc_ptrB, gmem_shapeB);
             tensor_descriptor_fill_dim_stride<dim>(tdesc_ptrB, gmem_strideB);
             tensor_descriptor_fill_traverse_stride<dim>(tdesc_ptrB, elem_stride);
@@ -220,9 +231,12 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                         int32_t gmem_coord_base1 = iter1 * dilation_w;
                         int32_t gmem_coord_base2 = iter2 * dilation_h;
 
+                        auto tA = sA(_, _, abar_index);
+                        auto slm_ptr_a = slm_space_cast(tA.data());
+
                         #pragma unroll
                         for (uint32_t inst_idx = 0; inst_idx < num_inst; inst_idx++) {
-                            auto inst_slm_ptr_a = slm_base_a + abar_index * slm_bytes_a + inst_idx * inst_sizeA;
+                            auto inst_slm_ptr_a = slm_ptr_a + inst_idx * inst_sizeA;
                             uint32_t index = inst_idx * (dim - 1);
                             auto coord_offset1 = coord_table[index] * stride_w - padding_left;
                             auto coord_offset2 = coord_table[index + 1] * stride_h - padding_top;
@@ -244,7 +258,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                             // uint32_t copy_size = left_size < width_2dA ? left_size : width_2dA;
                             // copy_size = is_coord_valid ? copy_size : 0;
 
-                            async_2d_tiled_load<cm_typeA, width_2dA>(inst_slm_ptr_a, A_s, offset, copy_size, abar_prod);
+                            async_2d_tiled_load<cm_typeA, width_2dA>(inst_slm_ptr_a, A_shared, offset, copy_size, abar_prod);
                         }
 
                         if(local_id == 0) {
@@ -252,7 +266,8 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
 
                             // load kernel with tensor_copy
                             sycl::vec<int32_t, dim> gmem_coord = {iter0 * wg_k, iter1, iter2, start_n};
-                            auto slm_ptr_b = slm_base_b + abar_index * slm_bytes_b;
+                            auto tB = sB(_, _, abar_index);
+                            auto slm_ptr_b = slm_space_cast(tB.data());
                             async_tensor_load<dim>(tdesc_ptrB, slm_ptr_b, gmem_coord, abar_prod);
                         }
 
@@ -269,9 +284,11 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                 pipeline_store.consumer_commit(slm_pipe_store_cons, slm_bytes_c);
             }
 
+            auto slm_ptr_c = slm_space_cast(sC.data());
+
             #pragma unroll
             for (uint32_t inst_idx = 0; inst_idx < num_inst; inst_idx++) {
-                auto inst_slm_ptr_c = slm_base_c + inst_idx * inst_sizeC;
+                auto inst_slm_ptr_c = slm_ptr_c + inst_idx * inst_sizeC;
                 uint32_t index = inst_idx * (dim - 1);
                 sycl::vec<int32_t, dim> gmem_coord = {start_n,
                     coord_table[index],
@@ -291,7 +308,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
 
                 uint32_t abar_store_cons_index = slm_pipe_store_cons.index();
                 auto abar_store_cons = pipeline_store.producer_get_barrier(abar_store_cons_index);
-                async_2d_tiled_store<cm_typeC, width_2dC>(inst_slm_ptr_c, C_s, offset, copy_size, abar_store_cons);
+                async_2d_tiled_store<cm_typeC, width_2dC>(inst_slm_ptr_c, C_shared, offset, copy_size, abar_store_cons);
             }
 
             ++slm_pipe_store_cons;
@@ -299,10 +316,10 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
         }
         else if (subgroup_id == 1){
             if (local_id == 32){
-                mat_desc_t mat_desc_a = (uint64_t)slm_base_a >> 9;
-                mat_desc_t mat_desc_b = (uint64_t)slm_base_b >> 9;
-                mat_desc_t mat_desc_c = (uint64_t)slm_base_c >> 9;
-                mat_desc_t mat_desc_acc = (uint64_t)slm_base_acc >> 9;
+                mat_desc_t mat_desc_a = reinterpret_cast<uint64_t>(slm_space_cast(sA.data())) >> 9;
+                mat_desc_t mat_desc_b = reinterpret_cast<uint64_t>(slm_space_cast(sB.data())) >> 9;
+                mat_desc_t mat_desc_acc = reinterpret_cast<uint64_t>(slm_space_cast(sAcc.data())) >> 9;
+                mat_desc_t mat_desc_c = reinterpret_cast<uint64_t>(slm_space_cast(sC.data())) >> 9;
                 constexpr uint32_t cm_size_a_x = is_col_major_a ? 32: 32 / sizeof(dtypeA);
                 constexpr uint32_t cm_num_a_x = is_col_major_a ? wg_m / cm_size_a_x : wg_k / cm_size_a_x;
                 constexpr uint32_t cm_size_b_x = 32 / sizeof(dtypeB);
@@ -371,7 +388,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
         }
     }).wait();
 
-    uint32_t err_cnt = validate_conv2d_result_by_onednn(A_s, B_s, C_s, problem_shape);
+    uint32_t err_cnt = validate_conv2d_result_by_onednn(A_shared, B_shared, C_shared, problem_shape);
 
     int rtn = 0;
     if (err_cnt > 0)
