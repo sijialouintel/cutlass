@@ -19,6 +19,33 @@ class CONV2D_LARGE_WITH_PAD_WITH_STRIDE_WITH_DILATION;
 class CONV2D_OTHER_WITH_PAD_WITH_STRIDE_WITH_DILATION;
 class CONV2D_ASYNMMETRIC_PAD_ASYNMMETRIC_STRIDE_WITH_DILATION;
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+/// ASYNC_ROW_LOAD: Initiates a async row copy from global memory to shared memory
+////////////////////////////////////////////////////////////////////////////////////////////////////
+struct ASYNC_ROW_LOAD
+{
+  template<class TS, class TG, class CMType, class NumBytesPerCopy, class OffSet, class CopySize>
+  CUTE_HOST_DEVICE static void
+  copy(CMType cm_type, NumBytesPerCopy width_2d, uint64_t const* abar_ptr, TS* slm_ptr, TG* gmem_ptr, OffSet offset, CopySize copy_size)
+  {
+    async_2d_tiled_load<CMType::value, NumBytesPerCopy::value>(slm_ptr, gmem_ptr, offset, copy_size, abar_ptr);
+  }
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+/// ASYNC_ROW_STORE: Initiates a async row copy from shared memory to global memory
+////////////////////////////////////////////////////////////////////////////////////////////////////
+struct ASYNC_ROW_STORE
+{
+  template<class TS, class TG, class CMType, class NumBytesPerCopy, class OffSet, class CopySize>
+  CUTE_HOST_DEVICE static void
+  copy(CMType cm_type, NumBytesPerCopy width_2d, uint64_t const* abar_ptr, TS* slm_ptr, TG* gmem_ptr, OffSet offset, CopySize copy_size)
+  {
+    async_2d_tiled_store<CMType::value, NumBytesPerCopy::value>(slm_ptr, gmem_ptr, offset, copy_size, abar_ptr);
+  }
+};
+
+
 template <typename T, uint32_t Dim>
 inline uint32_t get_copy_size(const sycl::vec<int32_t, Dim> &coord, const sycl::vec<uint32_t, Dim> &shape, uint32_t width_2d) {
     uint32_t left_size = (shape[0] - coord[0]) * sizeof(T);
@@ -256,7 +283,8 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                     // uint32_t copy_size = left_size < width_2dA ? left_size : width_2dA;
                     // copy_size = is_coord_valid ? copy_size : 0;
 
-                    async_2d_tiled_load<cm_typeA, width_2dA>(inst_slm_ptr_a, A_shared, offset, copy_size, abar_prod);
+                    //async_2d_tiled_load<cm_typeA, width_2dA>(inst_slm_ptr_a, A_shared, offset, copy_size, abar_prod);
+                    ASYNC_ROW_LOAD::copy(cute::C<cm_typeA>{}, cute::C<width_2dA>{}, abar_prod, inst_slm_ptr_a, A_shared, offset, copy_size);
                 }
 
                 if(local_id == 0) {
@@ -305,7 +333,8 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
 
                 uint32_t abar_store_cons_index = slm_pipe_store_cons.index();
                 auto abar_store_cons = pipeline_store.producer_get_barrier(abar_store_cons_index);
-                async_2d_tiled_store<cm_typeC, width_2dC>(inst_slm_ptr_c, C_shared, offset, copy_size, abar_store_cons);
+                //async_2d_tiled_store<cm_typeC, width_2dC>(inst_slm_ptr_c, C_shared, offset, copy_size, abar_store_cons);
+                ASYNC_ROW_STORE::copy(cute::C<cm_typeC>{}, cute::C<width_2dC>{}, abar_store_cons, inst_slm_ptr_c, C_shared, offset, copy_size);
             }
 
             ++slm_pipe_store_cons;
