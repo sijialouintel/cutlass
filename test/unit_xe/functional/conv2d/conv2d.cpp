@@ -107,10 +107,12 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     using dtypeC = bf16;
 
     constexpr uint32_t dim = 4;
-    constexpr uint32_t wg_m = 128;
-    constexpr uint32_t wg_n = 128;
-    constexpr uint32_t wg_k = 128;
     constexpr uint32_t stage = 3;
+
+    auto bM = Int<128>{};
+    auto bN = Int<128>{};
+    auto bK = Int<128>{};
+    auto cta_tiler = make_shape(bM, bN, bK);
 
     using Pipeline = cutlass::xe4::PipelineTmaAsync<stage>;
     using PipelineStore = cutlass::xe4::PipelineTmaAsync<1, 1>;
@@ -133,11 +135,15 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     auto C_shared = malloc_shared<dtypeC>(sizeC, q);
     std::fill_n(C_shared, sizeC, dtypeC(0));
 
+    uint32_t repeat_c = (C + bK - 1) / bK;
+    uint32_t kloop = repeat_c * S * R;
+
     range<3> local_range(1, 1, 64);
     uint32_t mat_m = Out_W * Out_H * Out_N;
     uint32_t mat_n = K;
-    uint32_t group_range_m = (mat_m + wg_m - 1) / wg_m;
-    uint32_t group_range_n = (mat_n + wg_n - 1) / wg_n;
+    uint32_t mat_k = kloop * bK;
+    uint32_t group_range_m = (mat_m + bM - 1) / bM;
+    uint32_t group_range_n = (mat_n + bN - 1) / bN;
     range<3> group_range(1, group_range_m, group_range_n);
     std::cout << "Group range: {" << 1 << ", " << group_range_m << ", " << group_range_n << "} \n";
     nd_range<3> Range(group_range * local_range, local_range);
@@ -147,15 +153,12 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     constexpr slm_matrix_type cm_typeB = slm_matrix_type::type1;
     constexpr slm_matrix_type cm_typeC = slm_matrix_type::type1;
 
-    constexpr uint32_t width_2dA = wg_k * sizeof(dtypeA);
-    constexpr uint32_t width_2dC = wg_n * sizeof(dtypeC);
-    static_assert(wg_m % LANESIZE == 0);
-    constexpr uint32_t num_inst = wg_m / LANESIZE;
-    constexpr uint32_t inst_sizeA = LANESIZE * wg_k;
-    constexpr uint32_t inst_sizeC = LANESIZE * wg_n;
-
-    uint32_t repeat_c = (C + wg_k - 1) / wg_k;
-    uint32_t kloop = repeat_c * S * R;
+    constexpr uint32_t width_2dA = bK * sizeof(dtypeA);
+    constexpr uint32_t width_2dC = bN * sizeof(dtypeC);
+    static_assert(bM % LANESIZE == 0);
+    constexpr uint32_t num_inst = bM / LANESIZE;
+    constexpr uint32_t inst_sizeA = LANESIZE * bK;
+    constexpr uint32_t inst_sizeC = LANESIZE * bN;
 
     using mat_desc_t = uint32_t;
     using abar_ptr_t = uint64_t*;
@@ -180,10 +183,10 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
         auto B = make_tensor(B_shared, layoutB);
         auto C = make_tensor(C_shared, layoutC);
 
-        auto layoutSA = make_layout(Shape<Int<wg_m>, Int<wg_k>, Int<stage>>{}, Stride<Int<wg_k>, _1, Int<wg_m * wg_k>>{});
-        auto layoutSB = make_layout(Shape<Int<wg_n>, Int<wg_k>, Int<stage>>{}, Stride<Int<wg_k>, _1, Int<wg_n * wg_k>>{});
-        auto layoutSAcc = make_layout(Shape<Int<wg_m>, Int<wg_n>>{}, Stride<Int<wg_n>, _1>{});
-        auto layoutSC = make_layout(Shape<Int<wg_m>, Int<wg_n>>{}, Stride<Int<wg_n>, _1>{});
+        auto layoutSA = make_layout(Shape<Int<bM>, Int<bK>, Int<stage>>{}, Stride<Int<bK>, _1, Int<bM * bK>>{});
+        auto layoutSB = make_layout(Shape<Int<bN>, Int<bK>, Int<stage>>{}, Stride<Int<bK>, _1, Int<bN * bK>>{});
+        auto layoutSAcc = make_layout(Shape<Int<bM>, Int<bN>>{}, Stride<Int<bN>, _1>{});
+        auto layoutSC = make_layout(Shape<Int<bM>, Int<bN>>{}, Stride<Int<bN>, _1>{});
 
         constexpr uint32_t total_bytes_a = size(layoutSA) * sizeof(dtypeA);
         constexpr uint32_t total_bytes_b = size(layoutSB) * sizeof(dtypeB);
@@ -205,8 +208,8 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
         uint32_t wg_id_x = item.get_group(2);
         uint32_t wg_id_y = item.get_group(1);
 
-        int start_m = wg_id_y * wg_m;
-        int start_n = wg_id_x * wg_n;
+        int start_m = wg_id_y * bM;
+        int start_n = wg_id_x * bN;
 
         item.barrier(access::fence_space::local_space);
 
@@ -269,7 +272,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                 pipeline.producer_try_wait(slm_pipe_write);
 
                 // load input with row_copy
-                int32_t gmem_coord_base0 = iter0 * wg_k;
+                int32_t gmem_coord_base0 = iter0 * bK;
                 int32_t gmem_coord_base1 = iter1 * dilation_w;
                 int32_t gmem_coord_base2 = iter2 * dilation_h;
 
@@ -292,7 +295,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                     pipeline.producer_commit(abar_index, slm_bytes_a + slm_bytes_b);
 
                     // load kernel with tensor_copy
-                    sycl::vec<int32_t, dim> gmem_coord = {iter0 * wg_k, iter1, iter2, start_n};
+                    sycl::vec<int32_t, dim> gmem_coord = {iter0 * bK, iter1, iter2, start_n};
                     auto tB = sB(_, _, abar_index);
                     auto slm_ptr_b = slm_space_cast(tB.data());
                     async_tensor_load<dim>(tdesc_ptrB, slm_ptr_b, gmem_coord, abar_prod);
@@ -332,13 +335,13 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                 mat_desc_t mat_desc_acc = reinterpret_cast<uint64_t>(slm_space_cast(sAcc.data())) >> 9;
                 mat_desc_t mat_desc_c = reinterpret_cast<uint64_t>(slm_space_cast(sC.data())) >> 9;
                 constexpr uint32_t cm_size_a_x = is_col_major_a ? 32: 32 / sizeof(dtypeA);
-                constexpr uint32_t cm_num_a_x = is_col_major_a ? wg_m / cm_size_a_x : wg_k / cm_size_a_x;
+                constexpr uint32_t cm_num_a_x = is_col_major_a ? bM / cm_size_a_x : bK / cm_size_a_x;
                 constexpr uint32_t cm_size_b_x = 32 / sizeof(dtypeB);
-                constexpr uint32_t cm_num_b_x = is_col_major_b ? wg_k / cm_size_b_x : wg_n / cm_size_b_x;
+                constexpr uint32_t cm_num_b_x = is_col_major_b ? bK / cm_size_b_x : bN / cm_size_b_x;
                 constexpr uint32_t cm_size_c_x = 32 / sizeof(dtypeC);
-                constexpr uint32_t cm_num_c_x = wg_n / cm_size_c_x;
+                constexpr uint32_t cm_num_c_x = bN / cm_size_c_x;
                 constexpr uint32_t cm_size_acc_x = 32 / sizeof(dtypeAcc);
-                constexpr uint32_t cm_num_acc_x = wg_n / cm_size_acc_x;
+                constexpr uint32_t cm_num_acc_x = bN / cm_size_acc_x;
                 constexpr uint32_t cm_stride_a = (cm_bytes * cm_num_a_x) >> 10;
                 constexpr uint32_t cm_stride_b = (cm_bytes * cm_num_b_x) >> 10;
                 constexpr uint32_t cm_stride_c = (cm_bytes * cm_num_c_x) >> 10;
@@ -351,12 +354,12 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                 if (kloop == 1) {
                     Pipeline::PipelineState slm_pipe_read;
                     pipeline.consumer_try_wait(slm_pipe_read);
-                    async_gmma<dtypeC, dtypeA, dtypeB, wg_m, wg_n, wg_k, layout_a, layout_b>(mat_desc_c, mat_desc_a, mat_desc_b, abar_cons_base);
+                    async_gmma<dtypeC, dtypeA, dtypeB, bM, bN, bK, layout_a, layout_b>(mat_desc_c, mat_desc_a, mat_desc_b, abar_cons_base);
                     pipeline.consumer_commit(slm_pipe_read);
                 } else {
                     Pipeline::PipelineState slm_pipe_read;
                     pipeline.consumer_try_wait(slm_pipe_read);
-                    async_gmma<dtypeAcc, dtypeA, dtypeB, wg_m, wg_n, wg_k, layout_a, layout_b>(
+                    async_gmma<dtypeAcc, dtypeA, dtypeB, bM, bN, bK, layout_a, layout_b>(
                                 mat_desc_acc, mat_desc_a, mat_desc_b, abar_cons_base);
                     pipeline.consumer_commit(slm_pipe_read);
 
@@ -369,7 +372,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                         auto slm_offset_b = (abar_index * slm_bytes_b) >> 9;
                         pipeline.consumer_try_wait(slm_pipe_read);
 
-                        async_gmma<dtypeAcc, dtypeAcc, dtypeA, dtypeB, wg_m, wg_n, wg_k, layout_a, layout_b>(
+                        async_gmma<dtypeAcc, dtypeAcc, dtypeA, dtypeB, bM, bN, bK, layout_a, layout_b>(
                                     mat_desc_acc, mat_desc_acc, mat_desc_a + slm_offset_a, mat_desc_b + slm_offset_b,
                                     abar_cons);
                         pipeline.consumer_commit(slm_pipe_read);
@@ -390,7 +393,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                         uint32_t phase = ((kloop - 1) / stage) & 1u;
                         pipeline.consumer_try_wait(abar_index, phase);
 
-                        async_gmma<dtypeC, dtypeAcc, dtypeA, dtypeB, wg_m, wg_n, wg_k, layout_a, layout_b>(
+                        async_gmma<dtypeC, dtypeAcc, dtypeA, dtypeB, bM, bN, bK, layout_a, layout_b>(
                             mat_desc_c, mat_desc_acc, mat_desc_a + slm_offset_a, mat_desc_b + slm_offset_b, abar_store_prod);
                         pipeline_store.producer_commit(slm_pipe_store_prod, 1);
                     }
