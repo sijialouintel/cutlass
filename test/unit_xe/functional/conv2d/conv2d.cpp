@@ -1,5 +1,6 @@
 #include "cute/layout.hpp"
 #include "cute/tensor.hpp"
+#include "cute/atom/copy_traits_xe4_dma.hpp"
 #include <CL/sycl.hpp>
 #include "inline_pisa.hpp"
 #include "validation.hpp"
@@ -8,6 +9,7 @@
 using namespace sycl;
 using namespace cutlass::xe4;
 using namespace cute;
+using namespace cute::detail;
 
 class CONV2D_SMALL;
 class CONV2D_LARGE;
@@ -176,8 +178,6 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
 
         PipelineStore pipeline_store(local_id);
 
-        tdesc_ptr_t tdesc_ptrB = allocate_tdesc<0>();
-
         auto layoutA = make_layout(make_shape(C, W, H, N));
         auto layoutB = make_layout(make_shape(C, S, R, K));
         auto layoutC = make_layout(make_shape(Out_C, Out_W, Out_H, Out_N));
@@ -216,19 +216,8 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
         item.barrier(access::fence_space::local_space);
 
         if(subgroup_id == 0){
-            sycl::vec<uint32_t, dim> gmem_shapeB {shape<0>(B), shape<1>(B), shape<2>(B), shape<3>(B)};
-            sycl::vec<uint64_t, dim - 1> gmem_strideB {stride<1>(B) * sizeof(dtypeB),
-                stride<2>(B) * sizeof(dtypeB),
-                stride<3>(B) * sizeof(dtypeB)};
-            sycl::vec<uint32_t, dim> roi_shapeB {shape<1>(layoutSB), 1, 1, shape<0>(layoutSB)};
-            sycl::vec<uint32_t, dim> elem_stride {1, 1, 1, 1};
-
-            tensor_desc_fill_global_addr(tdesc_ptrB, B.data());
-            tensor_descriptor_fill_dim_size<dim>(tdesc_ptrB, gmem_shapeB);
-            tensor_descriptor_fill_dim_stride<dim>(tdesc_ptrB, gmem_strideB);
-            tensor_descriptor_fill_traverse_stride<dim>(tdesc_ptrB, elem_stride);
-            tensor_descriptor_fill_roitensor_size<dim>(tdesc_ptrB, roi_shapeB);
-            tensor_descriptor_fill_misc<dtypeB, cm_typeB>(tdesc_ptrB);
+            using AuxParamsSrc = AuxParams<cm_typeB, tdesc_ptr_t, 0>;
+            auto tdesc_ptrB = make_conv2d_tensor_desc<AuxParamsSrc>(B, layoutSB);
 
             sycl::vec<uint32_t, dim> gmem_shapeC {shape<0>(C), shape<1>(C), shape<2>(C), shape<3>(C)};
             sycl::vec<uint32_t, dim - 1> gmem_strideC {stride<1>(C) * sizeof(dtypeC),

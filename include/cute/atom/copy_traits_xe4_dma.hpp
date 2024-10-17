@@ -185,6 +185,30 @@ make_tensor_desc(GTensor const& gtensor, SLayout const& slayout, uint32_t coop_s
   return tdesc_ptr;
 }
 
+template <class AuxParams, class GTensor, class SLayout>
+CUTE_HOST_DEVICE auto
+make_conv2d_tensor_desc(GTensor const& gtensor, SLayout const& slayout, uint32_t coop_size = 1)
+{
+  using T = typename GTensor::value_type;
+  auto dim = rank(gtensor);
+  
+  sycl::vec<uint32_t, dim> gmem_shape {shape<0>(gtensor), shape<1>(gtensor), shape<2>(gtensor), shape<3>(gtensor)};
+  sycl::vec<uint64_t, dim - 1> gmem_stride {stride<1>(gtensor) * sizeof(T), stride<2>(gtensor) * sizeof(T),
+    stride<3>(gtensor) * sizeof(T)};
+  sycl::vec<uint32_t, dim> roi_shape {shape<1>(slayout), 1, 1, shape<0>(slayout) / coop_size};
+  sycl::vec<uint32_t, dim> elem_stride {1, 1, 1, 1};
+
+  auto tdesc_ptr = allocate_tdesc<AuxParams::tdescIdx, typename AuxParams::tdescPtr>();
+  tensor_desc_fill_global_addr(tdesc_ptr, gtensor.data());
+  tensor_descriptor_fill_dim_size<dim>(tdesc_ptr, gmem_shape);
+  tensor_descriptor_fill_dim_stride<dim>(tdesc_ptr, gmem_stride);
+  tensor_descriptor_fill_traverse_stride<dim>(tdesc_ptr, elem_stride);
+  tensor_descriptor_fill_roitensor_size<dim>(tdesc_ptr, roi_shape);
+  tensor_descriptor_fill_misc<T, AuxParams::cmType>(tdesc_ptr);
+
+  return tdesc_ptr;
+}
+
 template <class Shape, class Stride>
 constexpr bool
 is_mn_major(Layout<Shape,Stride> const& layout) {
