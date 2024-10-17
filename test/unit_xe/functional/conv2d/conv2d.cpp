@@ -21,6 +21,200 @@ class CONV2D_LARGE_WITH_PAD_WITH_STRIDE_WITH_DILATION;
 class CONV2D_OTHER_WITH_PAD_WITH_STRIDE_WITH_DILATION;
 class CONV2D_ASYNMMETRIC_PAD_ASYNMMETRIC_STRIDE_WITH_DILATION;
 
+// Activation cutlass::layout::TensorNHWC -> rank-2 stride ((W,H,N),_1)
+template <class IntT>
+CUTLASS_HOST_DEVICE
+cute::Stride<cute::Stride<IntT, IntT, IntT>, cute::Int<1>>
+make_cute_packed_stride(
+    cute::Stride<cute::Stride<IntT, IntT, IntT>, cute::Int<1>> s,
+    cute::array<IntT, 4> stride_nhwc) {
+  static_assert(std::is_integral_v<IntT>,
+    "Stride must have an integral type so it can be set dynamically. Static strides not supported.");
+  assert(stride_nhwc[3] == 1);
+  auto s_copy = s;
+  cute::for_each(cute::make_seq<3>{}, [&](auto i) {
+    cute::get<0,i>(s_copy) = stride_nhwc[2-i];
+  });
+  return s_copy;
+}
+
+// Compute the lower/near corner, returning it as a cute::array in [W,H] order
+template <int NumSpatialDimensions>
+CUTLASS_HOST_DEVICE
+constexpr auto
+compute_lower_corner_whd(cute::array<int32_t, NumSpatialDimensions> const& lower_padding) {
+  cute::array<int, NumSpatialDimensions> lower{};
+
+  for_each(make_seq<NumSpatialDimensions>{}, [&](auto i) {
+    lower[NumSpatialDimensions-1-i] = -1 * lower_padding[i];
+  });
+ 
+  return lower;
+}
+
+// Computes the upper/far corner, returning it as a cute::array in [W,H] order
+template <int NumSpatialDimensions>
+CUTLASS_HOST_DEVICE
+constexpr auto
+compute_upper_corner_whd(cute::array<int32_t, NumSpatialDimensions> const& upper_padding, cute::array<int32_t, NumSpatialDimensions + 2> const& shape_B, cute::array<int32_t, NumSpatialDimensions> const& dilation) {
+  cute::array<int, NumSpatialDimensions> upper{};
+  cute::for_each(cute::make_seq<NumSpatialDimensions>{}, [&](auto i) {
+    upper[NumSpatialDimensions-1-i] = upper_padding[i] - (shape_B[i+1] - 1) * dilation[i];
+  });
+
+  return upper;
+}
+
+// Compute the lower/near corner of (r,s), returning it as a cute::array in [S,R] order
+template <int NumSpatialDimensions>
+CUTLASS_HOST_DEVICE
+constexpr auto
+compute_lower_srt() {
+  cute::array<int, NumSpatialDimensions> lower{};
+  cute::for_each(cute::make_seq<NumSpatialDimensions>{}, [&](auto i) {
+      lower[NumSpatialDimensions-1-i] = 0;
+  });
+
+  return lower;
+}
+
+template <int NumSpatialDimensions>
+CUTLASS_HOST_DEVICE
+constexpr auto
+compute_stride_srt(cute::array<int32_t, NumSpatialDimensions> const& dilation) {
+  cute::array<int32_t, NumSpatialDimensions> stride_srt{};
+  cute::for_each(cute::make_seq<NumSpatialDimensions>{}, [&](auto i) {
+        stride_srt[i] = dilation[NumSpatialDimensions-1-i];
+  });
+
+  return stride_srt;
+}
+
+// create DMA im2col descriptor
+template <class EngineA, class LayoutA, class TMALayout, class LowerCornerStride, class UpperCornerStride, class LowerPaddingStride, class UpperPaddingStride, class TraversalStride, class LowerSRTStride, class DilationStride>
+CUTE_HOST
+auto
+make_im2col_tma_copy_desc(
+    Tensor<EngineA, LayoutA>    const& tensor_cwhdn,       // (C,W,H,D,N)
+    uint32_t                           range_c,            // TILE_C
+    uint32_t                           range_whdn,         // TILE_WHDN
+    TMALayout                   const& tma_layout_vt,      // TMA layout
+    LowerCornerStride           const& lower_corner_whd,   // WHD offset of the "base pointer"
+    UpperCornerStride           const& upper_corner_whd,   // WHD upper corner
+    LowerPaddingStride          const& lower_padding_whd,  // WHD lower padding
+    UpperPaddingStride          const& upper_padding_whd,  // WHD upper padding
+    TraversalStride             const& stride_whd,         // WHD traversal stride
+    LowerSRTStride              const& lower_srt,          // SRT offset of the "base pointer"
+    DilationStride              const& stride_srt)          // SRT stride - dilation
+{
+  //static_assert(is_gmem<EngineA>::value, "Tensor must point to GPU global memory.");
+  using value_type = typename EngineA::value_type;
+
+  constexpr uint32_t num_total_modes   = LayoutA::rank;
+  constexpr int      num_spatial_modes = num_total_modes - 2;
+
+  // Gmem starting address
+  void* gmem_address = (void*) raw_pointer_cast(tensor_cwhdn.data());
+
+  // Gmem extents are just the tensor shape
+  cute::array<uint64_t, 5> gmem_prob_shape = {1,1,1,1,1};
+  for_each(make_seq<num_total_modes>{}, [&](auto i) {
+    gmem_prob_shape[i] = static_cast<uint64_t>(shape<i>(tensor_cwhdn));
+  });
+
+  // Gmem strides are byte strides of the activation tensor in CWHDN order
+  cute::array<uint64_t, 5> gmem_prob_stride = {0,0,0,0,0};
+  for_each(make_seq<num_total_modes>{}, [&](auto i) {
+    gmem_prob_stride[i] = sizeof(value_type) * stride<i>(tensor_cwhdn);
+  });
+
+  // Traversal strides are a function of the dilation shape
+  // corresponding to spatial (WHD) modes.
+  cute::array<uint32_t, 5> tma_traversal_strides = {1,1,1,1,1};
+  for_each(make_seq<num_spatial_modes>{}, [&](auto i) {
+    tma_traversal_strides[i+1] = static_cast<uint32_t>(get<i>(stride_whd));
+  });
+
+  cute::array<int32_t, num_spatial_modes> tma_lower_corner{};
+  for_each(make_seq<num_spatial_modes>{}, [&](auto i) {
+    tma_lower_corner[i] = static_cast<int32_t>(get<i>(lower_corner_whd));
+  });
+
+  cute::array<int32_t, num_spatial_modes> tma_upper_corner{};
+  for_each(make_seq<num_spatial_modes>{}, [&](auto i) {
+    tma_upper_corner[i] = static_cast<int32_t>(get<i>(upper_corner_whd));
+  });
+
+
+  //
+  // Calculate gemm shapes and linearized shapes based on tma layout tiling.
+  //
+
+  // Compute [w, h, d, n]
+  // q/p/z = (w/h/d + (upper_corner_whd - lower_corner_whd - 1)) / stride_whd + 1
+  auto gemm_mn_ = cute::transform(cute::make_seq<num_spatial_modes>{}, [&](auto i) {
+    return (shape<i+1>(tensor_cwhdn) + get<i>(upper_corner_whd) - get<i>(lower_corner_whd) - Int<1>{}) / get<i>(stride_whd) + Int<1>{};
+  });
+  auto gemm_mn = append(gemm_mn_, shape<num_spatial_modes+1>(tensor_cwhdn));
+
+  // Compute [c, s, r, t]
+  // fprop/wgrad, s/r/t = 1 + (upper_padding_whd - upper_corner_whd) / stride_srt
+  // wgrad,       s/r/t = 1 + (lower_padding_whd - lower_corner_whd) / stride_srt
+  auto gemm_k_ = cute::transform(cute::make_seq<num_spatial_modes>{}, [&](auto i) {
+    auto padding_size = conditional_return(get<i>(stride_srt) > Int<0>{},
+                                           get<i>(upper_padding_whd) - get<i>(upper_corner_whd),
+                                           get<i>(lower_corner_whd)  - get<i>(lower_padding_whd));
+    return Int<1>{} + padding_size / get<i>(stride_srt);
+  });
+  auto gemm_k = prepend(gemm_k_, shape<0>(tensor_cwhdn));
+
+  // For fprop/dgrad kernel, gemm_shapes is ((q, p, z, n), (c, s, r, t))
+  // For wgrad kernel, gemm_shapes is ((c, s, r, t), (q, p, z, n))
+  auto gemm_shapes_common = make_shape(
+      transform_leaf(gemm_mn, [](auto s) {
+        return conditional_return(cute::is_static<decltype(s)>{}, s, cutlass::FastDivmod(s));
+      }),
+      gemm_k);
+  auto gemm_shapes = make_shape(
+      basis_get(stride<0,1>(tma_layout_vt), gemm_shapes_common),
+      basis_get(stride<0,0>(tma_layout_vt), gemm_shapes_common));
+
+  // For fprop/dgrad kernel, linearized shapes is (whdn, (c, s, r, t))
+  // For wgrad kernel linearized shapes is ((c, s, r, t), whdn)
+  auto linear_shapes_common = make_shape(size(gemm_mn), gemm_k);
+  auto linear_shapes = make_shape(
+      basis_get(stride<0,1>(tma_layout_vt), linear_shapes_common),
+      basis_get(stride<0,0>(tma_layout_vt), linear_shapes_common));
+
+  //
+  // Calculate gmem basis stride based on tma layout tiling.
+  //
+
+  auto tma_basis_scale = make_shape(Int<1>{}, stride_whd, Int<1>{}, stride_srt);
+  auto tma_basis = elem_scale(tma_basis_scale, make_basis_like(tma_basis_scale));
+
+  auto gbasis_strides_common = make_stride(
+      append(get<1>(tma_basis), get<2>(tma_basis)),
+      prepend(get<3>(tma_basis), get<0>(tma_basis)));    // ((w,h,d,n),(c,s,r,t))
+  auto gbasis_strides = make_stride(
+      basis_get(stride<0,1>(tma_layout_vt), gbasis_strides_common),
+      basis_get(stride<0,0>(tma_layout_vt), gbasis_strides_common));
+
+  //
+  // Create tma tensor
+  //
+  auto lower_corner = make_arithmetic_tuple(Int<0>{}, lower_corner_whd, Int<0>{}, lower_srt);
+
+  auto tensor_multimode = make_tensor(ArithmeticTupleIterator(lower_corner), gemm_shapes, gbasis_strides);
+  auto tensor_linear = make_identity_tensor(linear_shapes);
+  auto tma_tensor = make_tensor(tensor_multimode.data(), composition(
+      tensor_multimode.layout(),
+      tensor_linear(Int<0>{}),
+      tensor_linear.layout()));
+
+  return tma_tensor;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// ASYNC_ROW_LOAD: Initiates a async row copy from global memory to shared memory
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -104,6 +298,13 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     uint32_t stride_w = problem_shape.get_stride_w();
     uint32_t dilation_h = problem_shape.get_dilation_h();
     uint32_t dilation_w = problem_shape.get_dilation_w();
+    cute::array<int32_t, 2> lower_padding{(int32_t) padding_top, (int32_t) padding_left};
+    cute::array<int32_t, 2> upper_padding{(int32_t) padding_bottom, (int32_t) padding_right};
+    cute::array<int32_t, 2> traversal_stride{(int32_t) stride_h, (int32_t) stride_w};
+    cute::array<int32_t, 2> dilation{(int32_t) dilation_h, (int32_t) dilation_w};
+    cute::array<int32_t, 4> shape_B{(int32_t) K, (int32_t) R, (int32_t) S, (int32_t) C};
+    cute::array<int32_t, 4> shape_A{(int32_t) N, (int32_t) H, (int32_t) W, (int32_t) C};
+    cute::array<int64_t, 4> stride_A{(int64_t) H*W*C, (int64_t) W*C, (int64_t) C, 1};
 
     using dtypeA = bf16;
     using dtypeB = bf16;
@@ -168,6 +369,72 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     using abar_ptr_t = uint64_t*;
     using tdesc_ptr_t = uint64_t*;
     constexpr uint32_t cm_bytes = 1024;
+
+    using StrideA = decltype(cute::Stride<cute::Stride<int64_t, int64_t, int64_t>,cute::Int<1>>{});
+    auto shape_A_orig = make_shape(cute::reverse(cute::take<0, 3>(shape_A)), shape_A[3]);
+    auto dA = make_cute_packed_stride(StrideA{}, stride_A);
+    auto tensor_cwhn = make_tensor(A_shared, make_layout(shape_A_orig, dA));
+
+    // compute the upper and lower corners based on conv padding
+    auto lower_corner_whd = compute_lower_corner_whd<2>(lower_padding);
+    auto upper_corner_whd = compute_upper_corner_whd<2>(upper_padding, shape_B, dilation);
+    auto lower_srt = compute_lower_srt<2>();
+    auto stride_srt = compute_stride_srt<2>(dilation);
+
+    using MmaShapeMK = Shape<Int<bM>, Int<bK>>;
+    auto cta_tiler_MK = MmaShapeMK{};
+    auto cta_v_tile = make_identity_layout(product_each(shape(tensor_cwhn))).compose(cta_tiler_MK);
+    auto glayout_basis = make_identity_layout(product_each(shape(tensor_cwhn)));
+
+    //slayout manipulation
+    auto slayout = make_layout(MmaShapeMK{}, Stride<Int<bK>, _1>{});
+    auto inv_smem_layout = right_inverse(slayout);
+    auto sidx_to_gmode = coalesce(composition(cta_v_tile, inv_smem_layout));
+    auto tma_layout_full = flatten(composition(glayout_basis, sidx_to_gmode));
+
+    auto smem_rank = find_if(stride(tma_layout_full), [](auto e) {
+      [[maybe_unused]] auto v = basis_value(e);
+      return not is_constant<1,decltype(v)>{};
+    });
+
+    constexpr int smem_tma_rank = cute::min(int(smem_rank), 2);
+    auto tma_layout_trunc = take<0,smem_tma_rank>(tma_layout_full);
+    auto tma_layout_vt = logical_divide(tma_layout_trunc, shape_div(size(tma_layout_trunc), 1));
+
+    auto range_c    = size<0,0>(tma_layout_vt);
+    auto range_whn = size<0,1>(tma_layout_vt);
+    Tensor gtensor_cwhn = make_tensor(tensor_cwhn.data(),
+                                     flatten(make_layout(make_layout(basis_get(stride<0,0>(tma_layout_vt), tensor_cwhn.shape()),
+                                                                     basis_get(stride<0,0>(tma_layout_vt), tensor_cwhn.stride())),
+                                                         make_layout(basis_get(stride<0,1>(tma_layout_vt), tensor_cwhn.shape()),
+                                                                     basis_get(stride<0,1>(tma_layout_vt), tensor_cwhn.stride())))));
+    auto tma_tensor = make_im2col_tma_copy_desc(gtensor_cwhn, range_c, range_whn,
+                                                tma_layout_vt, 
+                                                shape(lower_corner_whd),
+                                                shape(upper_corner_whd),
+                                                cute::reverse(shape(lower_padding)),
+                                                cute::reverse(shape(upper_padding)),
+                                                cute::reverse(shape(traversal_stride)),
+                                                shape(lower_srt),
+                                                shape(stride_srt));
+
+    #if 0
+    print("tensor_cwhn          :"); print(tensor_cwhn.layout()); print("\n");
+    print("lower_corner_whd     :"); print(lower_corner_whd); print("\n");
+    print("upper_corner_whd     :"); print(upper_corner_whd); print("\n");
+    print("lower_srt            :"); print(lower_srt); print("\n");
+    print("stride_srt           :"); print(stride_srt); print("\n");
+    print("glayout_basis        :"); print(glayout_basis); print("\n");
+    print("slayout              :"); print(slayout); print("\n");
+    print("cta_tiler            :"); print(cta_tiler); print("\n");
+    print("cta_v_tile           :"); print(cta_v_tile); print("\n");
+    print("inv_smem_layout      :"); print(inv_smem_layout); print("\n");
+    print("sidx_to_gmode        :"); print(sidx_to_gmode); print("\n");
+    print("tma_layout_full      :"); print(tma_layout_full); print("\n");
+    print("tma_layout_vt        :"); print(tma_layout_vt); print("\n");
+    print("gtensor_cwhn         :"); print(gtensor_cwhn.layout()); print("\n");
+    print("tma_tensor           :"); print_tensor(tma_tensor); print("\n");
+    #endif
 
     q.parallel_for<test>(Range, [=](nd_item<3> item) {
         uint32_t local_id = item.get_local_linear_id();
