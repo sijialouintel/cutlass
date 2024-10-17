@@ -33,13 +33,14 @@ struct ASYNC_ROW_LOAD
 {
   template<class TS, class TG, class CMType, class NumBytesPerCopy, class Tensor>
   CUTE_HOST_DEVICE static void
-  copy(CMType cm_type, NumBytesPerCopy width_2d, Tensor gmem, bool flag, uint64_t const* abar_ptr, TS* slm_ptr, TG* gmem_ptr, int32_t crd0, int32_t crd1, int32_t crd2, int32_t crd3)
+  copy(CMType cm_type, NumBytesPerCopy width_2d, Tensor gmem, uint64_t const* abar_ptr, TS* slm_ptr, TG* gmem_ptr, int32_t crd0, int32_t crd1, int32_t crd2, int32_t crd3)
   {
     sycl::vec<uint32_t, 4> gmem_shape {shape<0>(gmem), shape<1>(gmem), shape<2>(gmem), shape<3>(gmem)};
     sycl::vec<uint32_t, 3> gmem_stride {stride<1>(gmem) * sizeof(TG), stride<2>(gmem) * sizeof(TG), stride<3>(gmem) * sizeof(TG)};
 
-    bool is_coord_valid = flag && (crd1 >= 0) && (crd1 < gmem_shape[1]);
+    bool is_coord_valid = (crd1 >= 0) && (crd1 < gmem_shape[1]);
     is_coord_valid = is_coord_valid && (crd2 >= 0) && (crd2 < gmem_shape[2]);
+    is_coord_valid = is_coord_valid && (crd3 >= 0) && (crd3 < gmem_shape[3]);
 
     uint32_t offset = crd0 * sizeof(TG) + crd1 * gmem_stride[0] + crd2  * gmem_stride[1] + crd3  * gmem_stride[2];
     offset = is_coord_valid ? offset : 0;
@@ -55,13 +56,14 @@ struct ASYNC_ROW_STORE
 {
   template<class TS, class TG, class CMType, class NumBytesPerCopy, class Tensor>
   CUTE_HOST_DEVICE static void
-  copy(CMType cm_type, NumBytesPerCopy width_2d, Tensor gmem, bool flag, uint64_t const* abar_ptr, TS* slm_ptr, TG* gmem_ptr, int32_t crd0, int32_t crd1, int32_t crd2, int32_t crd3)
+  copy(CMType cm_type, NumBytesPerCopy width_2d, Tensor gmem, uint64_t const* abar_ptr, TS* slm_ptr, TG* gmem_ptr, int32_t crd0, int32_t crd1, int32_t crd2, int32_t crd3)
   {
     sycl::vec<uint32_t, 4> gmem_shape {shape<0>(gmem), shape<1>(gmem), shape<2>(gmem), shape<3>(gmem)};
     sycl::vec<uint32_t, 3> gmem_stride {stride<1>(gmem) * sizeof(TG), stride<2>(gmem) * sizeof(TG), stride<3>(gmem) * sizeof(TG)};
 
-    bool is_coord_valid = flag && (crd1 >= 0) && (crd1 < gmem_shape[1]);
+    bool is_coord_valid = (crd1 >= 0) && (crd1 < gmem_shape[1]);
     is_coord_valid = is_coord_valid && (crd2 >= 0) && (crd2 < gmem_shape[2]);
+    is_coord_valid = is_coord_valid && (crd3 >= 0) && (crd3 < gmem_shape[3]);
 
     uint32_t offset = crd0 * sizeof(TG) + crd1 * gmem_stride[0] + crd2 * gmem_stride[1] + crd3 * gmem_stride[2];
     offset = is_coord_valid ? offset : 0;
@@ -242,7 +244,6 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
 
             int32_t coord_offset_m_base = start_m + local_id;
             int32_t coord_table[num_inst * (dim - 1)];
-            bool oob_table[num_inst];
             #pragma unroll
             for (uint32_t inst_idx = 0; inst_idx < num_inst; inst_idx++) {
                 uint32_t index = inst_idx * (dim - 1);
@@ -252,8 +253,6 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                 offset_m = offset_m / roi_shapeA[1];
                 coord_table[index + 1] = offset_m % roi_shapeA[2];
                 coord_table[index + 2] = offset_m / roi_shapeA[2];
-
-                oob_table[inst_idx] = coord_table[index + 2] < gmem_shapeA[3];
 
                 coord_offset_m_base += LANESIZE;
             }
@@ -287,7 +286,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                     auto coord_offset2 = coord_table[index + 1] * stride_h - padding_top;
                     auto coord_offset3 = coord_table[index + 2];
 
-                    ASYNC_ROW_LOAD::copy(cute::C<cm_typeA>{}, cute::C<width_2dA>{}, A, oob_table[inst_idx], abar_prod, inst_slm_ptr_a, A_shared, 
+                    ASYNC_ROW_LOAD::copy(cute::C<cm_typeA>{}, cute::C<width_2dA>{}, A, abar_prod, inst_slm_ptr_a, A_shared, 
                                          gmem_coord_base0, gmem_coord_base1 + coord_offset1, gmem_coord_base2 + coord_offset2, coord_offset3);
                 }
 
@@ -322,7 +321,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
 
                 uint32_t abar_store_cons_index = slm_pipe_store_cons.index();
                 auto abar_store_cons = pipeline_store.producer_get_barrier(abar_store_cons_index);
-                ASYNC_ROW_STORE::copy(cute::C<cm_typeC>{}, cute::C<width_2dC>{}, C, oob_table[inst_idx], abar_store_cons, inst_slm_ptr_c, C_shared, start_n, coord_table[index], coord_table[index+1], coord_table[index+2]);
+                ASYNC_ROW_STORE::copy(cute::C<cm_typeC>{}, cute::C<width_2dC>{}, C, abar_store_cons, inst_slm_ptr_c, C_shared, start_n, coord_table[index], coord_table[index+1], coord_table[index+2]);
             }
 
             ++slm_pipe_store_cons;
