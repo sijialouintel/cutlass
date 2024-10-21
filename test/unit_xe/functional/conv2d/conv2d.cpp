@@ -21,11 +21,6 @@ class CONV2D_LARGE_WITH_PAD_WITH_STRIDE_WITH_DILATION;
 class CONV2D_OTHER_WITH_PAD_WITH_STRIDE_WITH_DILATION;
 class CONV2D_ASYNMMETRIC_PAD_ASYNMMETRIC_STRIDE_WITH_DILATION;
 
-template <class... T>
-inline auto as_xe4_coord(cute::ArithmeticTuple<T...> const& coord) {
-    return sycl::vec<int32_t, 4>{get<0>(coord), get<1>(coord), get<2>(coord), get<3>(coord)};
-}
-
 // Activation cutlass::layout::TensorNHWC -> rank-2 stride ((W,H,N),_1)
 template <class IntT>
 CUTLASS_HOST_DEVICE
@@ -219,6 +214,17 @@ make_im2col_tma_copy_desc(
 
   return tma_tensor;
 }
+
+struct ASYNC_TENSOR_LOAD
+{
+    template<class T>
+    CUTE_HOST_DEVICE static void
+    copy(uint64_t const* tdesc_ptr, uint64_t const* abar_ptr, T* slm_ptr, int32_t crd0, int32_t crd1, int32_t crd2, int32_t crd3)
+    {
+        auto coord = sycl::vec<int32_t, 4>{crd0, crd1, crd2, crd3};
+        async_tensor_load<4>(tdesc_ptr, slm_space_cast(slm_ptr), coord, abar_ptr);
+    }
+};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// ASYNC_ROW_LOAD: Initiates a async row copy from global memory to shared memory
@@ -558,10 +564,10 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                     pipeline.producer_commit(abar_index, slm_bytes_a + slm_bytes_b);
 
                     // load kernel with tensor_copy
-                    sycl::vec<int32_t, dim> gmem_coord = as_xe4_coord(gB_nk(0, iter0, iter1, iter2, wg_id_x));
                     auto tB = sB(_, _, abar_index);
-                    auto slm_ptr_b = slm_space_cast(tB.data());
-                    async_tensor_load<dim>(tdesc_ptrB, slm_ptr_b, gmem_coord, abar_prod);
+                    auto gmem_coord = gB_nk(0, iter0, iter1, iter2, wg_id_x);
+                    ASYNC_TENSOR_LOAD::copy(tdesc_ptrB, abar_prod, tB.data(), get<0>(gmem_coord), get<1>(gmem_coord),
+                        get<2>(gmem_coord), get<3>(gmem_coord));
                 }
 
                 ++k_tile_iter;
