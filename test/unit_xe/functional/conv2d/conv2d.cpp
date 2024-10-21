@@ -21,6 +21,11 @@ class CONV2D_LARGE_WITH_PAD_WITH_STRIDE_WITH_DILATION;
 class CONV2D_OTHER_WITH_PAD_WITH_STRIDE_WITH_DILATION;
 class CONV2D_ASYNMMETRIC_PAD_ASYNMMETRIC_STRIDE_WITH_DILATION;
 
+template <class... T>
+inline auto as_xe4_coord(cute::ArithmeticTuple<T...> const& coord) {
+    return sycl::vec<int32_t, 4>{get<0>(coord), get<1>(coord), get<2>(coord), get<3>(coord)};
+}
+
 // Activation cutlass::layout::TensorNHWC -> rank-2 stride ((W,H,N),_1)
 template <class IntT>
 CUTLASS_HOST_DEVICE
@@ -486,6 +491,9 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
             using AuxParamsSrc = AuxParams<cm_typeB, tdesc_ptr_t, 0>;
             auto tdesc_ptrB = make_conv2d_tensor_desc<AuxParamsSrc>(B, layoutSB);
 
+            auto mB_nk = make_counting_tensor(make_layout(shape(layoutB), make_stride(E<0>{}, E<1>{}, E<2>{}, E<3>{})));
+            auto gB_nk = tiled_divide(mB_nk, make_tile(size<1>(layoutSB), Int<1>{}, Int<1>{}, size<0>(layoutSB)));
+
             sycl::vec<uint32_t, dim> gmem_shapeC {shape<0>(C), shape<1>(C), shape<2>(C), shape<3>(C)};
             sycl::vec<uint32_t, dim - 1> gmem_strideC {stride<1>(C) * sizeof(dtypeC),
                 stride<2>(C) * sizeof(dtypeC),
@@ -550,7 +558,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                     pipeline.producer_commit(abar_index, slm_bytes_a + slm_bytes_b);
 
                     // load kernel with tensor_copy
-                    sycl::vec<int32_t, dim> gmem_coord = {iter0 * bK, iter1, iter2, start_n};
+                    sycl::vec<int32_t, dim> gmem_coord = as_xe4_coord(gB_nk(0, iter0, iter1, iter2, wg_id_x));
                     auto tB = sB(_, _, abar_index);
                     auto slm_ptr_b = slm_space_cast(tB.data());
                     async_tensor_load<dim>(tdesc_ptrB, slm_ptr_b, gmem_coord, abar_prod);
