@@ -34,8 +34,8 @@ git submodule update --init --recursive
 
 ```bash
 ./test/unit_xe/3rdparty/xe4_test/scripts/upgrade_toolkits.sh \
-  --fcs-full-url=https://gfx-assets.fm.intel.com/artifactory/gfx-cobalt-snapshot-dev-assets-fm/XeSim/Linux/Private-XE3P_V2/cluster_sep23 \
-  --llc-version=dev2.1_systolic-array-2.0-1.0.183 \
+  --fcs-full-url=https://gfx-assets.fm.intel.com/artifactory/gfx-cobalt-snapshot-dev-assets-fm/XeSim/Linux/Private-XE3P_V2/pvt_oct14/Private-XE3P_V2-pvt_oct14-Linux.zip \
+  --llc-version=dev2.1_systolic-array-2.0-1.0.214 \
   --verbose
 ```
 

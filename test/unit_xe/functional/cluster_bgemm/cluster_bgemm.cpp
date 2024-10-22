@@ -32,12 +32,12 @@ int run_test()
 
     setenv("XE4_CLUSTER_SIZE", "2x2x1", 1);
 
-    int mat_m = 256;
-    int mat_n = 256;
+    int mat_m = 512;
+    int mat_n = 1024;
     int mat_k = 512;
     int mat_l = 1;
-    constexpr uint32_t wg_m = 128;
-    constexpr uint32_t wg_n = 128;
+    constexpr uint32_t wg_m = 256;
+    constexpr uint32_t wg_n = 512;
     constexpr uint32_t wg_k = 128;
     constexpr uint32_t stage = 3;
     constexpr uint32_t cluster_size_x = 2;
