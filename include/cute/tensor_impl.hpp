@@ -101,6 +101,20 @@ struct ArrayEngine<sparse_elem<S,T>, N>
   CUTE_HOST_DEVICE constexpr auto begin()       { return recast_ptr<value_type>(storage_.begin()); }
 };
 
+template <class T, int N>
+struct Xe4Engine
+{
+  using Storage = cute::array<T,N>;
+  using iterator     = typename Storage::iterator;
+  using reference    = typename iterator_traits<iterator>::reference;
+  using element_type = typename iterator_traits<iterator>::element_type;
+  using value_type   = typename iterator_traits<iterator>::value_type;
+  Storage storage_;
+
+  CUTE_HOST_DEVICE constexpr auto begin() const { return storage_.begin(); }
+  CUTE_HOST_DEVICE constexpr auto begin()       { return storage_.begin(); }
+};
+
 template <class Iterator>
 struct ViewEngine
 {

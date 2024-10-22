@@ -13,6 +13,8 @@ using namespace cute;
 using namespace sycl;
 using namespace cute::xe4;
 using namespace cutlass::gemm::collective;
+using namespace cutlass::epilogue::collective::detail;
+using namespace cutlass::epilogue::thread;
 
 class CLUSTER_BGEMM_ROW_ROW;
 class CLUSTER_BGEMM_COL_ROW;
@@ -112,8 +114,8 @@ int run_test()
     >;
 
     using EpilogueOp = std::conditional_t<std::is_same_v<PostOp, ReLu>,
-        DMAPostOPReLu<dtypeC, dtypeAcc, SubGroupSize, NumControlSubGroup, NumPostOpSubGroup>,
-        DMAPostOPConvert<dtypeC, dtypeAcc, SubGroupSize, NumControlSubGroup, NumPostOpSubGroup>
+        DMAPostOPReLu<dtypeC, dtypeAcc, SubGroupSize, NumControlSubGroup, NumPostOpSubGroup, EpilogueAccessPattern::Pattern2>,
+        DMAPostOPConvert<dtypeC, dtypeAcc, SubGroupSize, NumControlSubGroup, NumPostOpSubGroup, EpilogueAccessPattern::Pattern2>
     >;
 
     using CollectiveEpilogue = cutlass::epilogue::collective::DefaultEpilogue<

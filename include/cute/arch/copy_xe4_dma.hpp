@@ -77,4 +77,36 @@ struct ASYNC_TENSOR_LOAD_MULTICAST
   }
 };
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+/// SLM_VLOAD: Initiates a slm load from shared memory to register
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+template<uint32_t VS>
+struct SLM_VLOAD
+{
+  template<typename SlmType, typename RegType>
+  CUTE_HOST_DEVICE static void
+  copy(SlmType* slm_ptr, RegType* reg_ptr)
+  {
+    slm_vload<VS>(reg_ptr, slm_space_cast(slm_ptr));
+  }
+};
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+/// SLM_VLOAD: Initiates a slm store from register to shared memory
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+template<uint32_t VS>
+struct SLM_VSTORE
+{
+  template<typename SlmType, typename RegType>
+  CUTE_HOST_DEVICE static void
+  copy(RegType* reg_ptr, SlmType* slm_ptr)
+  {
+    slm_vstore<VS>(slm_space_cast(slm_ptr), reg_ptr);
+  }
+};
+
 } // namespace cute::xe4

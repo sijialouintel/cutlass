@@ -15,6 +15,8 @@ using namespace sycl;
 using namespace cute;
 using namespace cute::detail;
 using namespace cute::xe4;
+using namespace cutlass::epilogue::thread;
+using namespace cutlass::epilogue::thread::detail;
 
 class DMA
 {
@@ -23,14 +25,14 @@ class DMA
 int main()
 {
     using dtype_src = uint32_t;
-    using dtype_dst = uint8_t;
+    using dtype_dst = uint16_t;
     queue q;
     auto dev = q.get_device();
     std::cout << "Running on " << dev.get_info<info::device::name>() << "\n";
     auto ctxt = q.get_context();
 
-    constexpr int32_t gmemSizeX = 128;
-    constexpr int32_t gmemSizeY = 256;
+    constexpr int32_t gmemSizeX = 32;
+    constexpr int32_t gmemSizeY = 32;
     constexpr int32_t gmemSize = gmemSizeX * gmemSizeY;
 
     auto *A_d = malloc_device<dtype_src>(gmemSize, q);
@@ -48,8 +50,8 @@ int main()
     q.memcpy(A_d, A_h.data(), gmemSize * sizeof(dtype_src)).wait();
     q.memcpy(B_d, B_h.data(), gmemSize * sizeof(dtype_dst)).wait();
 
-    constexpr int32_t boxSizeX = 64;
-    constexpr int32_t boxSizeY = 32;
+    constexpr int32_t boxSizeX = gmemSizeX;
+    constexpr int32_t boxSizeY = gmemSizeY;
     constexpr int32_t boxSize = boxSizeX * boxSizeY;
 
     constexpr uint32_t group_range_Y = (gmemSizeY + boxSizeY - 1) / boxSizeY;
@@ -77,9 +79,9 @@ int main()
                 SmemLayout,
                 TileShape,
 #if defined(RELU)
-                DMAPostOPReLu<dtype_dst, dtype_src, 32, 4, 16>,
+                DMAPostOPReLu<dtype_dst, dtype_src, 32, 4, 16, EpilogueAccessPattern::Pattern2>,
 #elif defined(CONVERSION)
-                DMAPostOPConvert<dtype_dst, dtype_src, 32, 4, 16>,
+                DMAPostOPConvert<dtype_dst, dtype_src, 32, 4, 16, EpilogueAccessPattern::Pattern2>,
 #endif
                 cutlass::gemm::EpilogueDefault
             >;

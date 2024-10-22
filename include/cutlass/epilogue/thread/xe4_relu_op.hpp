@@ -1,93 +1,73 @@
+#pragma once
+
+#include <algorithm>
 #include <vector>
 
-#include <cute/tensor.hpp>
-#include <cute/util/print.hpp>
-
-using namespace sycl;
-using namespace cute;
+#include "cute/tensor.hpp"
+#include "cute/util/print.hpp"
+#include "cutlass/epilogue/thread/xe4_detail.hpp"
 
 struct ReLu {
-    template <class T>
-    CUTLASS_HOST_DEVICE
-    T operator()(T value) const {
-        return max(value, T{});
+  template <typename T>
+  CUTLASS_HOST_DEVICE T operator()(T value) const {
+    return sycl::fmax(value, T(0));
+  }
+  /* Use for calculating golden value. */
+  template <class T>
+  void run(std::vector<T> &vec) {
+    for (auto &val : vec) {
+      val = operator()(val);
     }
-
-    template <class Engine, class Layout>
-    CUTLASS_HOST_DEVICE
-    void operator()(Tensor<Engine, Layout>& tensor) const {
-        CUTLASS_PRAGMA_UNROLL
-        for (int i = 0; i < tensor.size(); ++i) {
-            tensor(i) = operator()(tensor(i));
-        }
-    }
-
-    /* Use for calculating golden value. */
-    template <class T>
-    void run(std::vector<T>& vec){
-        for (auto &val : vec) {
-            val = operator()(val);
-        }
-    }
+  }
 };
 
-template<
-    class ElementOutput_,
-    class ElementAccumulator_,
-    uint32_t SubGroupSize_,
-    uint32_t NumControlSubGroup_,
-    uint32_t NumPostOpSubGroup_
+namespace cutlass {
+namespace epilogue {
+namespace thread {
+
+using namespace cutlass::epilogue::thread::detail;
+
+template <
+  typename ElementOutput_,
+  typename ElementAccumulator_,
+  uint32_t SubGroupSize_,
+  uint32_t NumControlSubGroup_,
+  uint32_t NumPostOpSubGroup_,
+  EpilogueAccessPattern AccessPattern_
 >
 class DMAPostOPReLu {
 public:
-    using ElementOutput = ElementOutput_;
-    using ElementAccumulator = ElementAccumulator_;
+  using ElementOutput = ElementOutput_;
+  using ElementAccumulator = ElementAccumulator_;
 
-    static constexpr uint32_t SubGroupSize = SubGroupSize_;
-    static constexpr uint32_t NumControlSubGroup = NumControlSubGroup_;
-    static constexpr uint32_t NumPostOpSubGroup = NumPostOpSubGroup_;
+  static constexpr uint32_t SubGroupSize = SubGroupSize_;
+  static constexpr uint32_t NumControlSubGroup = NumControlSubGroup_;
+  static constexpr uint32_t NumPostOpSubGroup = NumPostOpSubGroup_;
+  static constexpr EpilogueAccessPattern AccessPattern = AccessPattern_;
 
-    template <class SrcTensor, class DstTensor>
-    void operator()(SrcTensor const &tensor_src, DstTensor &tensor_dst, uint32_t local_id) const {
-        uint32_t sg_id = (local_id / SubGroupSize) - NumControlSubGroup;
-        uint32_t lane_id = local_id % SubGroupSize;
+  static_assert(AccessPattern == EpilogueAccessPattern::Pattern2, "Unsupportted access pattern!");
 
-        HOST_PRINT(tensor_src);
-        HOST_PRINT(tensor_dst);
+  /**
+   * @brief Perform ReLu.
+   *
+   * @tparam SrcTensor Src tensor type, composition of swizzle and core matrix grid layout.
+   * @tparam DstTensor Same as above but for dst tensor type.
+   * @param src_tensor
+   * @param dst_tensor
+   * @param local_id Work item local linear id.
+   */
+  template <class SrcTensor, class DstTensor>
+  void operator()(SrcTensor const &src_tensor, DstTensor &dst_tensor, uint32_t local_id) const {
+    HOST_PRINT(src_tensor);
+    HOST_PRINT(dst_tensor);
 
-        // load tile
-        constexpr int combined_src_cm_num_x = sizeof(ElementAccumulator) / sizeof(ElementOutput);
-        auto tile_shape_src = append(take<0, 2>(tensor_src.shape()), make_shape(Int<combined_src_cm_num_x>{}, Int<1>{}));
-        auto tile_shape_dst = append(take<0, 2>(tensor_dst.shape()), make_shape(Int<1>{}, Int<1>{}));
-        HOST_PRINT(tile_shape_src);
-        HOST_PRINT(tile_shape_dst);
-
-        // copy slm_tiled to regs_tiled
-        for (int i = 0; i < size<2>(tensor_dst.shape()); i += NumPostOpSubGroup) {
-            if (sg_id + i >= size<2>(tensor_dst.shape())) {
-                continue;
-            }
-
-            auto tile_coord = make_coord(_, _, sg_id + i);
-            auto tile_sSrc = local_tile(tensor_src, tile_shape_src, tile_coord);
-            auto tile_sSrc_v = group_modes<3,rank(tile_sSrc)>(tile_sSrc);
-            auto tile_sDst = local_tile(tensor_dst, tile_shape_dst, tile_coord);
-            auto tile_sDst_v = group_modes<3,rank(tile_sDst)>(tile_sDst);
-
-            // copy src_slm to src_regs
-            auto lane_sSrc = tile_sSrc_v(_, lane_id, _, _);
-            auto lane_rSrc = make_tensor_like(lane_sSrc);
-            auto lane_sDst = tile_sDst_v(_, lane_id, _, _);
-            auto lane_rDst = make_tensor_like(lane_sDst);
-            copy(lane_sSrc, lane_rSrc);
-
-            // each lane converts src_regs data to dst_regs
-            static_assert(lane_rSrc.size() == lane_rDst.size());
-            ReLu{}(lane_rSrc);
-            copy(lane_rSrc, lane_rDst);
-
-            // copy dst_regs to dst_slm
-            copy(lane_rDst, lane_sDst);
-        }
+    uint32_t worker_id = local_id - NumControlSubGroup * SubGroupSize;
+    if constexpr (AccessPattern == EpilogueAccessPattern::Pattern2) {
+      pattern2<ReLu, NumPostOpSubGroup, SubGroupSize>(src_tensor, dst_tensor, worker_id);
     }
+  }
 };
+
+} // namespace thread
+} // namespace epilogue
+} // namespace cutlass

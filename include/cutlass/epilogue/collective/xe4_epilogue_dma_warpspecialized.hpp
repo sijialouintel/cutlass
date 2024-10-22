@@ -5,6 +5,7 @@
 #include "cute/container/array.hpp"
 #include "cute/tensor.hpp"
 #include "cutlass/cutlass.h"
+#include "cutlass/epilogue/thread/xe4_detail.hpp"
 #include "cutlass/pipeline/xe4_pipeline.hpp"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -17,6 +18,7 @@ namespace collective {
 
 using namespace cute;
 using namespace cute::detail;
+using namespace cutlass::epilogue::thread::detail;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -110,85 +112,19 @@ public:
   DefaultEpilogue(Params const& params_)
       : params(params_), epilogue_op() { }
 
-  template <class ElementType>
-  CUTLASS_HOST_DEVICE static auto construct_cm_layout() {
-    static constexpr int row_per_core_tile = 2;
-    static constexpr int esub_bank_per_cm = 4;
-    static constexpr int slm_bank = 4;
-    static constexpr int core_tile_size = 64;
-    static constexpr int cm_n = 32 / sizeof(ElementType);
-
-    auto cm_row_layout = Layout<Int<cm_n>, _1> {}; // (cm_col_num:_1)
-    HOST_PRINT(cm_row_layout);
-
-    auto cm_layout = zipped_product(cm_row_layout,
-            Layout<Shape<Int<row_per_core_tile>, Int<esub_bank_per_cm>, Int<slm_bank>>,
-                    Stride<_1, Int<row_per_core_tile * esub_bank_per_cm>,
-                            Int<row_per_core_tile>>> {});
-    HOST_PRINT(cm_layout);
-
-    return cm_layout;
-  }
-
-  template <class ElementType, class TileShape, class CoreMatrixLayout>
-  CUTLASS_HOST_DEVICE static auto construct_cm_grid_layout(CoreMatrixLayout cm_layout) {
-    constexpr int tile_m = size<0>(TileShape {});
-    constexpr int tile_n = size<1>(TileShape {});
-    constexpr int cm_m = 32;
-    constexpr int cm_n = 32 / sizeof(ElementType);
-
-    static_assert(cm_n == size<0>(cm_layout), "Element type to construct core matrix grid is not same as the one in core_matrix!");
-    static_assert(tile_m % cm_m == 0, "Tile M is not dividable by total row of core matrix!");
-    static_assert(tile_n % cm_n == 0, "Tile N is not dividable by total column core matrix!");
-    static_assert((tile_n / cm_n) % 2 == 0, "Odd column in core matrix gird!");
-
-    auto cm_grid_layout
-            = flat_product(cm_layout, Layout<Shape<Int<tile_n / cm_n>, Int<tile_m / cm_m>>> {});
-    HOST_PRINT(cm_grid_layout);
-
-    /* Group the core matrix grid coordinate dimensions so that it could be indexed by 1-D coordinate. */
-    auto grouped_cm_grid_layout = cute::group<rank(CoreMatrixLayout{}), -1>(cm_grid_layout);
-    HOST_PRINT(grouped_cm_grid_layout);
-
-    return grouped_cm_grid_layout;
-  }
-
-  template <class ElementType, class CoreMatrixGridLayout>
-  CUTLASS_HOST_DEVICE static auto swizzle_cm_grid_layout(CoreMatrixGridLayout cm_grid_layout) {
-    constexpr int swizzle_B = 1;
-    constexpr int swizzle_M = countr_zero(32 / sizeof(ElementType));
-    constexpr int swizzle_S = countr_zero(1024 / sizeof(ElementType)) - swizzle_M;
-
-    using Swizzle = Swizzle<1, swizzle_M, swizzle_S>;
-    HOST_PRINT(Swizzle{});
-
-    auto swizzled_cm_grid_layout = composition(Swizzle{}, cm_grid_layout);
-    HOST_PRINT(swizzled_cm_grid_layout);
-
-    return swizzled_cm_grid_layout;
-  }
-
   template<
     class TensorAccumulator
   >
   CUTLASS_DEVICE void
   operator()(
-      TensorAccumulator smem_accumulator,
+      TensorAccumulator accumulator,
       TensorStorage& shared_tensors,
       uint32_t local_id)
   {
-    auto acc_cm_layout = construct_cm_layout<ElementAccumulator>();
-    auto d_cm_layout = construct_cm_layout<ElementD>();
-
-    auto acc_cm_grid_layout = construct_cm_grid_layout<ElementAccumulator, TileShape>(acc_cm_layout);
-    auto d_cm_grid_layout = construct_cm_grid_layout<ElementD, TileShape>(d_cm_layout);
-
-    auto acc_swizzled_cm_grid_layout = swizzle_cm_grid_layout<ElementAccumulator>(acc_cm_grid_layout);
-    auto d_swizzled_cm_grid_layout = swizzle_cm_grid_layout<ElementD>(d_cm_grid_layout);
-
-    auto sAcc = make_tensor(smem_accumulator.data(), acc_swizzled_cm_grid_layout);
-    auto sD = make_tensor(reinterpret_cast<ElementD *>(shared_tensors.smem_D.data()), d_swizzled_cm_grid_layout);
-    epilogue_op(sAcc, sD, local_id);
+    constexpr auto tile_mn = take<0,2>(TileShape{});
+    auto acc_tensor = make_tensor(accumulator.data(), CoreMatrix::retile<ElementAccumulator>(tile_mn));
+    auto dst_tensor = make_tensor(shared_tensors.smem_D.data(), CoreMatrix::retile<ElementD>(tile_mn));
+    epilogue_op(acc_tensor, dst_tensor, local_id);
   }
 
   template<

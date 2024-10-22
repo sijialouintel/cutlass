@@ -33,6 +33,21 @@ struct XE4_COPY_Unpack
   }
 };
 
+template <class CopyOp>
+struct SLM_VCOPY_Unpack
+{
+  template <class... Args,
+            class TS, class SLayout,
+            class TD, class DLayout>
+  CUTE_HOST_DEVICE friend constexpr void
+  copy_unpack(Copy_Traits<CopyOp, Args...> const& traits,
+              Tensor<TS,SLayout>           const& src,
+              Tensor<TD,DLayout>                & dst)
+  {
+    return detail::explode_tuple(detail::CallCOPY<CopyOp>{}, make_tuple(src.data(), dst.data()), seq<0,1>{});
+  }
+};
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////// ASYNC_TENSOR_LOAD / ASYNC_TENSOR_STORE ///////////////////////////////////////
@@ -150,6 +165,29 @@ auto make_copy_traits(TensorDesc* tensor_desc, GBasis gbasis)
 {
   return Copy_Traits<CopyOp, NumBitsPerTMA, TensorDesc, GBasis>{tensor_desc, gbasis};
 }
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////// SLM_VLOAD / SLM_VSTORE ///////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+template<uint32_t VS, class NumBitsPerCopy>
+struct Copy_Traits<xe4::SLM_VLOAD<VS>, NumBitsPerCopy> : SLM_VCOPY_Unpack<xe4::SLM_VLOAD<VS>>
+{
+  using ThrID     = Layout<_1>;
+  using SrcLayout = Layout<Shape<_1,NumBitsPerCopy>>;
+  using DstLayout = SrcLayout;
+  using RefLayout = SrcLayout;
+};
+
+template<uint32_t VS, class NumBitsPerCopy>
+struct Copy_Traits<xe4::SLM_VSTORE<VS>, NumBitsPerCopy> : SLM_VCOPY_Unpack<xe4::SLM_VSTORE<VS>>
+{
+  using ThrID     = Layout<_1>;
+  using SrcLayout = Layout<Shape<_1,NumBitsPerCopy>>;
+  using DstLayout = SrcLayout;
+  using RefLayout = SrcLayout;
+};
 
 namespace detail {
 

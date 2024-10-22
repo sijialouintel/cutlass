@@ -10,13 +10,15 @@
 using namespace cute;
 using namespace cute::xe4;
 using namespace sycl;
+using namespace cutlass::epilogue::thread;
+using namespace cutlass::epilogue::thread::detail;
 
 int main()
 {
     using SrcType = uint32_t;
-    using DstType = uint8_t;
-    constexpr int32_t boxSizeX = 128;
-    constexpr int32_t boxSizeY = 128;
+    using DstType = uint16_t;
+    constexpr int32_t boxSizeX = 32;
+    constexpr int32_t boxSizeY = 32;
     using TileShape = Shape<Int<boxSizeY>, Int<boxSizeX>>;
     using LayoutA = cutlass::layout::RowMajor;
     using StrideA = cutlass::detail::TagToStrideC_t<LayoutA>;
@@ -29,14 +31,13 @@ int main()
                 SmemLayout,
                 SmemLayout,
                 TileShape,
-                DMAPostOPConvert<DstType, SrcType, 16, 32>,
+                DMAPostOPConvert<DstType, SrcType, 32, 4, 16, EpilogueAccessPattern::Pattern2>,
                 cutlass::gemm::EpilogueDefault
             >;
 
     SrcType src[boxSizeY * boxSizeX] {};
     DstType dst[boxSizeY * boxSizeX] {};
     typename CollectiveEpilogue::Arguments args = {
-        src, cutlass::make_cute_packed_stride(StrideA{}, cute::make_shape(boxSizeY, boxSizeX, 1)),
         dst, cutlass::make_cute_packed_stride(StrideB{}, cute::make_shape(boxSizeY, boxSizeX, 1)),
     };
 
@@ -47,6 +48,6 @@ int main()
     CollectiveEpilogue::TensorStorage dst_tensor;
 
     CollectiveEpilogue collective_epilogue(params);
-    collective_epilogue(src_tensor, dst_tensor, 4, 128);
+    collective_epilogue(src_tensor, dst_tensor, 128);
     return 0;
 }
