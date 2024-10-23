@@ -325,8 +325,8 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     constexpr uint32_t dim = 4;
     constexpr uint32_t stage = 3;
 
-    auto bM = Int<128>{};
-    auto bN = Int<128>{};
+    auto bM = Int<64>{};
+    auto bN = Int<256>{};
     auto bK = Int<128>{};
     auto cta_tiler = make_shape(bM, bN, bK);
 
@@ -690,7 +690,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
 
 int main(){
 #if defined(TEST_SMALL)
-    conv2d::problem_shape_t small {{80, 7, 7, 1}, {80, 3, 3, 80}, {0, 0}, {0, 0}, {1, 1}, {1, 1}};
+    conv2d::problem_shape_t small {{64, 8, 8, 2}, {64, 3, 3, 128}, {0, 0}, {0, 0}, {1, 1}, {1, 1}};
     run_test<CONV2D_SMALL>(small);
 #elif defined(TEST_LARGE)
     conv2d::problem_shape_t large {{160, 16, 16, 2}, {160, 3, 3, 224}, {0, 0}, {0, 0}, {1, 1}, {1, 1}};
