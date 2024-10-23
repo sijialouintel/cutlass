@@ -478,9 +478,9 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
         constexpr uint32_t slm_bytes_c = total_bytes_c;
 
         constexpr uint32_t slm_bytes = total_bytes_a + total_bytes_b + total_bytes_c + total_bytes_acc;
-        auto slm_ptr = sycl::ext::oneapi::group_local_memory_for_overwrite<uint8_t[slm_bytes]>(item.get_group());
+        auto slm_ptr = alloc_slm_buffer<uint8_t, slm_bytes>(item.get_group());
 
-        auto sA = make_tensor(reinterpret_cast<dtypeA*>(*slm_ptr), layoutSA);
+        auto sA = make_tensor(reinterpret_cast<dtypeA*>(slm_ptr), layoutSA);
         auto sB = make_tensor(reinterpret_cast<dtypeB*>(sA.data() + size(layoutSA)), layoutSB);
         auto sAcc = make_tensor(reinterpret_cast<dtypeAcc*>(sB.data() + size(layoutSB)), layoutSAcc);
         auto sC = make_tensor(reinterpret_cast<dtypeC*>(sAcc.data() + size(layoutSAcc)), layoutSC);
