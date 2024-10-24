@@ -568,7 +568,6 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
             auto tmp_layoutSB = make_layout(Shape<Int<bN>, Int<bK>>{}, Stride<Int<bK>, _1>{});
         
             auto load_b = make_xe4_copy_conv2d<ASYNC_TENSOR_LOAD, AuxParamsB>(tensor_b, tmp_layoutSB, tilerB);
-            // auto block_load_b = load_b.get_slice(wg_id_x);
 
             Tensor tmp_mB_nk = load_b.get_tma_tensor(make_shape(MNKL_N,MNKL_K));
             Tensor tmp_gB_nk = local_tile(tmp_mB_nk, TileShapeMNK{}, make_coord(_,_,_), Step< X,_1,_1>{});
@@ -593,6 +592,13 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
 
             // auto blk_coord = make_coord(m_coord, n_coord, _, l_coord);
 
+            auto block_load_b = load_b.get_slice(wg_id_x);
+            Tensor gB = tmp_gB_nk(_,_,n_coord,_);
+            Tensor tBgB = block_load_b.partition_S(gB);                                                 // (TMA,TMA_N,TMA_K,k)
+            Tensor tBsB = block_load_b.partition_D(sB);                                              // (TMA,TMA_N,TMA_K,PIPE)
+
+            uint16_t mcast_mask_b = 0;  // todo: no cooperative for now
+
 
             if (DEBUG_THREAD) {
               PRINT(shape_B_orig);
@@ -605,6 +611,11 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
               PRINT(tmp_mB_nk);
               PRINT(tmp_gB_nk);
               PRINT(n_coord);
+
+              PRINT(block_load_b);
+              PRINT(gB);
+              PRINT(tBgB);
+              PRINT(tBsB);
             }
             
 
@@ -671,11 +682,13 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                 if(local_id == 0) {
                     pipeline.producer_commit(abar_index, slm_bytes_a + slm_bytes_b);
 
-                    // load kernel with tensor_copy
-                    auto tB = sB(_, _, abar_index);
-                    auto gmem_coord = gB_nk(0, iter0, iter1, iter2, wg_id_x);
-                    ASYNC_TENSOR_LOAD::copy(tdesc_ptrB, abar_prod, tB.data(), get<0>(gmem_coord), get<1>(gmem_coord),
-                        get<2>(gmem_coord), get<3>(gmem_coord));
+                    copy(load_b.with(abar_prod), tBgB(_,_,_,*k_tile_iter), tBsB(_,_,_,abar_index));
+
+                    // // load kernel with tensor_copy
+                    // auto tB = sB(_, _, abar_index);
+                    // auto gmem_coord = gB_nk(0, iter0, iter1, iter2, wg_id_x);
+                    // ASYNC_TENSOR_LOAD::copy(tdesc_ptrB, abar_prod, tB.data(), get<0>(gmem_coord), get<1>(gmem_coord),
+                    //     get<2>(gmem_coord), get<3>(gmem_coord));
                 }
 
                 ++k_tile_iter;
