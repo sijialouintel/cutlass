@@ -5,11 +5,16 @@
 #include "inline_pisa.hpp"
 #include "validation.hpp"
 #include <cutlass/pipeline/xe4_pipeline.hpp>
+#include "cutlass/conv/convnd_problem_shape.hpp"
+#include "cutlass/conv/detail.hpp"
 
 using namespace sycl;
 using namespace cutlass::xe4;
 using namespace cute;
 using namespace cute::detail;
+using namespace cute::xe4;
+
+using ProblemShape = cutlass::conv::ConvProblemShape<cutlass::conv::Operator::kFprop, 2>;
 
 class CONV2D_SMALL;
 class CONV2D_LARGE;
@@ -20,6 +25,11 @@ class CONV2D_ASYNMMETRIC_PAD_ASYNMMETRIC_STRIDE;
 class CONV2D_LARGE_WITH_PAD_WITH_STRIDE_WITH_DILATION;
 class CONV2D_OTHER_WITH_PAD_WITH_STRIDE_WITH_DILATION;
 class CONV2D_ASYNMMETRIC_PAD_ASYNMMETRIC_STRIDE_WITH_DILATION;
+
+static constexpr auto
+get_problem_shape_MNKL(ProblemShape const& problem_shape) {
+    return cutlass::conv::detail::get_linearized_problem_shape_MNKL(problem_shape);
+}
 
 // Activation cutlass::layout::TensorNHWC -> rank-2 stride ((W,H,N),_1)
 template <class IntT>
@@ -34,6 +44,25 @@ make_cute_packed_stride(
   auto s_copy = s;
   cute::for_each(cute::make_seq<3>{}, [&](auto i) {
     cute::get<0,i>(s_copy) = stride_nhwc[2-i];
+  });
+  return s_copy;
+}
+
+// Filter cutlass::layout::TensorNHWC -> rank-2 stride (k, (_1, s, r))
+template <class IntT>
+CUTLASS_HOST_DEVICE
+cute::Stride<IntT, cute::Stride<cute::Int<1>, IntT, IntT>>
+make_cute_packed_stride(
+    cute::Stride<IntT, cute::Stride<cute::Int<1>, IntT, IntT>> s,
+    cute::array<IntT, 4> stride_krsc) {
+  static_assert(std::is_integral_v<IntT>,
+    "Stride must have an integral type so it can be set dynamically. Static strides not supported.");
+
+  assert(stride_krsc[3] == 1);
+  auto s_copy = s;
+  cute::get<0,0>(s_copy) = stride_krsc[0];
+  cute::for_each(cute::make_seq<2>{}, [&](auto i) {
+    cute::get<1,2-i>(s_copy) = stride_krsc[i+1];
   });
   return s_copy;
 }
@@ -215,17 +244,6 @@ make_im2col_tma_copy_desc(
   return tma_tensor;
 }
 
-struct ASYNC_TENSOR_LOAD
-{
-    template<class T>
-    CUTE_HOST_DEVICE static void
-    copy(uint64_t const* tdesc_ptr, uint64_t const* abar_ptr, T* slm_ptr, int32_t crd0, int32_t crd1, int32_t crd2, int32_t crd3)
-    {
-        auto coord = sycl::vec<int32_t, 4>{crd0, crd1, crd2, crd3};
-        async_tensor_load<4>(tdesc_ptr, slm_space_cast(slm_ptr), coord, abar_ptr);
-    }
-};
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// ASYNC_ROW_LOAD: Initiates a async row copy from global memory to shared memory
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -317,6 +335,20 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     cute::array<int32_t, 4> shape_A{(int32_t) N, (int32_t) H, (int32_t) W, (int32_t) C};
     cute::array<int64_t, 4> stride_A{(int64_t) H*W*C, (int64_t) W*C, (int64_t) C, 1};
 
+    ProblemShape cutlass_problem_shape {
+        cutlass::conv::Mode::kCrossCorrelation,
+        {static_cast<int>(N), static_cast<int>(H), static_cast<int>(W), static_cast<int>(C)},   // nhwc
+        {static_cast<int>(K), static_cast<int>(R), static_cast<int>(S), static_cast<int>(C)},   // krsc
+        {static_cast<int>(padding_left), static_cast<int>(padding_bottom)}, // padding lower (pad_h, pad_w)
+        {static_cast<int>(padding_right), static_cast<int>(padding_top)},   // padding upper (pad_h, pad_w)
+        {static_cast<int>(stride_h), static_cast<int>(stride_w)},           // stride (stride_h, stride_w)
+        {static_cast<int>(dilation_h), static_cast<int>(dilation_w)},       // dilation (dilation_h, dilation_w)
+        1   // group
+    };
+
+    auto [MNKL_M, MNKL_N, MNKL_K, MNKL_L] = get_problem_shape_MNKL(cutlass_problem_shape);
+    std::cout << "[M, N, K, L] = " << MNKL_M << ", " << MNKL_N << ", " << MNKL_K << ", " << MNKL_L << std::endl;
+
     using dtypeA = bf16;
     using dtypeB = bf16;
     using dtypeAcc = float;
@@ -329,6 +361,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     auto bN = Int<256>{};
     auto bK = Int<128>{};
     auto cta_tiler = make_shape(bM, bN, bK);
+    using TileShapeMNK = Shape<Int<bM>, Int<bN>, Shape<Int<bK>>>;
 
     using Pipeline = cutlass::xe4::PipelineTmaAsync<stage>;
     using PipelineStore = cutlass::xe4::PipelineTmaAsync<1, 1>;
@@ -382,6 +415,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     constexpr uint32_t cm_bytes = 1024;
 
     using StrideA = decltype(cute::Stride<cute::Stride<int64_t, int64_t, int64_t>,cute::Int<1>>{});
+    using StrideB = decltype(cute::Stride<int64_t, cute::Stride<cute::Int<1>, int64_t, int64_t>>{});
     auto shape_A_orig = make_shape(cute::reverse(cute::take<0, 3>(shape_A)), shape_A[3]);
     auto dA = make_cute_packed_stride(StrideA{}, stride_A);
     auto tensor_cwhn = make_tensor(A_shared, make_layout(shape_A_orig, dA));
@@ -490,15 +524,66 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
 
         int start_m = wg_id_y * bM;
         int start_n = wg_id_x * bN;
+        auto cta_coord = make_coord(wg_id_y, wg_id_x, _);              // (m,n,k)
 
         item.barrier(access::fence_space::local_space);
 
         if(subgroup_id == 0){
-            using AuxParamsSrc = AuxParams<cm_typeB, tdesc_ptr_t, 0>;
-            auto tdesc_ptrB = make_conv2d_tensor_desc<AuxParamsSrc>(B, layoutSB);
+            using AuxParamsB = AuxParams<cm_typeB, tdesc_ptr_t, 0>;
+            // auto tdesc_ptrB = make_conv2d_tensor_desc<AuxParamsB>(B, layoutSB);
+            using T = dtypeB;
+  auto dim = rank(B);
+  
+  sycl::vec<uint32_t, dim> gmem_shape {shape<0>(B), shape<1>(B), shape<2>(B), shape<3>(B)};
+  sycl::vec<uint64_t, dim - 1> gmem_stride {stride<1>(B) * sizeof(T), stride<2>(B) * sizeof(T),
+    stride<3>(B) * sizeof(T)};
+  sycl::vec<uint32_t, dim> roi_shape {shape<1>(layoutSB), 1, 1, shape<0>(layoutSB)};
+  sycl::vec<uint32_t, dim> elem_stride {1, 1, 1, 1};
+
+  auto tdesc_ptrB = allocate_tdesc<AuxParamsB::tdescIdx, typename AuxParamsB::tdescPtr>();
+  tensor_desc_fill_global_addr(tdesc_ptrB, B.data());
+  tensor_descriptor_fill_dim_size<dim>(tdesc_ptrB, gmem_shape);
+  tensor_descriptor_fill_dim_stride<dim>(tdesc_ptrB, gmem_stride);
+  tensor_descriptor_fill_traverse_stride<dim>(tdesc_ptrB, elem_stride);
+  tensor_descriptor_fill_roitensor_size<dim>(tdesc_ptrB, roi_shape);
+  tensor_descriptor_fill_misc<T, AuxParamsB::cmType>(tdesc_ptrB);
+
 
             auto mB_nk = make_counting_tensor(make_layout(shape(layoutB), make_stride(E<0>{}, E<1>{}, E<2>{}, E<3>{})));
             auto gB_nk = tiled_divide(mB_nk, make_tile(size<1>(layoutSB), Int<1>{}, Int<1>{}, size<0>(layoutSB)));
+            // if (DEBUG_THREAD) {
+            //   PRINT(mB_nk);
+            //   PRINT(gB_nk);
+            // }
+
+            auto shape_B_orig = cutlass_problem_shape.get_shape_B();
+            auto dB = make_cute_packed_stride(StrideB{}, cutlass_problem_shape.stride_B);
+            Tensor tensor_b = make_tensor(B_shared, make_layout(shape_B_orig, dB));
+            // auto tma_load_b = get_tma_load_b_instance(tensor_b, cutlass_problem_shape);
+
+            // auto dB = make_cute_packed_stride(StrideB{}, problem_shape.stride_B, ConvOp);
+            
+
+            auto tilerB = Shape<Int<bN>, Shape<Int<bK>>>{};
+            auto tmp_layoutSB = make_layout(Shape<Int<bN>, Int<bK>>{}, Stride<Int<bK>, _1>{});
+        
+            auto load_b = make_xe4_copy_conv2d<ASYNC_TENSOR_LOAD, AuxParamsB>(tensor_b, tmp_layoutSB, tilerB);
+            // auto load_b = make_xe4_copy<ASYNC_TENSOR_LOAD, AuxParamsB>(B, layoutSB, tilerB);
+
+            // Tensor tmp_mB_nk = load_b.get_tma_tensor(make_shape(MNKL_N,MNKL_K));
+            // Tensor tmp_gB_nk = local_tile(tmp_mB_nk, TileShapeMNK{}, make_coord(_,_,_), Step< X,_1,_1>{});
+
+            if (DEBUG_THREAD) {
+              PRINT(shape_B_orig);
+              PRINT(dB);
+              PRINT(tensor_b);
+              PRINT(tmp_layoutSB);
+              PRINT(tilerB);
+              PRINT(load_b);
+              // PRINT(tmp_mB_nk);
+              // PRINT(tmp_gB_nk);
+            }
+            
 
             sycl::vec<uint32_t, dim> gmem_shapeC {shape<0>(C), shape<1>(C), shape<2>(C), shape<3>(C)};
             sycl::vec<uint32_t, dim - 1> gmem_strideC {stride<1>(C) * sizeof(dtypeC),

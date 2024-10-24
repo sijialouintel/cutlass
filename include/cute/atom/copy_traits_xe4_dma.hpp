@@ -2,6 +2,7 @@
 
 #include "cute/arch/copy_xe4_dma.hpp"
 #include "cutlass/detail/layout.hpp"
+#include "cute/atom/copy_traits_sm90_tma.hpp"
 
 namespace cute
 {
@@ -190,20 +191,20 @@ CUTE_HOST_DEVICE auto
 make_conv2d_tensor_desc(GTensor const& gtensor, SLayout const& slayout, uint32_t coop_size = 1)
 {
   using T = typename GTensor::value_type;
-  auto dim = rank(gtensor);
   
-  sycl::vec<uint32_t, dim> gmem_shape {shape<0>(gtensor), shape<1>(gtensor), shape<2>(gtensor), shape<3>(gtensor)};
-  sycl::vec<uint64_t, dim - 1> gmem_stride {stride<1>(gtensor) * sizeof(T), stride<2>(gtensor) * sizeof(T),
-    stride<3>(gtensor) * sizeof(T)};
-  sycl::vec<uint32_t, dim> roi_shape {shape<1>(slayout), 1, 1, shape<0>(slayout) / coop_size};
-  sycl::vec<uint32_t, dim> elem_stride {1, 1, 1, 1};
+  sycl::vec<uint32_t, 4> gmem_shape {(uint32_t)shape<1,0>(gtensor), 
+    (uint32_t)shape<1,1>(gtensor), (uint32_t)shape<1,2>(gtensor), (uint32_t)shape<0>(gtensor)};
+  sycl::vec<uint64_t, 3> gmem_stride {stride<1,1>(gtensor) * sizeof(T), stride<1,2>(gtensor) * sizeof(T),
+    stride<0>(gtensor) * sizeof(T)};
+  sycl::vec<uint32_t, 4> roi_shape {shape<1>(slayout), 1, 1, shape<0>(slayout) / coop_size};
+  sycl::vec<uint32_t, 4> elem_stride {1, 1, 1, 1};
 
   auto tdesc_ptr = allocate_tdesc<AuxParams::tdescIdx, typename AuxParams::tdescPtr>();
   tensor_desc_fill_global_addr(tdesc_ptr, gtensor.data());
-  tensor_descriptor_fill_dim_size<dim>(tdesc_ptr, gmem_shape);
-  tensor_descriptor_fill_dim_stride<dim>(tdesc_ptr, gmem_stride);
-  tensor_descriptor_fill_traverse_stride<dim>(tdesc_ptr, elem_stride);
-  tensor_descriptor_fill_roitensor_size<dim>(tdesc_ptr, roi_shape);
+  tensor_descriptor_fill_dim_size<4>(tdesc_ptr, gmem_shape);
+  tensor_descriptor_fill_dim_stride<4>(tdesc_ptr, gmem_stride);
+  tensor_descriptor_fill_traverse_stride<4>(tdesc_ptr, elem_stride);
+  tensor_descriptor_fill_roitensor_size<4>(tdesc_ptr, roi_shape);
   tensor_descriptor_fill_misc<T, AuxParams::cmType>(tdesc_ptr);
 
   return tdesc_ptr;
@@ -224,6 +225,8 @@ CUTE_HOST_DEVICE auto get_gbasis() {
   }
 }
 
+
+
 template <class CopyOp, class AuxParams, class GEngine, class GLayout, class SLayout>
 CUTE_HOST_DEVICE auto
 make_copy_atom(Tensor<GEngine, GLayout> const& gtensor, SLayout const& slayout, uint32_t coop_size)
@@ -236,6 +239,26 @@ make_copy_atom(Tensor<GEngine, GLayout> const& gtensor, SLayout const& slayout, 
   constexpr bool isTransposed = is_mn_major(GLayout{});
   auto gbasis = get_gbasis<isTransposed>();
   auto tensor_desc= make_tensor_desc<AuxParams, isTransposed>(gtensor, slayout, coop_size);
+  auto copy_traits = make_copy_traits<CopyOp, C<num_bits_per_tma>>(tensor_desc, gbasis);
+  return Copy_Atom<decltype(copy_traits), T>{copy_traits};
+}
+
+template <class CopyOp, class AuxParams, class GEngine, class GLayout, class SLayout, class VLayout>
+CUTE_HOST_DEVICE auto
+make_copy_atom_conv2d(Tensor<GEngine, GLayout> const& gtensor, SLayout const& slayout,
+uint32_t coop_size, VLayout const& cta_v_map)
+{
+  using T = typename GEngine::value_type;
+
+  auto num_elems_per_tma = size<0>(group<0, 2>(slayout));
+  constexpr uint32_t num_bits_per_tma = num_elems_per_tma * sizeof_bits_v<T>;
+
+  // constexpr bool isTransposed = false;
+  auto gbasis = ::cute::detail::construct_tma_gbasis<T>(gtensor, slayout, cta_v_map);
+  if (thread0()) {
+    PRINT(gbasis);
+  }
+  auto tensor_desc = make_conv2d_tensor_desc<AuxParams>(gtensor, slayout);
   auto copy_traits = make_copy_traits<CopyOp, C<num_bits_per_tma>>(tensor_desc, gbasis);
   return Copy_Atom<decltype(copy_traits), T>{copy_traits};
 }
@@ -266,6 +289,47 @@ make_xe4_copy_tiled(GTensor const& gtensor, SLayout const& slayout,
   return TiledCopy<decltype(atom), decltype(layout_TV), decltype(cta_tiler)>{atom};
 }
 
+template <class CopyOp, class AuxParams, class GTensor, class SLayout, class TLayout, class VLayout>
+CUTE_HOST_RTC auto
+make_xe4_copy_tiled_conv2d(GTensor const& gtensor, SLayout const& slayout,
+                    TLayout const& cta_t_map, VLayout const& cta_v_map)
+{
+  auto atom = make_copy_atom_conv2d<CopyOp,AuxParams>(gtensor, slayout, cosize(cta_t_map), cta_v_map);
+
+  auto cta_tiler = product_each(shape(cta_v_map));
+
+  auto num_elems_per_tma = size<1>(typename decltype(atom)::RefLayout{}) / static_value<sizeof_bits<typename GTensor::value_type>>();
+
+  // smem idx -> smem coord
+  auto inv_smem_layout = right_inverse(get_nonswizzle_portion(slayout));
+  // CTA V -> smem_coord
+  auto layout_v = composition(inv_smem_layout, num_elems_per_tma);
+  // Scale that up to cover all of the smem_coords
+  auto layout_V = tile_to_shape(make_layout(layout_v), size(cta_v_map));
+  // CTA T -> smem idx
+  auto layout_t = make_layout(cosize(cta_t_map), shape_div(num_elems_per_tma, cosize(cta_t_map)));
+  // CTA TID -> smem coord
+  auto layout_T = composition(inv_smem_layout, composition(layout_t, cta_t_map));
+  // Combine with the T mapping
+  auto layout_TV = make_layout(layout_T, layout_V);
+
+  if (DEBUG_THREAD) {
+    print("gtensor : "); print(gtensor); print("\n");
+    print("slayout : "); print(slayout); print("\n");
+    print("cta_t_map : "); print(cta_t_map); print("\n");
+    print("cta_v_map : "); print(cta_v_map); print("\n");
+    print("cta_tiler : "); print(cta_tiler); print("\n");
+    print("layout_v : "); print(layout_v); print("\n");
+    print("layout_V : "); print(layout_V); print("\n");
+    print("layout_t : "); print(layout_t); print("\n");
+    print("layout_T : "); print(layout_T); print("\n");
+    print("layout_TV : "); print(layout_TV); print("\n");
+  }
+  
+
+  return TiledCopy<decltype(atom), decltype(layout_TV), decltype(cta_tiler)>{atom};
+}
+
 template <class CopyOp, class AuxParams, class GTensor, class SLayout, class Tiler, class Cluster_Size>
 CUTE_HOST_RTC auto
 make_xe4_copy(GTensor const& gtensor, SLayout const& slayout, Tiler const& cta_tiler, Cluster_Size const& cluster_size)
@@ -281,6 +345,23 @@ CUTE_HOST_RTC auto
 make_xe4_copy(GTensor const& gtensor, SLayout const& slayout, Tiler const& cta_tiler)
 {
   return make_xe4_copy<CopyOp,AuxParams>(gtensor, slayout, cta_tiler, _1{});
+}
+
+template <class CopyOp, class AuxParams, class GTensor, class SLayout, class Tiler, class Cluster_Size>
+CUTE_HOST_RTC auto
+make_xe4_copy_conv2d(GTensor const& gtensor, SLayout const& slayout, Tiler const& cta_tiler, Cluster_Size const& cluster_size)
+{
+  auto cta_v_tile = make_identity_layout(shape(gtensor)).compose(cta_tiler);
+  auto cta_t_tile = make_layout(cluster_size);
+
+  return make_xe4_copy_tiled_conv2d<CopyOp,AuxParams>(gtensor, slayout, cta_t_tile, cta_v_tile);
+}
+
+template <class CopyOp, class AuxParams, class GTensor, class SLayout, class Tiler>
+CUTE_HOST_RTC auto
+make_xe4_copy_conv2d(GTensor const& gtensor, SLayout const& slayout, Tiler const& cta_tiler)
+{
+  return make_xe4_copy_conv2d<CopyOp,AuxParams>(gtensor, slayout, cta_tiler, _1{});
 }
 
 } // namespace detail

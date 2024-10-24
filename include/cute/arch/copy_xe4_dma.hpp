@@ -27,6 +27,14 @@ struct ASYNC_TENSOR_LOAD
     (void)crd2;
     copy(tdesc_ptr, abar_ptr, slm_ptr, crd0, crd1);
   }
+
+  template<class T>
+  CUTE_HOST_DEVICE static void
+  copy(uint64_t const* tdesc_ptr, uint64_t const* abar_ptr, T* slm_ptr, int32_t crd0, int32_t crd1, int32_t crd2, int32_t crd3)
+  {
+    auto coord = sycl::vec<int32_t, 4>{crd0, crd1, crd2, crd3};
+    async_tensor_load<4>(tdesc_ptr, slm_space_cast(slm_ptr), coord, abar_ptr);
+  }
 };
 
 
