@@ -568,10 +568,31 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
             auto tmp_layoutSB = make_layout(Shape<Int<bN>, Int<bK>>{}, Stride<Int<bK>, _1>{});
         
             auto load_b = make_xe4_copy_conv2d<ASYNC_TENSOR_LOAD, AuxParamsB>(tensor_b, tmp_layoutSB, tilerB);
-            // auto load_b = make_xe4_copy<ASYNC_TENSOR_LOAD, AuxParamsB>(B, layoutSB, tilerB);
+            // auto block_load_b = load_b.get_slice(wg_id_x);
 
-            // Tensor tmp_mB_nk = load_b.get_tma_tensor(make_shape(MNKL_N,MNKL_K));
-            // Tensor tmp_gB_nk = local_tile(tmp_mB_nk, TileShapeMNK{}, make_coord(_,_,_), Step< X,_1,_1>{});
+            Tensor tmp_mB_nk = load_b.get_tma_tensor(make_shape(MNKL_N,MNKL_K));
+            Tensor tmp_gB_nk = local_tile(tmp_mB_nk, TileShapeMNK{}, make_coord(_,_,_), Step< X,_1,_1>{});
+            
+            Tensor gB_nkl = tmp_gB_nk;
+
+            auto n_coord = idx2crd(int(wg_id_x), shape<2>(gB_nkl), compact_col_major(shape<2>(gB_nkl)));
+
+            // handles the difference between the rank of Tensor returned by load_input in case they do not have a batch mode
+            // auto l_coord = [&] (auto const& gB_nkl_) {
+            //   // gB_nkl needs to be passed into the lambda because C++17
+            //   // does not permit lambda capture of structured bindings.
+            //   if constexpr (not IsConvProblemShape) {
+            //     // This needs to be inside an `if constexpr`,
+            //     // because shape<4>(gB_nkl) is not well-formed otherwise.
+            //     return idx2crd(int(blockIdx.z), shape<4>(gB_nkl_));
+            //   }
+            //   else {
+            //     return Int<0>{};
+            //   }
+            // } (gB_nkl);
+
+            // auto blk_coord = make_coord(m_coord, n_coord, _, l_coord);
+
 
             if (DEBUG_THREAD) {
               PRINT(shape_B_orig);
@@ -580,8 +601,10 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
               PRINT(tmp_layoutSB);
               PRINT(tilerB);
               PRINT(load_b);
-              // PRINT(tmp_mB_nk);
-              // PRINT(tmp_gB_nk);
+              
+              PRINT(tmp_mB_nk);
+              PRINT(tmp_gB_nk);
+              PRINT(n_coord);
             }
             
 
