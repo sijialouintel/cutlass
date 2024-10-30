@@ -30,9 +30,9 @@ using namespace cutlass::epilogue::thread::detail;
 template <
   typename ElementOutput_,
   typename ElementAccumulator_,
-  uint32_t SubGroupSize_,
-  uint32_t NumControlSubGroup_,
-  uint32_t NumPostOpSubGroup_,
+  uint32_t SubgroupSize_,
+  uint32_t NumControlSubgroup_,
+  uint32_t NumPostOpSubgroup_,
   EpilogueAccessPattern AccessPattern_
 >
 class DMAPostOPReLu {
@@ -40,9 +40,9 @@ public:
   using ElementOutput = ElementOutput_;
   using ElementAccumulator = ElementAccumulator_;
 
-  static constexpr uint32_t SubGroupSize = SubGroupSize_;
-  static constexpr uint32_t NumControlSubGroup = NumControlSubGroup_;
-  static constexpr uint32_t NumPostOpSubGroup = NumPostOpSubGroup_;
+  static constexpr uint32_t SubgroupSize = SubgroupSize_;
+  static constexpr uint32_t NumControlSubgroup = NumControlSubgroup_;
+  static constexpr uint32_t NumPostOpSubgroup = NumPostOpSubgroup_;
   static constexpr EpilogueAccessPattern AccessPattern = AccessPattern_;
 
   static_assert(AccessPattern == EpilogueAccessPattern::Pattern2, "Unsupportted access pattern!");
@@ -61,9 +61,9 @@ public:
     HOST_PRINT(src_tensor);
     HOST_PRINT(dst_tensor);
 
-    uint32_t worker_id = local_id - NumControlSubGroup * SubGroupSize;
+    uint32_t worker_id = local_id - NumControlSubgroup * SubgroupSize;
     if constexpr (AccessPattern == EpilogueAccessPattern::Pattern2) {
-      pattern2<ReLu, NumPostOpSubGroup, SubGroupSize>(src_tensor, dst_tensor, worker_id);
+      pattern2<ReLu, NumPostOpSubgroup, SubgroupSize>(src_tensor, dst_tensor, worker_id);
     }
   }
 };

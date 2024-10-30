@@ -46,31 +46,48 @@ enum class EpilogueAccessPattern {
   Pattern3, // TODO
 };
 
-template <template <uint32_t> class SlmVOp, class ValType, int SubGroupNum, int SubGroupSize, class TileShape>
-CUTLASS_HOST_DEVICE constexpr auto make_cm_tiled_copy(TileShape const& tile_shape) {
+template <template <uint32_t> class SlmVOp, class ValType, int SubgroupNum, int SubgroupSize, class TileShape>
+CUTLASS_HOST_DEVICE constexpr auto make_pattern2_tiled_copy(TileShape const& tile_shape) {
   static_assert(is_static<TileShape>::value, "Tile shape must be static");
 
   constexpr int tile_M = CUTE_STATIC_V(get<0>(tile_shape));
   constexpr int tile_N = CUTE_STATIC_V(get<1>(tile_shape));
 
-  constexpr int kBytesPerLane = 32;
-  constexpr int numValuesPerLane = kBytesPerLane / sizeof(ValType);
-
-  static_assert(tile_N % numValuesPerLane == 0, "tile_N must be divisible by numValuesPerLane!");
-  static_assert(cute::popcount(tile_N / numValuesPerLane) == 1, "Number of lanes per row must be a power of 2!");
-
   constexpr int kMaxLanesPerRow = 16;
-  constexpr int numLanesPerRow = cute::min(tile_N / numValuesPerLane, kMaxLanesPerRow);
-  constexpr int numRowsPerSubgroup = SubGroupSize / numLanesPerRow;
+  constexpr int kMaxBytesPerLoad = 32;
+  constexpr int maxValuesPerLoad = kMaxBytesPerLoad / sizeof(ValType);
+  static_assert(tile_N % maxValuesPerLoad == 0, "tile_N must be divisible by maxValuesPerLoad!");
+  /**
+   * @brief Use as many as lanes to process one row then calculate the minimum rows a subgroups would
+   * process (`minRowsPerSubgroup`).
+   */
+  constexpr int maxLanesPerRow = cute::min(tile_N / maxValuesPerLoad, kMaxLanesPerRow);
+  static_assert(cute::popcount(maxLanesPerRow) == 1, "maxLanesPerRow must be a power of 2!");
+  constexpr int minRowsPerSubgroupPerIter = SubgroupSize / maxLanesPerRow;
+
+  static_assert(tile_M % SubgroupNum == 0, "tile_M must be divisible by SubgroupNum!");
+  constexpr int totalRowsPerSubgroup = tile_M / SubgroupNum;
+
+  /**
+   * @brief Lanes are supposed to load SLM with `kMaxBytesPerLoad`, but if this cause some subgroups
+   * in idle, lanes could load less than `kMaxBytesPerLoad` bytes.
+   */
+  constexpr int numRowsPerSubgroup = cute::min(totalRowsPerSubgroup, minRowsPerSubgroupPerIter);
+  static_assert(tile_M % numRowsPerSubgroup == 0, "tile_M must be divisible by numRowsPerSubgroup!");
+  static_assert(cute::popcount(numRowsPerSubgroup) == 1, "numRowsPerSubgroup must be a power of 2!");
+
+  constexpr int numLanesPerRow = SubgroupSize / numRowsPerSubgroup;
+  static_assert(tile_N % numLanesPerRow == 0, "tile_N must be divisible by numLanesPerRow!");
+  constexpr int numValuesPerLane = cute::min(tile_N / numLanesPerRow, maxValuesPerLoad);
 
   auto thr_layout = make_ordered_layout(
-    Shape<Shape<Int<numRowsPerSubgroup>, Int<SubGroupNum>>, Int<numLanesPerRow>>{},
+    Shape<Shape<Int<numRowsPerSubgroup>, Int<SubgroupNum>>, Int<numLanesPerRow>>{},
     Step<Step<_0,_2>,_1>{}
   );
 
   auto val_layout = make_layout(Shape<_1,Int<numValuesPerLane>>{}, GenRowMajor{});
 
-  using Copy_Traits = Copy_Traits<SlmVOp<numValuesPerLane>, Int<8*kBytesPerLane>>;
+  using Copy_Traits = Copy_Traits<SlmVOp<numValuesPerLane>, Int<8 * numValuesPerLane * sizeof(ValType)>>;
   using Atom = Copy_Atom<Copy_Traits, ValType>;
   auto tiled_copy = make_tiled_copy(Atom{}, thr_layout, val_layout);
 
@@ -89,8 +106,8 @@ CUTLASS_HOST_DEVICE constexpr auto make_register_tensor(Tensor const& tensor) {
 
 template <
   typename ElementOp,
-  int SubGroupNum,
-  int SubGroupSize,
+  int SubgroupNum,
+  int SubgroupSize,
   typename STensor,
   typename DTensor
 >
@@ -101,11 +118,11 @@ void pattern2(STensor const& src_tensor, DTensor& dst_tensor, uint32_t worker_id
 
   auto tile_shape = product_each(shape(dst_tensor));
 
-  auto tiled_s2r = make_cm_tiled_copy<xe4::SLM_VLOAD, SType, SubGroupNum, SubGroupSize>(tile_shape);
+  auto tiled_s2r = make_pattern2_tiled_copy<xe4::SLM_VLOAD, SType, SubgroupNum, SubgroupSize>(tile_shape);
   auto thread_s2r = tiled_s2r.get_thread_slice(worker_id);
   Tensor tSR_src = thread_s2r.partition_S(src_tensor);
 
-  auto tiled_r2s = make_cm_tiled_copy<xe4::SLM_VSTORE, SType, SubGroupNum, SubGroupSize>(tile_shape);
+  auto tiled_r2s = make_pattern2_tiled_copy<xe4::SLM_VSTORE, SType, SubgroupNum, SubgroupSize>(tile_shape);
   auto thread_r2s = tiled_r2s.get_thread_slice(worker_id);
   Tensor tRS_dst = thread_r2s.partition_D(dst_tensor);
 
