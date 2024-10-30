@@ -6,7 +6,7 @@
 #include "cute/arch/copy_xe4_dma.hpp"
 #include "cutlass/epilogue/thread/xe4_conversion_op.hpp"
 #include "cutlass/epilogue/thread/xe4_relu_op.hpp"
-#include "cutlass/gemm/collective/xe4_mma_dma_amma_ss_warpspecialized.hpp"
+#include "cutlass/gemm/collective/collective_mma.hpp"
 #include "cutlass/epilogue/collective/xe4_epilogue_dma_warpspecialized.hpp"
 
 namespace cutlass::gemm::kernel {
@@ -14,15 +14,6 @@ namespace cutlass::gemm::kernel {
 using namespace cute;
 using namespace sycl;
 using namespace cute::xe4;
-
-template <
-  class ProblemShapeOrThreadblockMma_, // (m, n, k) or (m, n, k, l)
-  class CollectiveMainloopOrEpilogue_,
-  class CollectiveEpilogueOrThreadblockSwizzle_,
-  class TileScheduler_ = void,
-  class Enable = void
->
-class GemmUniversal;
 
 template <
   class ProblemShape_,

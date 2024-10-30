@@ -35,6 +35,7 @@
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+#if defined(__CUDA_ARCH__)
 #include "cutlass/gemm/collective/sm70_mma_twostage.hpp"
 #include "cutlass/gemm/collective/sm80_mma_multistage.hpp"
 #include "cutlass/gemm/collective/sm90_mma_multistage_gmma_ss_warpspecialized.hpp"
@@ -46,4 +47,7 @@
 #include "cutlass/gemm/collective/sm90_sparse_mma_tma_gmma_ss_warpspecialized.hpp"
 #include "cutlass/gemm/collective/sm90_mma_array_tma_gmma_ss_warpspecialized.hpp"
 #include "cutlass/gemm/collective/sm90_mma_tma_gmma_ss_warpspecialized_fp8.hpp"
+#elif defined(SYCL_LANGUAGE_VERSION)
+#include "cutlass/gemm/collective/xe4_mma_dma_amma_ss_warpspecialized.hpp"
+#endif
 /////////////////////////////////////////////////////////////////////////////////////////////////

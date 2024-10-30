@@ -6,12 +6,13 @@
 #include "cutlass/util/packed_stride.hpp"
 
 #include "cute/arch/mma_xe4.hpp"
-#include "cutlass/gemm/kernel/xe4_gemm_dma_warpspecialized.hpp"
+#include "cutlass/gemm/kernel/gemm_universal.hpp"
 #include "validation.hpp"
 
 using namespace cute;
 using namespace sycl;
 using namespace cute::xe4;
+using namespace cutlass::gemm;
 using namespace cutlass::gemm::collective;
 using namespace cutlass::epilogue::collective::detail;
 using namespace cutlass::epilogue::thread;
@@ -95,7 +96,7 @@ int run_test()
     using SmemLayoutAtomC = Layout<Shape<Int<wg_m>, Int<wg_n>>, Stride<Int<wg_n>, _1>>;
 
     using CollectiveMainloop = CollectiveMma<
-        MainloopXe4DmaGmma<stage>,                                                              // MainloopXe4DmaGmma
+        MainloopXe4DmaGmmaWarpSpecialized<stage>,                                               // DispatchPolicy
         TileShape,                                                                              // TileShape
         dtypeA,                                                                                 // ElementA
         StrideA,                                                                                // StrideA

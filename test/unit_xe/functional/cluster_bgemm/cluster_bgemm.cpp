@@ -6,7 +6,7 @@
 #include "cutlass/util/packed_stride.hpp"
 
 #include "cute/arch/mma_xe4.hpp"
-#include "cutlass/gemm/kernel/xe4_gemm_dma_warpspecialized.hpp"
+#include "cutlass/gemm/kernel/gemm_universal.hpp"
 #include "validation.hpp"
 
 using namespace cute;

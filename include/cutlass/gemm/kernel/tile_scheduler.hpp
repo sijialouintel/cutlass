@@ -37,9 +37,12 @@
 
 #include "cutlass/arch/arch.h"
 #include "cutlass/detail/dependent_false.hpp"
+
+#if defined(__CUDA_ARCH__)
 #include "cutlass/gemm/kernel/sm90_tile_scheduler.hpp"
 #include "cutlass/gemm/kernel/sm90_tile_scheduler_stream_k.hpp"
 #include "cutlass/gemm/kernel/sm90_tile_scheduler_group.hpp"
+#endif
 ////////////////////////////////////////////////////////////////////////////////
 
 namespace cutlass::gemm {
@@ -80,6 +83,7 @@ struct TileSchedulerSelector {
       "Could not select a tile scheduler for given parameters.");
 };
 
+#if defined(__CUDA_ARCH__)
 template <
   class ArchTag,
   class TileShape,
@@ -141,6 +145,7 @@ struct TileSchedulerSelector<
   > {
   using Scheduler = PersistentTileSchedulerSm90Group<GroupProblemShape>;
 };
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 

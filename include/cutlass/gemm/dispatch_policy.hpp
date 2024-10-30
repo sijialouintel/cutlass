@@ -106,7 +106,7 @@ struct KernelCpAsyncWarpSpecializedCooperative { };
 struct KernelTma { };
 struct KernelTmaWarpSpecialized { };
 struct KernelTmaWarpSpecializedPingpong { };
-struct KernelTmaWarpSpecializedCooperative { 
+struct KernelTmaWarpSpecializedCooperative {
 };
 
 struct KernelPtrArrayTmaWarpSpecializedCooperative { };
@@ -316,6 +316,22 @@ struct MainloopSm90TmaGmmaWarpSpecializedSparse {
   using ClusterShape = ClusterShape_;
   using ArchTag = arch::Sm90;
   using Schedule = KernelSchedule;
+};
+
+// n-buffer in smem (Xe4 DMA), pipelined with Xe3 Async MMA and DMA, Warp specialized dynamic schedule
+template<
+  int Stages_,
+  class ClusterShape_ = Shape<_1,_1,_1>,
+  class KernelSchedule = KernelTmaWarpSpecialized
+>
+struct MainloopXe4DmaGmmaWarpSpecialized {
+  constexpr static int Stages = Stages_;
+  using ClusterShape = ClusterShape_;
+  using ArchTag = arch::Sm90;
+  using Schedule = KernelSchedule;
+  static_assert(
+    cute::is_same_v<Schedule, KernelTmaWarpSpecialized>,
+    "KernelSchedule must be one of the warp specialized policies");
 };
 
 //////////////////////////////////////////////////////////////////////////////

@@ -1,56 +1,16 @@
 #pragma once
 
-#include "cute/atom/mma_traits_xe4_amma.hpp"
-#include "cute/atom/copy_traits_xe4_dma.hpp"
-#include "cute/arch/copy_xe4_dma.hpp"
-#include "inline_pisa.hpp"
-#include "cute/arch/mma_xe4_amma.hpp"
-#include "cutlass/pipeline/xe4_pipeline.hpp"
+#include "cutlass/gemm/dispatch_policy.hpp"
+#include "cutlass/pipeline/pipeline.hpp"
 
 #include "cutlass/util/packed_stride.hpp"
-#include "cutlass/gemm/dispatch_policy.hpp"
-#include "cute/container/array.hpp"
+#include "cute/atom/mma_traits_xe4_amma.hpp"
 
 namespace cutlass::gemm::collective {
 
 using namespace cute;
 using namespace cute::detail;
-
-template <
-  class DispatchPolicy,
-  class TileShape,
-  class ElementA,
-  class StrideA,
-  class ElementB,
-  class StrideB,
-  class TiledMma,
-  class GmemTiledCopyA,
-  class SmemLayoutAtomA,
-  class SmemCopyAtomA,
-  class TransformA,
-  class GmemTiledCopyB,
-  class SmemLayoutAtomB,
-  class SmemCopyAtomB,
-  class TransformB
->
-struct CollectiveMma;
-
-template<
-  int Stages_,
-  class ClusterShape_ = Shape<_1,_1,_1>,
-  class KernelSchedule = KernelTmaWarpSpecialized
->
-struct MainloopXe4DmaGmma {
-  constexpr static int Stages = Stages_;
-  using ClusterShape = ClusterShape_;
-  using ArchTag = arch::Sm90;
-  using Schedule = KernelSchedule;
-  static_assert(
-    cute::is_same_v<Schedule, KernelTmaWarpSpecialized> ||
-    cute::is_same_v<Schedule, KernelTmaWarpSpecializedPingpong> ||
-    cute::is_same_v<Schedule, KernelTmaWarpSpecializedCooperative>,
-    "KernelSchedule must be one of the warp specialized policies");
-};
+using namespace cutlass::gemm;
 
 template <
   int Stages,
@@ -71,7 +31,7 @@ template <
   class SmemCopyAtomB_,
   class TransformB_>
 struct CollectiveMma<
-  MainloopXe4DmaGmma<Stages, ClusterShape, KernelSchedule>,
+  MainloopXe4DmaGmmaWarpSpecialized<Stages, ClusterShape, KernelSchedule>,
   TileShape_,
   ElementA_,
   StrideA_,
@@ -87,7 +47,7 @@ struct CollectiveMma<
   SmemCopyAtomB_,
   TransformB_>
 {
-  using DispatchPolicy = MainloopXe4DmaGmma<Stages, ClusterShape, KernelSchedule>;
+  using DispatchPolicy = MainloopXe4DmaGmmaWarpSpecialized<Stages, ClusterShape, KernelSchedule>;
   using TileShape = TileShape_;
   using ElementA = ElementA_;
   using StrideA = StrideA_;
