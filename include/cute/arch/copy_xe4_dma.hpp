@@ -16,7 +16,7 @@ struct ASYNC_TENSOR_LOAD
   CUTE_HOST_DEVICE static void
   copy(uint64_t const* tdesc_ptr, uint64_t const* abar_ptr, T* slm_ptr, int32_t crd0, int32_t crd1)
   {
-    auto coord = sycl::vec<int32_t, 2>{crd1, crd0};
+    auto coord = sycl::vec<int32_t, 2>{crd0, crd1};
     async_tensor_load<2>(tdesc_ptr, slm_space_cast(slm_ptr), coord, abar_ptr);
   }
 
@@ -40,7 +40,7 @@ struct ASYNC_TENSOR_STORE
   CUTE_HOST_DEVICE static void
   copy(uint64_t const* tdesc_ptr, uint64_t const* abar_ptr, T* slm_ptr, int32_t crd0, int32_t crd1)
   {
-    auto coord = sycl::vec<int32_t, 2>{crd1, crd0};
+    auto coord = sycl::vec<int32_t, 2>{crd0, crd1};
     async_tensor_store<2>(tdesc_ptr, slm_space_cast(slm_ptr), coord, abar_ptr);
   }
 
@@ -64,7 +64,7 @@ struct ASYNC_TENSOR_LOAD_MULTICAST
   CUTE_HOST_DEVICE static void
   copy(uint64_t const* tdesc_ptr, uint64_t const* abar_ptr, uint32_t multicast_mask, T* slm_ptr, int32_t crd0, int32_t crd1)
   {
-    auto coord = sycl::vec<int32_t, 2>{crd1, crd0};
+    auto coord = sycl::vec<int32_t, 2>{crd0, crd1};
     async_tensor_load<2>(tdesc_ptr, slm_space_cast(slm_ptr), coord, abar_ptr, multicast_mask);
   }
 

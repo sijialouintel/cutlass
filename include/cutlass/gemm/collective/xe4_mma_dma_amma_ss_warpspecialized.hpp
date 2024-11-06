@@ -121,11 +121,11 @@ struct CollectiveMma<
   struct Params {
     using TiledLoadA = decltype(make_xe4_copy<GmemTiledCopyA, AuxParamsA>(
       make_tensor(static_cast<ElementA const*>(nullptr), repeat_like(StrideA{}, int32_t(0)), StrideA{}),
-      SmemLayoutA{}, make_shape(shape<0>(TileShape{}), shape<2>(TileShape{})), size<1>(ClusterShape{})));
+      SmemLayoutA{}(_, _, _0{}), make_shape(shape<0>(TileShape{}), shape<2>(TileShape{})), size<1>(ClusterShape{})));
 
     using TiledLoadB = decltype(make_xe4_copy<GmemTiledCopyB, AuxParamsB>(
       make_tensor(static_cast<ElementB const*>(nullptr), repeat_like(StrideB{}, int32_t(0)), StrideB{}),
-      SmemLayoutB{}, make_shape(shape<1>(TileShape{}), shape<2>(TileShape{})), size<0>(ClusterShape{})));
+      SmemLayoutB{}(_, _, _0{}), make_shape(shape<1>(TileShape{}), shape<2>(TileShape{})), size<0>(ClusterShape{})));
 
     TiledLoadA load_a;
     TiledLoadB load_b;
@@ -139,8 +139,8 @@ struct CollectiveMma<
     auto A = make_tensor(args.ptr_A, make_layout(make_shape(M,K,L), args.dA));
     auto B = make_tensor(args.ptr_B, make_layout(make_shape(N,K,L), args.dB));
 
-    auto load_a = make_xe4_copy<GmemTiledCopyA, AuxParamsA>(A, SmemLayoutA{}, make_shape(shape<0>(TileShape{}), shape<2>(TileShape{})), size<1>(ClusterShape{}));
-    auto load_b = make_xe4_copy<GmemTiledCopyB, AuxParamsB>(B, SmemLayoutB{}, make_shape(shape<1>(TileShape{}), shape<2>(TileShape{})), size<0>(ClusterShape{}));
+    auto load_a = make_xe4_copy<GmemTiledCopyA, AuxParamsA>(A, SmemLayoutA{}(_, _, _0{}), make_shape(shape<0>(TileShape{}), shape<2>(TileShape{})), size<1>(ClusterShape{}));
+    auto load_b = make_xe4_copy<GmemTiledCopyB, AuxParamsB>(B, SmemLayoutB{}(_, _, _0{}), make_shape(shape<1>(TileShape{}), shape<2>(TileShape{})), size<0>(ClusterShape{}));
 
     return {load_a, load_b};
   }

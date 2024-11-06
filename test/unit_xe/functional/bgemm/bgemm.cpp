@@ -90,7 +90,7 @@ int run_test()
     using TileShape = Shape<Int<wg_m>, Int<wg_n>, Int<wg_k>>;
     using TiledMma = decltype(cute::make_tiled_mma(AMMA::ss_op_selector<AMMA::OpType::NoneCluster, dtypeA, dtypeB, dtypeAcc, TileShape, is_row_major_a, is_row_major_b>()));
 
-    using SmemLayoutAtomA = decltype(upcast<sizeof(dtypeA)>(make_layout(Shape<_32,_32>{}, GenRowMajor{})));
+    using SmemLayoutAtomA = decltype(make_layout(Shape<_32,Int<32/sizeof(dtypeA)>>{}, std::conditional_t<is_row_major_a, GenRowMajor, GenColMajor>{}));
     using SmemLayoutAtomB = decltype(upcast<sizeof(dtypeB)>(make_layout(Shape<_32,_32>{}, std::conditional_t<is_row_major_b, GenColMajor, GenRowMajor>{})));
 
     using SmemLayoutAtomC = Layout<Shape<Int<wg_m>, Int<wg_n>>, Stride<Int<wg_n>, _1>>;
