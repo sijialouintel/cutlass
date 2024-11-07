@@ -3,6 +3,7 @@
 #include "cute/arch/copy_xe4_dma.hpp"
 #include "cutlass/detail/layout.hpp"
 #include "cute/atom/copy_traits_sm90_tma.hpp"
+#include "cute/atom/copy_traits_xe4_dma.hpp"
 
 namespace cute
 {
@@ -18,7 +19,9 @@ struct XE4_IM2COL_COPY_Unpack
               Tensor<TS,SLayout>           const& src, // tile of the transformed global activation (A) tensor
               Tensor<TD,DLayout>                & dst) // shared memory tile
   {
-    if constexpr (CopyOp::isLoadOperation) {
+    constexpr auto isLoadOperation = !cute::is_base_of<xe4::ASYNC_ROW_STORE_IM2COL, CopyOp>::value;
+
+    if constexpr (isLoadOperation) {
       auto src_coord_offset = src(Int<0>{});
       auto src_coord_cwhdn_offset_srt = flatten(src_coord_offset);
 
@@ -43,71 +46,24 @@ struct XE4_IM2COL_COPY_Unpack
 /////////////////////////////////////// XE4_LOAD_IM2COL / XE4_STORE_IM2COL ///////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct XE4_LOAD_IM2COL_OP : xe4::ASYNC_ROW_LOAD_IM2COL {
-  static constexpr bool isLoadOperation = true;
-};
-
-struct XE4_STORE_IM2COL_OP : xe4::ASYNC_ROW_STORE_IM2COL {
-  static constexpr bool isLoadOperation = false;
-};
-
-template <class CopyOperation, class NumBitsPerTMA, class TMATensor, class TG, class CMType, class NumBytesPerCopy, class NumDims>
-struct Copy_Traits<CopyOperation, NumBitsPerTMA, TMATensor, TG, CMType, NumBytesPerCopy, NumDims>
-{
-  using ThrID = Layout<_1>;
-  using SrcLayout = Layout<Shape<_1, NumBitsPerTMA>>;
-  using DstLayout = Layout<Shape<_1, NumBitsPerTMA>>;
-  using RefLayout = SrcLayout;
-
-  using Im2ColDescriptor = xe4::Im2ColDescriptor<TG, CMType, NumBytesPerCopy::value, NumDims::value>;
-  using CopyOp = conditional_t<is_same_v<CopyOperation, xe4::ASYNC_ROW_LOAD_IM2COL>, XE4_LOAD_IM2COL_OP, XE4_STORE_IM2COL_OP>;
-
-  Im2ColDescriptor tma_desc_;
-  TMATensor tma_tensor_;
+template <class TensorDesc, class CoordTensor>
+struct Xe4Im2ColCache {
+  template <typename CopyOp>
+  using OpUnpack = XE4_IM2COL_COPY_Unpack<CopyOp>;
 
   CUTE_HOST_DEVICE constexpr
-  Im2ColDescriptor const*
-  get_tma_descriptor() const
-  {
-    return &tma_desc_;
+  auto get_tensor_desc() const {
+    return &tensor_desc_;
   }
 
   template <class GShape>
   CUTE_HOST_DEVICE constexpr
-  TMATensor const
-  get_tma_tensor(GShape const&) const
-  {
-    return tma_tensor_;
+  auto get_tma_tensor([[maybe_unused]] GShape const& g_shape) const {
+    return coord_tensor_;
   }
 
-  CUTE_HOST_DEVICE constexpr
-  Copy_Traits<CopyOp, NumBitsPerTMA, TG, CMType, NumBytesPerCopy, NumDims>
-  with(uint64_t* tma_mbar, [[maybe_unused]] uint16_t const& multicast_mask = 0) const
-  {
-    return {{}, {&tma_desc_, tma_mbar}};
-  }
-
-  template <class TS, class SLayout,
-            class TD, class DLayout>
-  CUTE_HOST_DEVICE friend constexpr void
-  copy_unpack(Copy_Traits        const& traits,
-              Tensor<TS,SLayout> const& src,
-              Tensor<TD,DLayout>      & dst) = delete;
-};
-
-template <class CopyOp, class NumBitsPerTMA, class TG, class CMType, class NumBytesPerCopy, class NumDims>
-struct Copy_Traits<CopyOp, NumBitsPerTMA, TG, CMType, NumBytesPerCopy, NumDims>
-     : XE4_IM2COL_COPY_Unpack<CopyOp>
-{
-  using ThrID = Layout<_1>;
-  using SrcLayout = Layout<Shape<_1, NumBitsPerTMA>>;
-  using DstLayout = Layout<Shape<_1, NumBitsPerTMA>>;
-  using RefLayout = SrcLayout;
-
-  tuple<
-  xe4::Im2ColDescriptor<TG, CMType, NumBytesPerCopy::value, NumDims::value> const*,
-  uint64_t* // smem mbarrier
-  > const opargs_;
+  TensorDesc tensor_desc_;
+  CoordTensor coord_tensor_;
 };
 
 namespace detail {
@@ -335,10 +291,13 @@ make_tma_atom_im2col(Tensor<GEngine,GLayout>      const& gtensor,           // F
   constexpr int num_bits_per_tma = decltype(size<0, 0>(tma_layout_trunc))::value * sizeof(T) * 8;
   constexpr int num_bytes_per_tma = decltype(size<0, 0>(tma_layout_trunc))::value * sizeof(T);
 
-  xe4::Im2ColDescriptor<T, cute::C<CMType::value>, num_bytes_per_tma, NumDims::value> tma_desc(gtensor.data(), gshape, gstride);
-  using Traits = Copy_Traits<CopyOp, cute::C<num_bits_per_tma>, decltype(tma_tensor), T, cute::C<CMType::value>, cute::C<num_bytes_per_tma>, cute::C<NumDims::value>>;
+  using Im2ColDesc = xe4::Im2ColDescriptor<T, cute::C<CMType::value>, num_bytes_per_tma, NumDims::value>;
+  using Im2ColCache = Xe4Im2ColCache<Im2ColDesc, decltype(tma_tensor)>;
+  using Traits = Copy_Traits<Xe4CopyOp<CopyOp>, cute::C<num_bits_per_tma>, Im2ColCache>;
   using Atom = Copy_Atom<Traits, typename GEngine::value_type>;
-  Traits tma_traits{tma_desc, tma_tensor};
+
+  Im2ColDesc desc {gtensor.data(), gshape, gstride};
+  Traits tma_traits{{desc, tma_tensor}};
 
   // Return the Copy_Atom
   return cute::make_tuple(Atom{tma_traits}, tma_tensor);
