@@ -238,6 +238,7 @@ struct CollectiveMma<
     TiledMma tiled_mma;
     constexpr auto scaleOutOne = C<cute::xe4::AMMA::ScaleOut::One>{};
     constexpr auto scaleOutZero = C<cute::xe4::AMMA::ScaleOut::Zero>{};
+    constexpr auto dstType = C<cute::xe4::AMMA::DstType::Accum>{};
 
     auto thread_mma = tiled_mma.get_thread_slice(0);
     auto tCsA = thread_mma.partition_fragment_A(sA);            // (MMA,MMA_M,MMA_K,PIPE)
@@ -258,9 +259,9 @@ struct CollectiveMma<
     pipeline.consumer_try_wait(slm_pipe_read);
     uint32_t read_stage = slm_pipe_read.index();
     auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
-    cute::gemm(tiled_mma.with(scaleOutZero, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,0,read_stage), tCsB(_,_,0,read_stage), accum);
+    cute::gemm(tiled_mma.with(scaleOutZero, dstType, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,0,read_stage), tCsB(_,_,0,read_stage), accum);
     for (int k_block = 1; k_block < size<2>(tCsA); ++k_block) {
-      cute::gemm(tiled_mma.with(scaleOutOne, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,k_block,read_stage), tCsB(_,_,k_block,read_stage), accum);
+      cute::gemm(tiled_mma.with(scaleOutOne, dstType, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,k_block,read_stage), tCsB(_,_,k_block,read_stage), accum);
     }
     pipeline.consumer_commit(slm_pipe_read, cluster_expect_tx);
     ++slm_pipe_read;
@@ -269,7 +270,7 @@ struct CollectiveMma<
       uint32_t read_stage = slm_pipe_read.index();
       pipeline.consumer_try_wait(slm_pipe_read);
       auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
-      cute::gemm(tiled_mma.with(scaleOutOne, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,_,read_stage), tCsB(_,_,_,read_stage), accum);
+      cute::gemm(tiled_mma.with(scaleOutOne, dstType, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,_,read_stage), tCsB(_,_,_,read_stage), accum);
       pipeline.consumer_commit(slm_pipe_read, cluster_expect_tx);
     }
 
@@ -278,7 +279,7 @@ struct CollectiveMma<
       pipeline.consumer_try_wait(slm_pipe_read);
       auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
       auto abar_cons_d = finalPipeline.store_get_barrier(finalPipelineState);
-      cute::gemm(tiled_mma.with(scaleOutOne, abar_cons_d, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,_,read_stage), tCsB(_,_,_,read_stage), accum);
+      cute::gemm(tiled_mma.with(scaleOutOne, dstType, abar_cons_d, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,_,read_stage), tCsB(_,_,_,read_stage), accum);
       pipeline.consumer_commit(slm_pipe_read, cluster_expect_tx);
       finalPipeline.store_commit(finalPipelineState, 1);
       finalPipeline.store_try_wait(finalPipelineState);

@@ -88,7 +88,7 @@ int run_test()
     using StrideC = cutlass::detail::TagToStrideC_t<LayoutC>;
 
     using TileShape = Shape<Int<wg_m>, Int<wg_n>, Int<wg_k>>;
-    using TiledMma = decltype(cute::make_tiled_mma(AMMA::ss_op_selector<AMMA::OpType::NoneCluster, dtypeA, dtypeB, dtypeAcc, TileShape, is_row_major_a, is_row_major_b>()));
+    using TiledMma = decltype(cute::make_tiled_mma(AMMA::ss_op_selector<AMMA::OpType::NoneCluster, dtypeA, dtypeB, dtypeAcc, dtypeC, TileShape, is_row_major_a, is_row_major_b>()));
 
     using SmemLayoutAtomA = decltype(make_layout(Shape<_32,Int<32/sizeof(dtypeA)>>{}, std::conditional_t<is_row_major_a, GenRowMajor, GenColMajor>{}));
     using SmemLayoutAtomB = decltype(upcast<sizeof(dtypeB)>(make_layout(Shape<_32,_32>{}, std::conditional_t<is_row_major_b, GenColMajor, GenRowMajor>{})));

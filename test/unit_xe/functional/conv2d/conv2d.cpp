@@ -308,17 +308,17 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
 
         constexpr auto scaleOutOne = cute::C<cute::xe4::AMMA::ScaleOut::One>{};
         constexpr auto scaleOutZero = cute::C<cute::xe4::AMMA::ScaleOut::Zero>{};
+        constexpr auto dstIsAccum = cute::C<cute::xe4::AMMA::DstType::Accum>{};
+        constexpr auto dstIsMatC = cute::C<cute::xe4::AMMA::DstType::MatC>{};
 
-        using TiledMmaQuaternion = decltype(cute::make_tiled_mma(AMMA::ss_op_selector<AMMA::OpType::NoneCluster, dtypeA, dtypeB, dtypeAcc, dtypeC, MmaTiler, is_row_major_a, is_row_major_b>()));
-        using TiledMmaTernary = decltype(cute::make_tiled_mma(AMMA::ss_op_selector<AMMA::OpType::NoneCluster, dtypeA, dtypeB, dtypeAcc, MmaTiler, is_row_major_a, is_row_major_b>()));
-        TiledMmaQuaternion tiled_mma_quaternion;
-        TiledMmaTernary tiled_mma_ternary;
-        auto thread_mma_quaternion = tiled_mma_quaternion.get_thread_slice(local_id - 32);
+        using TiledMma = decltype(cute::make_tiled_mma(AMMA::ss_op_selector<AMMA::OpType::NoneCluster, dtypeA, dtypeB, dtypeAcc, dtypeC, MmaTiler, is_row_major_a, is_row_major_b>()));
+        TiledMma tiled_mma;
+        auto thread_mma = tiled_mma.get_thread_slice(local_id - 32);
 
-        auto tCrA = thread_mma_quaternion.partition_fragment_A(sA_mma);            // (MMA,MMA_M,MMA_K,PIPE)
-        auto tCrB = thread_mma_quaternion.partition_fragment_B(sB_mma);            // (MMA,MMA_N,MMA_K,PIPE)
-        auto accum = thread_mma_quaternion.partition_fragment_C(sAcc_mma);         // (MMA,MMA_M,MMA_N)
-        auto tCrC = thread_mma_quaternion.partition_fragment_C(sC_mma);            // (MMA,MMA_M,MMA_N)
+        auto tCrA = thread_mma.partition_fragment_A(sA_mma);            // (MMA,MMA_M,MMA_K,PIPE)
+        auto tCrB = thread_mma.partition_fragment_B(sB_mma);            // (MMA,MMA_N,MMA_K,PIPE)
+        auto accum = thread_mma.partition_fragment_C(sAcc_mma);         // (MMA,MMA_M,MMA_N)
+        auto tCrC = thread_mma.partition_fragment_C(sC_mma);            // (MMA,MMA_M,MMA_N)
 
         if(subgroup_id == 0){
             auto shape_A_orig = make_shape(cute::reverse(cute::take<0, 3>(cutlass_problem_shape.shape_A)), cutlass_problem_shape.shape_A[3]);
@@ -435,12 +435,12 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                 if (kloop == 1) {
                     Pipeline::PipelineState slm_pipe_read;
                     pipeline.consumer_try_wait(slm_pipe_read);
-                    cute::gemm(tiled_mma_quaternion.with(scaleOutZero, abar_cons_base), tCrC, tCrA(_,_,_,0), tCrB(_,_,_,0), accum);
+                    cute::gemm(tiled_mma.with(scaleOutZero, dstIsMatC, abar_cons_base), tCrC, tCrA(_,_,_,0), tCrB(_,_,_,0), accum);
                     pipeline.consumer_commit(slm_pipe_read);
                 } else {
                     Pipeline::PipelineState slm_pipe_read;
                     pipeline.consumer_try_wait(slm_pipe_read);
-                    cute::gemm(tiled_mma_ternary.with(scaleOutZero, abar_cons_base), tCrA(_,_,_,0), tCrB(_,_,_,0), accum);
+                    cute::gemm(tiled_mma.with(scaleOutZero, dstIsAccum, abar_cons_base), tCrA(_,_,_,0), tCrB(_,_,_,0), accum);
                     pipeline.consumer_commit(slm_pipe_read);
 
                     for (uint32_t i = 1; i < kloop - 1; i++) {
@@ -448,7 +448,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
                         uint32_t abar_index = slm_pipe_read.index();
                         auto abar_cons = pipeline.consumer_get_barrier(abar_index);
                         pipeline.consumer_try_wait(slm_pipe_read);
-                        cute::gemm(tiled_mma_ternary.with(scaleOutOne, abar_cons), tCrA(_,_,_,abar_index), tCrB(_,_,_,abar_index), accum);
+                        cute::gemm(tiled_mma.with(scaleOutOne, dstIsAccum, abar_cons), tCrA(_,_,_,abar_index), tCrB(_,_,_,abar_index), accum);
                         pipeline.consumer_commit(slm_pipe_read);
                     }
                     {
@@ -461,7 +461,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
 
                         uint32_t phase = ((kloop - 1) / stage) & 1u;
                         pipeline.consumer_try_wait(abar_index, phase);
-                        cute::gemm(tiled_mma_quaternion.with(scaleOutOne, abar_store_prod), tCrC, tCrA(_,_,_,abar_index), tCrB(_,_,_,abar_index), accum);
+                        cute::gemm(tiled_mma.with(scaleOutOne, dstIsMatC, abar_store_prod), tCrC, tCrA(_,_,_,abar_index), tCrB(_,_,_,abar_index), accum);
                         pipeline_store.producer_commit(slm_pipe_store_prod, 1);
                     }
                 }
