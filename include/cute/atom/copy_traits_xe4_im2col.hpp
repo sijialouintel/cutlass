@@ -204,7 +204,7 @@ make_im2col_tma_copy_desc(
   return tma_tensor;
 }
 
-template <class CopyOp, class CMType, class NumDims,
+template <class CopyOp, class CMType,
           class GEngine, class GLayout,
           class SLayout,
           class VShape, class VStride,
@@ -218,8 +218,6 @@ template <class CopyOp, class CMType, class NumDims,
 CUTE_HOST_RTC
 auto
 make_tma_atom_im2col(Tensor<GEngine,GLayout>      const& gtensor,           // Full GMEM Tensor: ((w, h, d, n), c)
-                     cute::array<int, NumDims::value> const& gshape,
-                     cute::array<int64_t, NumDims::value> const& gstride,
                      SLayout                      const& slayout,           // CTA Tile of SMEM, potentially swizzled
                      int32_t                      const& num_multicast,     // The number of CTAs involved in multicasting
                      Layout<VShape,VStride>       const& cta_v_map,         // V: CTA val idx -> gmem mode
@@ -291,19 +289,19 @@ make_tma_atom_im2col(Tensor<GEngine,GLayout>      const& gtensor,           // F
   constexpr int num_bits_per_tma = decltype(size<0, 0>(tma_layout_trunc))::value * sizeof(T) * 8;
   constexpr int num_bytes_per_tma = decltype(size<0, 0>(tma_layout_trunc))::value * sizeof(T);
 
-  using Im2ColDesc = xe4::Im2ColDescriptor<T, cute::C<CMType::value>, num_bytes_per_tma, NumDims::value>;
+  using Im2ColDesc = xe4::Im2ColDescriptor<T, cute::C<CMType::value>, num_bytes_per_tma>;
   using Im2ColCache = Xe4Im2ColCache<Im2ColDesc, decltype(tma_tensor)>;
   using Traits = Copy_Traits<Xe4CopyOp<CopyOp>, cute::C<num_bits_per_tma>, Im2ColCache>;
   using Atom = Copy_Atom<Traits, typename GEngine::value_type>;
 
-  Im2ColDesc desc {gtensor.data(), gshape, gstride};
+  Im2ColDesc desc = cute::xe4::make_async_row_copy_desc<CMType, num_bytes_per_tma>(gtensor);
   Traits tma_traits{{desc, tma_tensor}};
 
   // Return the Copy_Atom
-  return cute::make_tuple(Atom{tma_traits}, tma_tensor);
+  return Atom{tma_traits};
 }
 
-template <class CopyOp, class CMType, class NumDims,
+template <class CopyOp, class CMType,
           class Engine0, class Layout0,
           class SLayout,
           class ThrLayout,
@@ -319,8 +317,6 @@ template <class CopyOp, class CMType, class NumDims,
 CUTE_HOST_RTC
 auto
 make_im2col_tma_copy(Tensor<Engine0, Layout0> const& tensor_cwhdn,
-                     cute::array<int, NumDims::value> const& tensor_shape,
-                     cute::array<int64_t, NumDims::value> const& tensor_stride,
                      SLayout                  const& slayout,
                      ThrLayout                const& thrlayout,
                      ValLayout                const& vallayout,
@@ -335,12 +331,11 @@ make_im2col_tma_copy(Tensor<Engine0, Layout0> const& tensor_cwhdn,
                      DilationStride           const& stride_srt)
 {
   auto cta_v_tile = make_identity_layout(product_each(shape(tensor_cwhdn))).compose(cta_tiler);
-  auto [tma_atom, tma_tensor] = detail::make_tma_atom_im2col<CopyOp, CMType, NumDims>(tensor_cwhdn, tensor_shape, tensor_stride,
-                                                                                      slayout, multicast_size, cta_v_tile,
-                                                                                      lower_corner_whd, upper_corner_whd, lower_padding_whd, upper_padding_whd, stride_whd, lower_srt, stride_srt);
+  auto tma_atom = detail::make_tma_atom_im2col<CopyOp, CMType>(tensor_cwhdn,
+                                                                        slayout, multicast_size, cta_v_tile,
+                                                                        lower_corner_whd, upper_corner_whd, lower_padding_whd, upper_padding_whd, stride_whd, lower_srt, stride_srt);
 
-  TiledCopy tile_copy = make_tiled_copy(tma_atom, thrlayout, vallayout);
-  return cute::make_tuple(tile_copy, tma_tensor);
+  return make_tiled_copy(tma_atom, thrlayout, vallayout);
 }
 
 } // namespace detail

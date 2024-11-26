@@ -118,11 +118,11 @@ void pattern2(STensor const& src_tensor, DTensor& dst_tensor, uint32_t worker_id
 
   auto tile_shape = product_each(shape(dst_tensor));
 
-  auto tiled_s2r = make_pattern2_tiled_copy<xe4::SLM_VLOAD, SType, SubgroupNum, SubgroupSize>(tile_shape);
+  auto tiled_s2r = make_pattern2_tiled_copy<cute::xe4::SLM_VLOAD, SType, SubgroupNum, SubgroupSize>(tile_shape);
   auto thread_s2r = tiled_s2r.get_thread_slice(worker_id);
   Tensor tSR_src = thread_s2r.partition_S(src_tensor);
 
-  auto tiled_r2s = make_pattern2_tiled_copy<xe4::SLM_VSTORE, SType, SubgroupNum, SubgroupSize>(tile_shape);
+  auto tiled_r2s = make_pattern2_tiled_copy<cute::xe4::SLM_VSTORE, SType, SubgroupNum, SubgroupSize>(tile_shape);
   auto thread_r2s = tiled_r2s.get_thread_slice(worker_id);
   Tensor tRS_dst = thread_r2s.partition_D(dst_tensor);
 

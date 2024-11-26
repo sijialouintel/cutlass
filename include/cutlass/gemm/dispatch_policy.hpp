@@ -108,6 +108,7 @@ struct KernelTmaWarpSpecialized { };
 struct KernelTmaWarpSpecializedPingpong { };
 struct KernelTmaWarpSpecializedCooperative {
 };
+struct KernelImplicitTmaWarpSpecializedXe4 { };
 
 struct KernelPtrArrayTmaWarpSpecializedCooperative { };
 struct KernelPtrArrayTmaWarpSpecializedPingpong { };
@@ -331,6 +332,28 @@ struct MainloopXe4DmaGmmaWarpSpecialized {
   using Schedule = KernelSchedule;
   static_assert(
     cute::is_same_v<Schedule, KernelTmaWarpSpecialized>,
+    "KernelSchedule must be one of the warp specialized policies");
+};
+
+template<
+  conv::Operator ConvOp_,
+  int Stages_,
+  int NumSpatialDimensions_,
+  class ClusterShape_ = Shape<_1,_1,_1>,
+  class KernelSchedule = KernelImplicitTmaWarpSpecializedXe4,
+  int PipelineAsyncMmaStages_= 1
+>
+struct MainloopXe4DmaGmmaWarpSpecializedImplicitGemm {
+  static constexpr int Stages = Stages_;
+  static constexpr int NumSpatialDimensions = NumSpatialDimensions_;
+  static constexpr conv::Operator ConvOp = ConvOp_;
+  static constexpr int PipelineAsyncMmaStages = PipelineAsyncMmaStages_;
+  using ClusterShape = ClusterShape_;
+  using ArchTag = arch::Sm90;
+  using Schedule = KernelSchedule;
+
+  static_assert(NumSpatialDimensions >= 1);
+  static_assert(cute::is_same_v<Schedule, KernelImplicitTmaWarpSpecializedXe4>,
     "KernelSchedule must be one of the warp specialized policies");
 };
 

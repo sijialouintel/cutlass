@@ -67,21 +67,6 @@ struct ASYNC_TENSOR_STORE
 /// ASYNC_TENSOR_LOAD_MULTICAST: Initiates a async tensor copy from global memory to shared memory
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-template<typename T, typename CMType, int NumBytesPerCopy, int NumDims>
-struct Im2ColDescriptor {
-  T* gmem_address;
-  uint32_t gmem_shape[NumDims];
-  uint64_t gmem_stride[NumDims - 1];
-
-  Im2ColDescriptor(T* address, cute::array<int, NumDims> const&shape, cute::array<int64_t, NumDims> const&stride) : gmem_address(address) {
-    for (int i = 0; i < NumDims; i++)
-      gmem_shape[i] = shape[NumDims - 1 - i];
-
-    for (int i = 0; i < NumDims - 1; i++)
-      gmem_stride[i] = stride[NumDims - 2 - i] * sizeof(T);
-  }
-};
-
 struct ASYNC_TENSOR_LOAD_MULTICAST
 {
   template<class T>
@@ -136,6 +121,31 @@ struct SLM_VSTORE
 /// ASYNC_ROW_LOAD_IM2COL: Initiates an im2col async row copy from global memory to shared memory
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+template<typename T, typename CMType, int NumBytesPerCopy> 
+struct alignas(64) Im2ColDescriptor {
+  uint64_t bytes[10];   // support from 3D tensor to 5D tensor
+};
+
+template <class CMType, int NumBytesPerCopy, class GTensor>
+CUTE_HOST_DEVICE auto
+make_async_row_copy_desc(GTensor const& gtensor)
+{
+  using T = typename GTensor::value_type;
+
+  Im2ColDescriptor<T, CMType, NumBytesPerCopy> tdesc_ptr = {};
+  tdesc_ptr.bytes[0] = reinterpret_cast<uint64_t>(gtensor.data());
+  tdesc_ptr.bytes[1] = shape<0>(layout<1>(gtensor));
+  tdesc_ptr.bytes[2] = shape<0>(layout<0>(gtensor));
+  tdesc_ptr.bytes[3] = shape<1>(layout<0>(gtensor));
+  tdesc_ptr.bytes[4] = shape<2>(layout<0>(gtensor));
+
+  tdesc_ptr.bytes[6] = stride<0>(layout<0>(gtensor)) * sizeof(T);
+  tdesc_ptr.bytes[7] = stride<1>(layout<0>(gtensor)) * sizeof(T);
+  tdesc_ptr.bytes[8] = stride<2>(layout<0>(gtensor)) * sizeof(T);
+
+  return tdesc_ptr;
+}
+
 template <typename T>
 inline uint32_t get_copy_size(const int32_t coord, const uint32_t shape, uint32_t width_2d) {
     uint32_t left_size = (shape - coord) * sizeof(T);
@@ -145,37 +155,38 @@ inline uint32_t get_copy_size(const int32_t coord, const uint32_t shape, uint32_
 
 struct XE4_ASYNC_ROW_LOAD_IM2COL_4D
 {
-  template<class TS, class TG, class CMType, int NumBytesPerCopy, int NumDims>
+  template<class TS, class TG, class CMType, int NumBytesPerCopy>
   CUTE_HOST_DEVICE static void
-  copy(const Im2ColDescriptor<TG, CMType, NumBytesPerCopy, NumDims>* tma_desc, uint64_t const* abar_ptr,
+  copy(Im2ColDescriptor<TG, CMType, NumBytesPerCopy> const* tma_desc, uint64_t const* abar_ptr,
                               TS const* slm_ptr,
                               int32_t crd_c, int32_t crd_w, int32_t crd_h, int32_t crd_n, int32_t crd_s, int32_t crd_r)
   {
     constexpr uint32_t slm_stride = NumBytesPerCopy / sizeof(TG);
+    TG* gmem_address = reinterpret_cast<TG*>(tma_desc->bytes[0]);
     TS const* slm_inst_ptr = slm_ptr - get_lane_id() * slm_stride;
     int32_t crd1 = crd_w + crd_s;
     int32_t crd2 = crd_h + crd_r;
-    bool is_coord_valid = (crd1 >= 0) && (crd1 < tma_desc->gmem_shape[1]);
-    is_coord_valid = is_coord_valid && (crd2 >= 0) && (crd2 < tma_desc->gmem_shape[2]);
-    is_coord_valid = is_coord_valid && (crd_n >= 0) && (crd_n < tma_desc->gmem_shape[3]);
+    bool is_coord_valid = (crd1 >= 0) && (crd1 < tma_desc->bytes[2]);
+    is_coord_valid = is_coord_valid && (crd2 >= 0) && (crd2 < tma_desc->bytes[3]);
+    is_coord_valid = is_coord_valid && (crd_n >= 0) && (crd_n < tma_desc->bytes[4]);
 
-    uint32_t offset = crd_c * sizeof(TG) + crd1 * tma_desc->gmem_stride[0] + crd2 * tma_desc->gmem_stride[1] + crd_n * tma_desc->gmem_stride[2];
+    uint32_t offset = crd_c * sizeof(TG) + crd1 * tma_desc->bytes[6] + crd2 * tma_desc->bytes[7] + crd_n * tma_desc->bytes[8];
     offset = is_coord_valid ? offset : 0;
-    uint32_t copy_size = is_coord_valid ? get_copy_size<TG>(crd_c, tma_desc->gmem_shape[0], NumBytesPerCopy) : 0;
-    async_2d_tiled_load<CMType::value, NumBytesPerCopy>(slm_inst_ptr, tma_desc->gmem_address, offset, copy_size, abar_ptr);
+    uint32_t copy_size = is_coord_valid ? get_copy_size<TG>(crd_c, tma_desc->bytes[1], NumBytesPerCopy) : 0;
+    async_2d_tiled_load<CMType::value, NumBytesPerCopy>(slm_inst_ptr, gmem_address, offset, copy_size, abar_ptr);
   }
 };
 
 struct ASYNC_ROW_LOAD_IM2COL
 {
-  template<class TS, class TG, class CMType, int NumBytesPerCopy, int NumDims>
+  template<class TS, class TG, class CMType, int NumBytesPerCopy>
   CUTE_HOST_DEVICE static void
-  copy(const Im2ColDescriptor<TG, CMType, NumBytesPerCopy, NumDims>* tma_desc, uint64_t const* abar_ptr,
+  copy(Im2ColDescriptor<TG, CMType, NumBytesPerCopy> const* tma_desc, uint64_t const* abar_ptr,
                               TS const* slm_ptr,
                               int32_t crd_c, int32_t crd_w, int32_t crd_h, int32_t crd_n,
                               int32_t crd_s, int32_t crd_r)
   {
-    return XE4_ASYNC_ROW_LOAD_IM2COL_4D::copy<TS, TG, CMType, NumBytesPerCopy, NumDims>(tma_desc, abar_ptr, slm_ptr,
+    return XE4_ASYNC_ROW_LOAD_IM2COL_4D::copy<TS, TG, CMType, NumBytesPerCopy>(tma_desc, abar_ptr, slm_ptr,
                                          crd_c, crd_w, crd_h, crd_n,
                                          crd_s, crd_r);
   }
@@ -187,35 +198,34 @@ struct ASYNC_ROW_LOAD_IM2COL
 
 struct XE4_ASYNC_ROW_STORE_IM2COL_4D
 {
-  template<class TS, class TG, class CMType, int NumBytesPerCopy, int NumDims>
+  template<class TS, class TG, class CMType, int NumBytesPerCopy>
   CUTE_HOST_DEVICE static void
-  copy(const Im2ColDescriptor<TG, CMType, NumBytesPerCopy, NumDims>* tma_desc, uint64_t const* abar_ptr, TS const* slm_ptr,
+  copy(Im2ColDescriptor<TG, CMType, NumBytesPerCopy> const* tma_desc, uint64_t const* abar_ptr, TS const* slm_ptr,
                               int32_t crd_c, int32_t crd_w, int32_t crd_h, int32_t crd_n)
   {
     constexpr uint32_t slm_stride = NumBytesPerCopy / sizeof(TG);
+    TG* gmem_address = reinterpret_cast<TG*>(tma_desc->bytes[0]);
     TS const* slm_inst_ptr = slm_ptr - get_lane_id() * slm_stride;
+    bool is_coord_valid = (crd_w >= 0) && (crd_w < tma_desc->bytes[2]);
+    is_coord_valid = is_coord_valid && (crd_h >= 0) && (crd_h < tma_desc->bytes[3]);
+    is_coord_valid = is_coord_valid && (crd_n >= 0) && (crd_n < tma_desc->bytes[4]);
 
-    bool is_coord_valid = (crd_w >= 0) && (crd_w < tma_desc->gmem_shape[1]);
-    is_coord_valid = is_coord_valid && (crd_h >= 0) && (crd_h < tma_desc->gmem_shape[2]);
-    is_coord_valid = is_coord_valid && (crd_n >= 0) && (crd_n < tma_desc->gmem_shape[3]);
-
-    uint32_t offset = crd_c * sizeof(TG) + crd_w * tma_desc->gmem_stride[0] + crd_h * tma_desc->gmem_stride[1] + crd_n * tma_desc->gmem_stride[2];
+    uint32_t offset = crd_c * sizeof(TG) + crd_w * tma_desc->bytes[6] + crd_h * tma_desc->bytes[7] + crd_n * tma_desc->bytes[8];
     offset = is_coord_valid ? offset : 0;
-    uint32_t copy_size = is_coord_valid ? get_copy_size<TG>(crd_c, tma_desc->gmem_shape[0], NumBytesPerCopy) : 0;
-    async_2d_tiled_store<CMType::value, NumBytesPerCopy>(slm_inst_ptr, tma_desc->gmem_address, offset, copy_size, abar_ptr);
+    uint32_t copy_size = is_coord_valid ? get_copy_size<TG>(crd_c, tma_desc->bytes[1], NumBytesPerCopy) : 0;
+    async_2d_tiled_store<CMType::value, NumBytesPerCopy>(slm_inst_ptr, gmem_address, offset, copy_size, abar_ptr);
   }
 };
 
 struct ASYNC_ROW_STORE_IM2COL
 {
-  template<class TS, class TG, class CMType, int NumBytesPerCopy, int NumDims>
+  template<class TS, class TG, class CMType, int NumBytesPerCopy>
   CUTE_HOST_DEVICE static void
-  copy(const Im2ColDescriptor<TG, CMType, NumBytesPerCopy, NumDims>* tma_desc, uint64_t const* abar_ptr,
+  copy(Im2ColDescriptor<TG, CMType, NumBytesPerCopy> const* tma_desc, uint64_t const* abar_ptr,
                               TS const* slm_ptr,
                               int32_t crd_c, int32_t crd_w, int32_t crd_h, int32_t crd_n)
   {
-    return XE4_ASYNC_ROW_STORE_IM2COL_4D::copy<TS, TG, CMType, NumBytesPerCopy, NumDims>(tma_desc, abar_ptr, slm_ptr,
-                                                                                         crd_c, crd_w, crd_h, crd_n);
+    return XE4_ASYNC_ROW_STORE_IM2COL_4D::copy<TS, TG, CMType, NumBytesPerCopy>(tma_desc, abar_ptr, slm_ptr, crd_c, crd_w, crd_h, crd_n);
   }
 };
 } // namespace cute::xe4

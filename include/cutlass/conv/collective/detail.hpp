@@ -32,6 +32,8 @@
 
 #include "cutlass/conv/convnd_problem_shape.hpp"
 
+using namespace cute;
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace cutlass::conv::collective::detail {
