@@ -17,7 +17,7 @@ using namespace cute::detail;
 using namespace cutlass::gemm;
 
 template <
-  conv::Operator ConvOp,
+  class ConvOp_,
   int Stages,
   int NumSpatialDims,
   class ClusterShape,
@@ -35,7 +35,7 @@ struct CollectiveConv
   // Type Aliases
   //
   using DispatchPolicy = MainloopXe4DmaGmmaWarpSpecializedImplicitGemm<
-    ConvOp, Stages, NumSpatialDims, ClusterShape, KernelSchedule, PipelineAsyncMmaStages>;
+    ConvOp_, Stages, NumSpatialDims, ClusterShape, KernelSchedule, PipelineAsyncMmaStages>;
   using TileShape = TileShape_;
   using ElementA = ElementA_;
   using ElementB = ElementB_;
@@ -67,6 +67,7 @@ struct CollectiveConv
   using MainloopPipeline = cutlass::xe4::PipelineTmaAsync<DispatchPolicy::Stages>;
   using PipelineState  = typename cutlass::xe4::PipelineState<DispatchPolicy::Stages>;
 
+  static constexpr auto ConvOp = ConvOp_::value;
   using ProblemShape = ConvProblemShape<ConvOp, NumSpatialDimensions>;
 
   static constexpr bool is_im2col_A = true;
@@ -110,7 +111,7 @@ private:
 
     return make_im2col_tma_copy<cute::xe4::ASYNC_ROW_LOAD_IM2COL, cute::C<cm_typeA>>(
       tensor_a,
-      make_layout(make_shape(size<0>(TileShape{}), size<2>(TileShape{})), 
+      make_layout(make_shape(size<0>(TileShape{}), size<2>(TileShape{})),
         make_stride(size<2>(TileShape{}), Int<1>{})),
       Layout<Shape<cute::C<LANESIZE>, _1>>{},
       make_layout(make_shape(Int<1>{}, size<2>(TileShape{}))),
@@ -130,7 +131,7 @@ private:
   template <class TensorB>
   static constexpr auto
   get_tma_load_b_instance(TensorB const& tensor_b, ProblemShape const& problem_shape) {
-    auto layoutSB = make_layout(make_shape(size<1>(TileShape{}), size<2>(TileShape{}), Int<Stages>{}), 
+    auto layoutSB = make_layout(make_shape(size<1>(TileShape{}), size<2>(TileShape{}), Int<Stages>{}),
                                 make_stride(size<2>(TileShape{}), Int<1>{}, size<1>(TileShape{}) * size<2>(TileShape{})));
     return make_xe4_copy_conv2d<cute::xe4::ASYNC_TENSOR_LOAD, AuxParamsB>(
       tensor_b,
@@ -307,7 +308,7 @@ public:
 
     pipeline.consumer_try_wait(slm_pipe_read);
     auto abar_cons_base = pipeline.abar_cons_base;
-    
+
     if (k_tile_count == 1) {
       cute::gemm(tiled_mma.with(scaleOutZero, dstIsMatC, abar_cons_base), tCrC, tCrA(_,_,_,0), tCrB(_,_,_,0), accum);
       pipeline.consumer_commit(slm_pipe_read);

@@ -69,13 +69,11 @@ int main()
             using LayoutB = cutlass::layout::RowMajor;
             using StrideB = cutlass::detail::TagToStrideC_t<LayoutB>;
             using SmemLayout = Layout<Shape<Int<boxSizeY>, Int<boxSizeX>>, Stride<Int<boxSizeX>, _1>>;
-            
+
             auto problem_shape = make_shape(gmemSizeY, gmemSizeX, 0, 1);
 
             using CollectiveEpilogue = cutlass::epilogue::collective::DefaultEpilogue<
-                StrideA,
                 StrideB,
-                SmemLayout,
                 SmemLayout,
                 TileShape,
 #if defined(RELU)
@@ -86,12 +84,12 @@ int main()
                 cutlass::gemm::EpilogueDefault
             >;
 
-            using ElementSrc = typename CollectiveEpilogue::ElementC;
-            using SmemLayoutSrc = typename CollectiveEpilogue::SmemLayoutC;
-            using GmemTiledCopySrc = typename CollectiveEpilogue::GmemTiledCopyC;
+            using ElementSrc = dtype_src;
+            using SmemLayoutSrc = SmemLayout;
+            using GmemTiledCopySrc = cute::xe4::ASYNC_TENSOR_LOAD;
             using AuxParamsSrc = AuxParams<slm_matrix_type::type1, typename CollectiveEpilogue::TensorDescPtr, 0>;
-            using SrcLoadPipeline = typename CollectiveEpilogue::EpilogueLoadPipeline;
-            using SrcLoadPipelineState = typename CollectiveEpilogue::LoadPipelineState;
+            using SrcLoadPipeline = cutlass::xe4::PipelineTmaAsync<1, 1, uint64_t*>;
+            using SrcLoadPipelineState = typename SrcLoadPipeline::PipelineState;
 
             struct SharedStorage
             {

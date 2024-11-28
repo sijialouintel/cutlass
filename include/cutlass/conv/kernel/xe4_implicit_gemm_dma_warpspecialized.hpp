@@ -45,6 +45,7 @@ public:
   using SmemLayoutB = typename CollectiveMainloop::SmemLayoutB;
   using DispatchPolicy = typename CollectiveMainloop::DispatchPolicy;
   using ElementAccumulator = typename CollectiveMainloop::ElementAccumulator;
+  using SmemLayoutC = decltype(make_layout(take<0,2>(TileShape{}), GenRowMajor{}));
   using ClusterShape = typename DispatchPolicy::ClusterShape;
   using MainloopArguments = typename CollectiveMainloop::Arguments;
   using MainloopParams = typename CollectiveMainloop::Params;
@@ -53,7 +54,6 @@ public:
   using CollectiveEpilogue = CollectiveEpilogue_;
   using EpilogueArguments = typename CollectiveEpilogue::Arguments;
   using EpilogueParams = typename CollectiveEpilogue::Params;
-  using SmemLayoutC = typename CollectiveEpilogue::SmemLayoutC;
   using ElementD = typename CollectiveEpilogue::ElementD;
 
   struct SharedStorage
@@ -169,13 +169,13 @@ public:
     if(warp_group_role == SubGroupRole::Producer){
       auto n_coord = idx2crd(int(item.get_group(2)), shape<2>(gB_nk), compact_col_major(shape<2>(gB_nk)));
       auto blk_coord = make_tuple(uint32_t(item.get_group(1)), n_coord, 0, 0);
-      
+
       collective_mainloop.load(params.mainloop, mainloop_pipeline, mainloop_pipe_producer_state, load_inputs, blk_coord, k_tile_iter, k_tile_count, local_id, shared_storage->tensors.mainloop);
     }
     else if (warp_group_role == SubGroupRole::Consumer){
       collective_mainloop.mma(mainloop_pipeline, mainloop_pipe_consumer_state, epilogue_store_pipeline, epilogue_pipe_store_producer_state, accumulator, dst, k_tile_count, local_id, ptr);
     }
-    
+
     if (warp_group_role == SubGroupRole::EpiloguePostOp) {
       collective_epilogue.store(params.epilogue, epilogue_store_pipeline, epilogue_pipe_store_consumer_state, conv_problem_shape, local_id - 64, shared_storage->tensors.epilogue);
     }

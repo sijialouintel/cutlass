@@ -336,7 +336,7 @@ struct MainloopXe4DmaGmmaWarpSpecialized {
 };
 
 template<
-  conv::Operator ConvOp_,
+  class ConvOp_,
   int Stages_,
   int NumSpatialDimensions_,
   class ClusterShape_ = Shape<_1,_1,_1>,
@@ -346,8 +346,8 @@ template<
 struct MainloopXe4DmaGmmaWarpSpecializedImplicitGemm {
   static constexpr int Stages = Stages_;
   static constexpr int NumSpatialDimensions = NumSpatialDimensions_;
-  static constexpr conv::Operator ConvOp = ConvOp_;
   static constexpr int PipelineAsyncMmaStages = PipelineAsyncMmaStages_;
+  using ConvOp = ConvOp_;
   using ClusterShape = ClusterShape_;
   using ArchTag = arch::Sm90;
   using Schedule = KernelSchedule;

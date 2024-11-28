@@ -74,9 +74,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     using TiledMma = decltype(cute::make_tiled_mma(AMMA::ss_op_selector<AMMA::OpType::NoneCluster, ElementAct, ElementFlt, ElementAcc, ElementOut, MmaTiler, IsRowMajorA, IsRowMajorB>()));
     using SmemLayoutAtomA = decltype(make_layout(Shape<_32, Int<32 / sizeof(ElementAct)>>{}, std::conditional_t<IsRowMajorA, GenRowMajor, GenColMajor>{}));
     using SmemLayoutAtomB = decltype(upcast<sizeof(ElementFlt)>(make_layout(Shape<_32, _32>{}, std::conditional_t<IsRowMajorB, GenColMajor, GenRowMajor>{})));
-    
     using SmemLayoutC = decltype(make_layout(make_shape(bM, bN), make_stride(bN, Int<1>{})));
-    using SmemLayoutD = decltype(make_layout(make_shape(bM, bN), make_stride(bN, Int<1>{})));
 
     uint32_t sizeA = C * W * H * N;
     uint32_t sizeB = C * S * R * K;
@@ -101,7 +99,7 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     nd_range<3> Range(group_range * local_range, local_range);
 
     using CollectiveMainloop = CollectiveConv<
-        cutlass::conv::Operator::kFprop,
+        cute::C<cutlass::conv::Operator::kFprop>,
         Stages,
         2,
         ClusterShapeMNK,
@@ -117,7 +115,6 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
         cutlass::conv::Operator::kFprop,
         CollectiveMainloop::DispatchPolicy::NumSpatialDimensions,
         SmemLayoutC,
-        SmemLayoutD,
         TileShape,
         ElementOut>;
     using ProblemShape = cutlass::conv::ConvProblemShape<

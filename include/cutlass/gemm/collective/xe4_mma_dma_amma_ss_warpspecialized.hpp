@@ -62,12 +62,8 @@ struct CollectiveMma<
   using SmemCopyAtomB = SmemCopyAtomB_;
 
   using TensorDescPtr = uint64_t*;
-  using AbarrierPtr = uint64_t*;
-  using MatrixDesc = uint32_t;
-
-  using ElementC = typename TiledMma::ValTypeD;
+  using Abarrier = typename TiledMma::AbarrierType;
   using ElementAccumulator = typename TiledMma::ValTypeC;
-  using StrideC = cutlass::detail::TagToStrideC_t<cutlass::layout::RowMajor>;
 
   static constexpr bool IsRowMajorA = cutlass::detail::is_major<1, StrideA>();
   static constexpr bool IsRowMajorB = cutlass::detail::is_major<0, StrideB>();
@@ -79,7 +75,7 @@ struct CollectiveMma<
   >;
   using AuxParamsB = AuxParams<slm_matrix_type::type1, TensorDescPtr, 1>;
 
-  using MainloopPipeline = cutlass::xe4::PipelineTmaAsync<Stages, 0, AbarrierPtr>;
+  using MainloopPipeline = cutlass::xe4::PipelineTmaAsync<Stages, 0, Abarrier>;
   using PipelineState = cutlass::xe4::PipelineState<Stages>;
 
   static_assert(DispatchPolicy::Stages >= 2, "Specialization requires Stages set to value 2 or more.");

@@ -25,9 +25,7 @@ using namespace cutlass::epilogue::thread::detail;
 /// Applies an element wise operation to all elements within the fragment
 /// and writes them out to destination storage.
 template <
-  class StrideC_,
   class StrideD_,
-  class SmemLayoutC_,
   class SmemLayoutD_,
   class TileShape_,
   class ThreadEpilogueOp_,
@@ -38,30 +36,21 @@ public:
   using ThreadEpilogueOp = ThreadEpilogueOp_;
   using ElementOutput = typename ThreadEpilogueOp::ElementOutput;
   using ElementAccumulator = typename ThreadEpilogueOp::ElementAccumulator;
-  using ElementC = ElementAccumulator;
   using ElementD = ElementOutput;
-  using StrideC = StrideC_;
   using StrideD = StrideD_;
   using TileShape = TileShape_;
 
   using TensorDescPtr = uint64_t*;
   using AbarrierPtr = uint64_t*;
 
-  using SmemLayoutC = SmemLayoutC_;
-  using GmemTiledCopyC = cute::xe4::ASYNC_TENSOR_LOAD;
-  using AuxParamsC = AuxParams<slm_matrix_type::type1, TensorDescPtr, 2>;
-
   using SmemLayoutD = SmemLayoutD_;
   using GmemTiledCopyD = cute::xe4::ASYNC_TENSOR_STORE;
   using AuxParamsD = AuxParams<slm_matrix_type::type1, TensorDescPtr, 3>;
 
-  using EpilogueLoadPipeline = cutlass::xe4::PipelineTmaAsync<1, 1, AbarrierPtr>;
-  using LoadPipelineState = typename EpilogueLoadPipeline::PipelineState;
-
   using EpilogueStorePipeline = cutlass::xe4::PipelineTmaStore<1, 2, AbarrierPtr>;
   using StorePipelineState = typename EpilogueStorePipeline::PipelineState;
 
-  static_assert(cute::rank(StrideC{}) == 3, "StrideC must be rank-3: [M, N, L]");
+  static_assert(cute::rank(StrideD{}) == 3, "StrideD must be rank-3: [M, N, L]");
 
   struct SharedStorage
   {
@@ -76,7 +65,7 @@ public:
   // Host side epilogue arguments
   struct Arguments {
     ElementD const* ptr_D = nullptr;
-    StrideC dD{};
+    StrideD dD{};
   };
 
   // Device side epilogue params

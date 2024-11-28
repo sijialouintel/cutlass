@@ -92,7 +92,6 @@ int run_test()
 
     using SmemLayoutAtomA = decltype(make_layout(Shape<_32,Int<32/sizeof(dtypeA)>>{}, std::conditional_t<is_row_major_a, GenRowMajor, GenColMajor>{}));
     using SmemLayoutAtomB = decltype(upcast<sizeof(dtypeB)>(make_layout(Shape<_32,_32>{}, std::conditional_t<is_row_major_b, GenColMajor, GenRowMajor>{})));
-
     using SmemLayoutAtomC = Layout<Shape<Int<wg_m>, Int<wg_n>>, Stride<Int<wg_n>, _1>>;
 
     using CollectiveMainloop = CollectiveMma<
@@ -120,8 +119,6 @@ int run_test()
 
     using CollectiveEpilogue = cutlass::epilogue::collective::DefaultEpilogue<
         StrideC,
-        StrideC,
-        SmemLayoutAtomC,
         SmemLayoutAtomC,
         decltype(take<0, 2>(TileShape{})),
         EpilogueOp,

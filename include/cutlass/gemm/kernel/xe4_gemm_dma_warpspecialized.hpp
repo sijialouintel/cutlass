@@ -46,6 +46,7 @@ public:
   using SmemLayoutB = typename CollectiveMainloop::SmemLayoutB;
   using DispatchPolicy = typename CollectiveMainloop::DispatchPolicy;
   using ElementAccumulator = typename CollectiveMainloop::ElementAccumulator;
+  using SmemLayoutC = decltype(make_layout(take<0,2>(TileShape{}), GenRowMajor{}));
   using ClusterShape = typename DispatchPolicy::ClusterShape;
   using MainloopArguments = typename CollectiveMainloop::Arguments;
   using MainloopParams = typename CollectiveMainloop::Params;
@@ -54,8 +55,6 @@ public:
   using CollectiveEpilogue = CollectiveEpilogue_;
   using EpilogueArguments = typename CollectiveEpilogue::Arguments;
   using EpilogueParams = typename CollectiveEpilogue::Params;
-  using SmemLayoutC = typename CollectiveEpilogue::SmemLayoutC;
-  using ThreadEpilogueOp = typename CollectiveEpilogue::ThreadEpilogueOp;
 
   struct SharedStorage
   {

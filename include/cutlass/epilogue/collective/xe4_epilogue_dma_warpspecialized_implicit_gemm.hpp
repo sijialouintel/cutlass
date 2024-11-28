@@ -26,7 +26,6 @@ constexpr slm_matrix_type cm_typeD = slm_matrix_type::type1;
 template <
   conv::Operator ConvOp,
   int NumSpatialDims,
-  class SmemLayoutC_,
   class SmemLayoutD_,
   class TileShape_,
   class ElementD_
@@ -35,7 +34,6 @@ class EpilogueConv {
 public:
   using ElementD = ElementD_;
   using TileShape = TileShape_;
-  using SmemLayoutC = SmemLayoutC_;
   using SmemLayoutD = SmemLayoutD_;
 
   using EpilogueStorePipeline = cutlass::xe4::PipelineTmaAsync<1, 1>;
@@ -134,7 +132,7 @@ public:
     uint32_t wgid_y = get_wgid<1>();
 
     auto thr_store_d = epilogue_params.tma_store_d.get_slice(thread_idx);
-    Tensor gD_mn = local_tile(mD_mn, TileShape{}, make_coord(_,_,_), Step<_1, _1, X>{});      
+    Tensor gD_mn = local_tile(mD_mn, TileShape{}, make_coord(_,_,_), Step<_1, _1, X>{});
     Tensor gD = gD_mn(_,_,wgid_y,wgid_x);
 
     Tensor tDsD = thr_store_d.partition_S(sD);

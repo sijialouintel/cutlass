@@ -120,8 +120,6 @@ int run_test()
 
     using CollectiveEpilogue = cutlass::epilogue::collective::DefaultEpilogue<
         StrideC,
-        StrideC,
-        SmemLayoutAtomC,
         SmemLayoutAtomC,
         decltype(take<0, 2>(TileShape{})),
         EpilogueOp,

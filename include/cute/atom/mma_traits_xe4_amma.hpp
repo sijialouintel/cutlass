@@ -88,6 +88,7 @@ struct MMA_Traits<XE4_ASYNC_GMMA<TD, TC, TA, TB, Shape_MNK_, IsRowMajorA, IsRowM
   using ValTypeA = bf16;
   using ValTypeB = bf16;
   using ValTypeC = float;
+  using AbarrierType = Abarrier;
 
   using FrgTypeA = xe4::slm_desc<static_cast<int>(!IsRowMajorA), MatDesc>;
   using FrgTypeB = xe4::slm_desc<static_cast<int>(IsRowMajorB), MatDesc>;
@@ -150,6 +151,7 @@ struct MMA_Traits<XE4_ASYNC_GMMA_MULTICAST<TD, TC, TA, TB, Shape_MNK_, IsRowMajo
   using ValTypeA = bf16;
   using ValTypeB = bf16;
   using ValTypeC = float;
+  using AbarrierType = Abarrier;
 
   using FrgTypeA = xe4::slm_desc<static_cast<int>(!IsRowMajorA), MatDesc>;
   using FrgTypeB = xe4::slm_desc<static_cast<int>(IsRowMajorB), MatDesc>;
