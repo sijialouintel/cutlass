@@ -56,12 +56,8 @@ int run_test()
     using dtypeAcc = float;
     using dtypeC = fp16;
 
-    static constexpr bool is_row_major_a = (layout_a == mem_layout::row_major);
-    static constexpr bool is_row_major_b = (layout_b == mem_layout::row_major);
-
-    using LayoutA = std::conditional_t<is_row_major_a, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
-    using LayoutB = std::conditional_t<is_row_major_b, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
-    using LayoutC = cutlass::layout::RowMajor;
+    static constexpr auto tnspA = (layout_a == mem_layout::row_major) ? xe4::GMMA::Major::K : xe4::GMMA::Major::MN;
+    static constexpr auto tnspB = (layout_b == mem_layout::row_major) ? xe4::GMMA::Major::MN : xe4::GMMA::Major::K;
 
     auto A_s = malloc_shared<dtypeA>(sizeA, q);
     std::generate_n(A_s, sizeA, [=]() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
@@ -82,16 +78,19 @@ int run_test()
     std::cout << "Group range: {" << 1 << ", " << group_range_m << ", " << group_range_n << "} \n";
     nd_range<3> Range(group_range * local_range, local_range);
 
+    using LayoutA = std::conditional_t<tnspA == xe4::GMMA::Major::K, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
     using StrideA = cutlass::detail::TagToStrideA_t<LayoutA>;
+    using LayoutB = std::conditional_t<tnspB == xe4::GMMA::Major::MN, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
     using StrideB = cutlass::detail::TagToStrideB_t<LayoutB>;
+    using LayoutC = cutlass::layout::RowMajor;
     using StrideC = cutlass::detail::TagToStrideC_t<LayoutC>;
 
     using ClusterShape = Shape<Int<cluster_size_y>,Int<cluster_size_x>,_1>;
     using TileShape = Shape<Int<wg_m>, Int<wg_n>, Int<wg_k>>;
-    using TiledMma = decltype(cute::make_tiled_mma(AMMA::ss_op_selector<AMMA::OpType::Cluster, dtypeA, dtypeB, dtypeAcc, dtypeC, TileShape, is_row_major_a, is_row_major_b>()));
+    using TiledMma = decltype(cute::make_tiled_mma(xe4::GMMA::ss_op_selector<xe4::GMMA::OpType::Cluster, dtypeA, dtypeB, dtypeAcc, dtypeC, TileShape, tnspA, tnspB>()));
 
-    using SmemLayoutAtomA = decltype(make_layout(Shape<_32,Int<32/sizeof(dtypeA)>>{}, std::conditional_t<is_row_major_a, GenRowMajor, GenColMajor>{}));
-    using SmemLayoutAtomB = decltype(upcast<sizeof(dtypeB)>(make_layout(Shape<_32,_32>{}, std::conditional_t<is_row_major_b, GenColMajor, GenRowMajor>{})));
+    using SmemLayoutAtomA = decltype(make_layout(Shape<_32,Int<32/sizeof(dtypeA)>>{}, std::conditional_t<tnspA == xe4::GMMA::Major::K, GenRowMajor, GenColMajor>{}));
+    using SmemLayoutAtomB = decltype(upcast<sizeof(dtypeB)>(make_layout(Shape<_32,_32>{}, std::conditional_t<tnspB == xe4::GMMA::Major::K, GenRowMajor, GenColMajor>{})));
 
     using SmemLayoutAtomC = Layout<Shape<Int<wg_m>, Int<wg_n>>, Stride<Int<wg_n>, _1>>;
 

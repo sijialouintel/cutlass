@@ -32,7 +32,7 @@ python3 $XE4_TEST_PATH/generator/gen_mma.py \
   --shape 128x128x128 256x512x128 \
   --dtype bf16_bf16_bf16 f32_f32_bf16_bf16 f32_bf16_bf16 bf16_f32_bf16_bf16
 
-test_cases=("ROW_ROW" "ROW_ROW_RELU" "COL_ROW" "COL_ROW_RELU" "ROW_COL" "ROW_COL_RELU" "COL_COL" "COL_COL_RELU")
+test_cases=("ROW_ROW" "COL_ROW" "ROW_COL" "COL_COL" "ROW_ROW_RELU" "COL_ROW_RELU" "ROW_COL_RELU" "COL_COL_RELU")
 
 limit=${1:-${#test_cases[@]}}
 limit=$((limit > 0 && limit <= ${#test_cases[@]} ? limit : ${#test_cases[@]}))
@@ -63,8 +63,8 @@ done
 
 export L0SIM_DEVICE_KIND=Xe4
 export L0SIM_GRITS_PATH=/root/XE3P_V2
-# export L0SIM_SELECT_DEVICES=XE4ISAI
-export L0SIM_SELECT_DEVICES=GRITS
+export L0SIM_SELECT_DEVICES=XE4ISAI
+# export L0SIM_SELECT_DEVICES=GRITS
 
 export XE4_LOG_ON="1"
 export XE4_LOG_FOLDER_PATH="./logdump"

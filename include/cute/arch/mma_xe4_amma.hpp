@@ -4,7 +4,13 @@
 
 namespace cute {
 
-namespace xe4::AMMA {
+namespace xe4::GMMA {
+
+enum class Major {
+  K  = 0,
+  MN = 1
+};
+
 enum class ScaleOut {
   Zero = 0,
   One  = 1
@@ -16,7 +22,7 @@ enum class DstType {
 };
 }
 
-template <class TD, class TC, class TA, class TB, class Shape_MNK_, bool IsRowMajorA, bool IsRowMajorB, class MatDesc, class Abarrier_=uint64_t*>
+template <class TD, class TC, class TA, class TB, class Shape_MNK_, xe4::GMMA::Major tnspA, xe4::GMMA::Major tnspB, class MatDesc, class Abarrier_=uint64_t*>
 struct XE4_ASYNC_GMMA
 {
   using DRegisters = MatDesc[1];
@@ -41,12 +47,12 @@ struct XE4_ASYNC_GMMA
     constexpr auto Tile_N = get<1>(Shape_MNK{});
     constexpr auto Tile_K = get<2>(Shape_MNK{});
 
-    constexpr mem_layout layout_a = IsRowMajorA ? mem_layout::row_major: mem_layout::col_major;
-    constexpr mem_layout layout_b = IsRowMajorB ? mem_layout::row_major: mem_layout::col_major;
+    constexpr mem_layout layout_a = (tnspA == xe4::GMMA::Major::K) ? mem_layout::row_major: mem_layout::col_major;
+    constexpr mem_layout layout_b = (tnspB == xe4::GMMA::Major::MN) ? mem_layout::row_major: mem_layout::col_major;
 
-    using TDst = std::conditional_t<ConstDstType::value == xe4::AMMA::DstType::MatC, TD, TC>;
-    auto& mat_desc_dst = (ConstDstType::value == xe4::AMMA::DstType::MatC) ? mat_desc_d : mat_desc_c;
-    if constexpr (ConstScaleOut::value == xe4::AMMA::ScaleOut::Zero) {
+    using TDst = std::conditional_t<ConstDstType::value == xe4::GMMA::DstType::MatC, TD, TC>;
+    auto& mat_desc_dst = (ConstDstType::value == xe4::GMMA::DstType::MatC) ? mat_desc_d : mat_desc_c;
+    if constexpr (ConstScaleOut::value == xe4::GMMA::ScaleOut::Zero) {
       async_gmma<TDst, TA, TB, Tile_M, Tile_N, Tile_K, layout_a, layout_b>(mat_desc_dst, mat_desc_a, mat_desc_b, static_cast<Args&&>(args)...);
     } else {
       async_gmma<TDst, TC, TA, TB, Tile_M, Tile_N, Tile_K, layout_a, layout_b>(mat_desc_dst, mat_desc_c, mat_desc_a, mat_desc_b, static_cast<Args&&>(args)...);
@@ -54,7 +60,7 @@ struct XE4_ASYNC_GMMA
   }
 };
 
-template <class TD, class TC, class TA, class TB, class Shape_MNK_, bool IsRowMajorA, bool IsRowMajorB, class MatDesc, class Abarrier_=uint64_t*>
+template <class TD, class TC, class TA, class TB, class Shape_MNK_, xe4::GMMA::Major tnspA, xe4::GMMA::Major tnspB, class MatDesc, class Abarrier_=uint64_t*>
 struct XE4_ASYNC_GMMA_MULTICAST
 {
   using DRegisters = MatDesc[1];
@@ -80,12 +86,12 @@ struct XE4_ASYNC_GMMA_MULTICAST
     constexpr auto Tile_N = get<1>(Shape_MNK{});
     constexpr auto Tile_K = get<2>(Shape_MNK{});
 
-    constexpr mem_layout layout_a = IsRowMajorA ? mem_layout::row_major: mem_layout::col_major;
-    constexpr mem_layout layout_b = IsRowMajorB ? mem_layout::row_major: mem_layout::col_major;
+    constexpr mem_layout layout_a = (tnspA == xe4::GMMA::Major::K) ? mem_layout::row_major: mem_layout::col_major;
+    constexpr mem_layout layout_b = (tnspB == xe4::GMMA::Major::MN) ? mem_layout::row_major: mem_layout::col_major;
 
-    using TDst = std::conditional_t<ConstDstType::value == xe4::AMMA::DstType::MatC, TD, TC>;
-    auto& mat_desc_dst = (ConstDstType::value == xe4::AMMA::DstType::MatC) ? mat_desc_d : mat_desc_c;
-    if constexpr (ConstScaleOut::value == xe4::AMMA::ScaleOut::Zero) {
+    using TDst = std::conditional_t<ConstDstType::value == xe4::GMMA::DstType::MatC, TD, TC>;
+    auto& mat_desc_dst = (ConstDstType::value == xe4::GMMA::DstType::MatC) ? mat_desc_d : mat_desc_c;
+    if constexpr (ConstScaleOut::value == xe4::GMMA::ScaleOut::Zero) {
       async_gmma<TDst, TA, TB, Tile_M, Tile_N, Tile_K, layout_a, layout_b>(mat_desc_dst, mat_desc_a, mat_desc_b, static_cast<Args&&>(args)...);
     } else {
       async_gmma<TDst, TC, TA, TB, Tile_M, Tile_N, Tile_K, layout_a, layout_b>(mat_desc_dst, mat_desc_c, mat_desc_a, mat_desc_b, static_cast<Args&&>(args)...);

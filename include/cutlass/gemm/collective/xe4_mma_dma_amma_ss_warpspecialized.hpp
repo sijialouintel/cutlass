@@ -65,11 +65,11 @@ struct CollectiveMma<
   using Abarrier = typename TiledMma::AbarrierType;
   using ElementAccumulator = typename TiledMma::ValTypeC;
 
-  static constexpr bool IsRowMajorA = cutlass::detail::is_major<1, StrideA>();
-  static constexpr bool IsRowMajorB = cutlass::detail::is_major<0, StrideB>();
+  static constexpr cute::xe4::GMMA::Major tnspA = TiledMma::tnspA;
+  static constexpr cute::xe4::GMMA::Major tnspB = TiledMma::tnspB;
 
   using AuxParamsA = AuxParams<
-    (IsRowMajorA ? slm_matrix_type::type1 : slm_matrix_type::type2),
+    (tnspA == cute::xe4::GMMA::Major::K ? slm_matrix_type::type1 : slm_matrix_type::type2),
     TensorDescPtr,
     0
   >;
@@ -88,11 +88,11 @@ struct CollectiveMma<
   using SmemLayoutA = decltype(tile_to_shape(
       SmemLayoutAtomA{},
       make_shape(shape<0>(TileShape{}), shape<2>(TileShape{}), Int<DispatchPolicy::Stages>{}),
-      cute::conditional_t<IsRowMajorA, Step<_2,_1,_3>, Step<_1,_2,_3>>{}));
+      cute::conditional_t<tnspA == cute::xe4::GMMA::Major::K, Step<_2,_1,_3>, Step<_1,_2,_3>>{}));
   using SmemLayoutB = decltype(tile_to_shape(
       SmemLayoutAtomB{},
       make_shape(shape<1>(TileShape{}), shape<2>(TileShape{}), Int<DispatchPolicy::Stages>{}),
-      cute::conditional_t<!IsRowMajorB, Step<_2,_1,_3>, Step<_1,_2,_3>>{}));
+      cute::conditional_t<tnspB == cute::xe4::GMMA::Major::K, Step<_2,_1,_3>, Step<_1,_2,_3>>{}));
 
   struct SharedStorage
   {
@@ -231,9 +231,9 @@ struct CollectiveMma<
     auto [cluster_mask_a, cluster_mask_b] = cluster_mask;
 
     TiledMma tiled_mma;
-    constexpr auto scaleOutOne = C<cute::xe4::AMMA::ScaleOut::One>{};
-    constexpr auto scaleOutZero = C<cute::xe4::AMMA::ScaleOut::Zero>{};
-    constexpr auto dstType = C<cute::xe4::AMMA::DstType::Accum>{};
+    constexpr auto scaleOutOne = C<cute::xe4::GMMA::ScaleOut::One>{};
+    constexpr auto scaleOutZero = C<cute::xe4::GMMA::ScaleOut::Zero>{};
+    constexpr auto dstType = C<cute::xe4::GMMA::DstType::Accum>{};
 
     auto thread_mma = tiled_mma.get_thread_slice(0);
     auto tCsA = thread_mma.partition_fragment_A(sA);            // (MMA,MMA_M,MMA_K,PIPE)

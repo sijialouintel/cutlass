@@ -61,8 +61,8 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     using ElementOut = bf16;
 
     constexpr uint32_t Stages = 3;
-    constexpr bool IsRowMajorA = true;
-    constexpr bool IsRowMajorB = false;
+    static constexpr auto tnspA = xe4::GMMA::Major::K;
+    static constexpr auto tnspB = xe4::GMMA::Major::K;
 
     auto bM = Int<64>{};
     auto bN = Int<256>{};
@@ -71,9 +71,9 @@ int run_test(const conv2d::problem_shape_t &problem_shape)
     using TileShape = Shape<Int<bM>, Int<bN>, Shape<Int<bK>>>;
     using ClusterShapeMNK = Shape<_1, _1, _1>;
     using MmaTiler = Shape<Int<bM>, Int<bN>, Int<bK>>;
-    using TiledMma = decltype(cute::make_tiled_mma(AMMA::ss_op_selector<AMMA::OpType::NoneCluster, ElementAct, ElementFlt, ElementAcc, ElementOut, MmaTiler, IsRowMajorA, IsRowMajorB>()));
-    using SmemLayoutAtomA = decltype(make_layout(Shape<_32, Int<32 / sizeof(ElementAct)>>{}, std::conditional_t<IsRowMajorA, GenRowMajor, GenColMajor>{}));
-    using SmemLayoutAtomB = decltype(upcast<sizeof(ElementFlt)>(make_layout(Shape<_32, _32>{}, std::conditional_t<IsRowMajorB, GenColMajor, GenRowMajor>{})));
+    using TiledMma = decltype(cute::make_tiled_mma(xe4::GMMA::ss_op_selector<xe4::GMMA::OpType::NoneCluster, ElementAct, ElementFlt, ElementAcc, ElementOut, MmaTiler, tnspA, tnspB>()));
+    using SmemLayoutAtomA = decltype(make_layout(Shape<_32, Int<32 / sizeof(ElementAct)>>{}, std::conditional_t<tnspA == xe4::GMMA::Major::K, GenRowMajor, GenColMajor>{}));
+    using SmemLayoutAtomB = decltype(upcast<sizeof(ElementFlt)>(make_layout(Shape<_32, _32>{}, std::conditional_t<tnspB == xe4::GMMA::Major::K, GenRowMajor, GenColMajor>{})));
     using SmemLayoutC = decltype(make_layout(make_shape(bM, bN), make_stride(bN, Int<1>{})));
 
     uint32_t sizeA = C * W * H * N;

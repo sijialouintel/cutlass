@@ -32,7 +32,7 @@ python3 $XE4_TEST_PATH/generator/gen_mma.py \
   --shape 128x128x128 256x512x128 \
   --dtype bf16_bf16_bf16 f32_f32_bf16_bf16 f32_bf16_bf16 bf16_f32_bf16_bf16
 
-test_cases=("ROW_ROW" "ROW_ROW_RELU" "COL_ROW" "COL_ROW_RELU" "ROW_COL" "ROW_COL_RELU" "COL_COL" "COL_COL_RELU")
+test_cases=("ROW_ROW" "COL_ROW" "ROW_COL" "COL_COL" "ROW_ROW_RELU" "COL_ROW_RELU" "ROW_COL_RELU" "COL_COL_RELU")
 
 limit=${1:-${#test_cases[@]}}
 limit=$((limit > 0 && limit <= ${#test_cases[@]} ? limit : ${#test_cases[@]}))

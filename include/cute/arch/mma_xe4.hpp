@@ -5,7 +5,7 @@
 #include "inline_pisa.hpp"
 #include "mma_xe4_amma.hpp"
 
-namespace cute::xe4::AMMA {
+namespace cute::xe4::GMMA {
 
 template <uint32_t a, uint32_t b>
 struct gcd {
@@ -59,8 +59,8 @@ template <
   class ElementC,
   class ElementD,
   class TileShape_MNK,
-  bool isRowMajorA,
-  bool isRowMajorB,
+  GMMA::Major tnspA,
+  GMMA::Major tnspB,
   auto... Args
 >
 CUTE_HOST_DEVICE constexpr
@@ -95,12 +95,12 @@ ss_op_selector()
   using MMA_Shape = Shape<Int<MMA_M>,Int<MMA_N>,Int<MMA_K>>;
 
   if constexpr (opType == OpType::Cluster) {
-    return XE4_ASYNC_GMMA_MULTICAST<ElementD, ElementC, ElementA, ElementB, MMA_Shape, isRowMajorA, isRowMajorB, MatrixDesc, Abarrier>();
+    return XE4_ASYNC_GMMA_MULTICAST<ElementD, ElementC, ElementA, ElementB, MMA_Shape, tnspA, tnspB, MatrixDesc, Abarrier>();
   } else {
-    return XE4_ASYNC_GMMA<ElementD, ElementC, ElementA, ElementB, MMA_Shape, isRowMajorA, isRowMajorB, MatrixDesc, Abarrier>();
+    return XE4_ASYNC_GMMA<ElementD, ElementC, ElementA, ElementB, MMA_Shape, tnspA, tnspB, MatrixDesc, Abarrier>();
   }
 
   CUTE_GCC_UNREACHABLE;
 }
 
-} // namespace cute::xe4::AMMA
+} // namespace cute::xe4::GMMA

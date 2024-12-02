@@ -301,10 +301,10 @@ public:
     auto accum = thread_mma.partition_fragment_C(accumulator);  // (MMA,MMA_M,MMA_N)
     auto tCrC = thread_mma.partition_fragment_C(sC);            // (MMA,MMA_M,MMA_N)
 
-    constexpr auto scaleOutOne = cute::C<cute::xe4::AMMA::ScaleOut::One>{};
-    constexpr auto scaleOutZero = cute::C<cute::xe4::AMMA::ScaleOut::Zero>{};
-    constexpr auto dstIsAccum = cute::C<cute::xe4::AMMA::DstType::Accum>{};
-    constexpr auto dstIsMatC = cute::C<cute::xe4::AMMA::DstType::MatC>{};
+    constexpr auto scaleOutOne = cute::C<cute::xe4::GMMA::ScaleOut::One>{};
+    constexpr auto scaleOutZero = cute::C<cute::xe4::GMMA::ScaleOut::Zero>{};
+    constexpr auto dstIsAccum = cute::C<cute::xe4::GMMA::DstType::Accum>{};
+    constexpr auto dstIsMatC = cute::C<cute::xe4::GMMA::DstType::MatC>{};
 
     pipeline.consumer_try_wait(slm_pipe_read);
     auto abar_cons_base = pipeline.abar_cons_base;
