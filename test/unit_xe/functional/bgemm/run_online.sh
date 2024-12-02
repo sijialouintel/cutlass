@@ -62,7 +62,7 @@ for ((i=0; i<limit; i++)); do
 done
 
 export L0SIM_DEVICE_KIND=Xe4
-export L0SIM_GRITS_PATH=/root/FCS
+export L0SIM_GRITS_PATH=/root/XE3P_V2
 # export L0SIM_SELECT_DEVICES=XE4ISAI
 export L0SIM_SELECT_DEVICES=GRITS
 

@@ -173,7 +173,7 @@ public:
       static_assert(cute::tuple_size_v<decltype(load_inputs)> >= 2, "Output of load_init must have at least two elements (A, B)");
       collective_mainloop.load(params.mainloop, mainloop_pipeline, mainloop_pipe_producer_state, load_inputs, blk_coord, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
     } else if (warp_group_role == SubGroupRole::Consumer) {
-      collective_mainloop.mma(params.mainloop, mainloop_pipeline, mainloop_pipe_consumer_state, epilogue_store_pipeline, epilogue_pipe_store_state, accumulator, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
+      collective_mainloop.mma(mainloop_pipeline, mainloop_pipe_consumer_state, epilogue_store_pipeline, epilogue_pipe_store_state, accumulator, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
     }
 
     item.barrier(access::fence_space::local_space);

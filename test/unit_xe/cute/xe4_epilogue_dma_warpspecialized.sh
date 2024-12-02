@@ -24,7 +24,7 @@ icpx -fsycl $INCLUDE_PATHS ../xe4_epilogue_dma_warpspecialized.cpp -o xe4_epilog
 
 export LD_LIBRARY_PATH=$ZESIM_ROOT:$LD_LIBRARY_PATH
 export L0SIM_DEVICE_KIND=Xe4
-export L0SIM_GRITS_PATH=/root/FCS
+export L0SIM_GRITS_PATH=/root/XE3P_V2
 
 export L0SIM_SELECT_DEVICES=XE4ISAI
 # export L0SIM_SELECT_DEVICES=GRITS

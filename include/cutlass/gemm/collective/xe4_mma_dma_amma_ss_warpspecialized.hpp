@@ -217,7 +217,7 @@ struct CollectiveMma<
 
   template <class FinalPipeline, class FinalPipelineState, class FrgTensorC, class ClusterMask>
   CUTLASS_DEVICE void
-  mma(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState slm_pipe_read, FinalPipeline finalPipeline, FinalPipelineState& finalPipelineState, FrgTensorC& accumulator, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
+  mma(MainloopPipeline pipeline, PipelineState slm_pipe_read, FinalPipeline finalPipeline, FinalPipelineState& finalPipelineState, FrgTensorC& accumulator, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
     static_assert(cute::rank(SmemLayoutA{}) == 3, "Smem layout must be rank 3.");
     static_assert(cute::rank(SmemLayoutB{}) == 3, "Smem layout must be rank 3.");
     static_assert(cute::is_void_v<SmemCopyAtomA>,
@@ -228,7 +228,6 @@ struct CollectiveMma<
     auto sA = make_tensor(reinterpret_cast<ElementA *>(shared_tensors.smem_A.data()), SmemLayoutA {});
     auto sB = make_tensor(reinterpret_cast<ElementB *>(shared_tensors.smem_B.data()), SmemLayoutB {});
 
-    auto [load_a, load_b] = mainloop_params;
     auto [cluster_mask_a, cluster_mask_b] = cluster_mask;
 
     TiledMma tiled_mma;
