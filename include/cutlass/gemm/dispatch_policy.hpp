@@ -113,6 +113,9 @@ struct KernelImplicitTmaWarpSpecializedXe4 { };
 struct KernelPtrArrayTmaWarpSpecializedCooperative { };
 struct KernelPtrArrayTmaWarpSpecializedPingpong { };
 
+struct KernelXe4WarpSpecialized { };
+struct KernelXe4WarpSpecializedScale { };
+
 //////////////////////////////////////////////////////////////////////////////
 
 //
@@ -323,7 +326,7 @@ struct MainloopSm90TmaGmmaWarpSpecializedSparse {
 template<
   int Stages_,
   class ClusterShape_ = Shape<_1,_1,_1>,
-  class KernelSchedule = KernelTmaWarpSpecialized
+  class KernelSchedule = KernelXe4WarpSpecialized
 >
 struct MainloopXe4DmaGmmaWarpSpecialized {
   constexpr static int Stages = Stages_;
@@ -331,7 +334,24 @@ struct MainloopXe4DmaGmmaWarpSpecialized {
   using ArchTag = arch::Sm90;
   using Schedule = KernelSchedule;
   static_assert(
-    cute::is_same_v<Schedule, KernelTmaWarpSpecialized>,
+    cute::is_same_v<Schedule, KernelXe4WarpSpecialized>,
+    "KernelSchedule must be one of the warp specialized policies");
+};
+
+template<
+  int Stages_,
+  uint32_t SplitB_ = 1,
+  class ClusterShape_ = Shape<_1,_1,_1>,
+  class KernelSchedule = KernelXe4WarpSpecializedScale
+>
+struct MainloopXe4DmaGmmaWarpSpecializedScale {
+  constexpr static int Stages = Stages_;
+  constexpr static uint32_t SplitB = SplitB_;
+  using ClusterShape = ClusterShape_;
+  using ArchTag = arch::Sm90;
+  using Schedule = KernelSchedule;
+  static_assert(
+    cute::is_same_v<Schedule, KernelXe4WarpSpecializedScale>,
     "KernelSchedule must be one of the warp specialized policies");
 };
 

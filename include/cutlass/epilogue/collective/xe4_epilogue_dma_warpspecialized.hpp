@@ -45,7 +45,7 @@ public:
 
   using SmemLayoutD = SmemLayoutD_;
   using GmemTiledCopyD = cute::xe4::ASYNC_TENSOR_STORE;
-  using AuxParamsD = AuxParams<slm_matrix_type::type1, TensorDescPtr, 3>;
+  using AuxParamsD = AuxParams<slm_matrix_type::type1, cute::xe4::GMMA::Major::K, TensorDescPtr, 2>;
 
   using EpilogueStorePipeline = cutlass::xe4::PipelineTmaStore<1, 2, AbarrierPtr>;
   using StorePipelineState = typename EpilogueStorePipeline::PipelineState;

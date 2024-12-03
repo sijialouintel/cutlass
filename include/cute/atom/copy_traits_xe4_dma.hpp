@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cute/arch/copy_xe4_dma.hpp"
+#include "cute/arch/util_xe4.hpp"
 #include "cutlass/detail/layout.hpp"
 #include "cute/atom/copy_traits_sm90_tma.hpp"
 
@@ -21,13 +22,13 @@ struct XE4_COPY_Unpack
     constexpr auto isLoadOperation = !cute::is_base_of<xe4::ASYNC_TENSOR_STORE, CopyOp>::value;
 
     if constexpr (isLoadOperation) {
-      auto dst_ptr = dst.data();
+      auto dst_ptr = cute::raw_pointer_cast(dst.data());
       auto src_coord = src.data().coord_;
       return detail::explode_tuple(detail::CallCOPY<CopyOp>{},
                                   traits.opargs_, tuple_seq<decltype(traits.opargs_)>{},
                                   make_tuple(dst_ptr), seq<0>{}, src_coord, tuple_seq<decltype(src_coord)>{});
     } else {
-      auto src_ptr = src.data();
+      auto src_ptr = cute::raw_pointer_cast(src.data());
       auto dst_coord = dst.data().coord_;
       return detail::explode_tuple(detail::CallCOPY<CopyOp>{},
                                   traits.opargs_, tuple_seq<decltype(traits.opargs_)>{},
@@ -99,8 +100,23 @@ struct Copy_Traits<Xe4CopyOp<CopyOperation>, NumBitsPerTMA, DmaCache>
     using Wrapper = Xe4CopyOpWrapper<CopyOperation>;
     using OpUnpack = typename DmaCache::template OpUnpack<Wrapper>;
 
-    auto opargs = make_tuple(cache_.get_tensor_desc(), abar_ptr);
+    auto opargs = make_tuple(get_tensor_desc(), abar_ptr);
     return Copy_Traits<Wrapper, NumBitsPerTMA, decltype(opargs), OpUnpack>{opargs};
+  }
+
+  template<class ABarrier, class DimIndex>
+  CUTE_HOST_DEVICE constexpr
+  auto with(DimIndex const& dim_index, uint32_t const& dim_size, ABarrier const* abar_ptr, [[maybe_unused]] uint32_t const& multicast_mask = 0) const {
+    using Wrapper = Xe4CopyOpWrapper<CopyOperation>;
+    using OpUnpack = typename DmaCache::template OpUnpack<Wrapper>;
+
+    auto opargs = make_tuple(get_tensor_desc(), dim_index, dim_size, abar_ptr);
+    return Copy_Traits<Wrapper, NumBitsPerTMA, decltype(opargs), OpUnpack>{opargs};
+  }
+
+  CUTE_HOST_DEVICE constexpr
+  auto get_tensor_desc() const {
+    return cache_.get_tensor_desc();
   }
 
   template <class GShape>
@@ -254,25 +270,43 @@ make_tma_copy_aux_params(Tensor<GEngine,GLayout> const& gtensor,         // The 
   return AuxParams{gmem_tma_basis_stride};
 }
 
-template<slm_matrix_type cmType_, class tdescPtr_, int tdescIdx_>
+template<slm_matrix_type cmType_, xe4::GMMA::Major gmmaMajor_, class tdescPtr_, int tdescIdx_, bool isMeta_=false>
 struct AuxParams {
   using tdescPtr = tdescPtr_;
   static constexpr int tdescIdx = tdescIdx_;
   static constexpr slm_matrix_type cmType = cmType_;
+  static constexpr xe4::GMMA::Major gmmaMajor = gmmaMajor_;
+  static constexpr bool isMeta = isMeta_;
 };
 
-template <class Shape, class Stride>
-constexpr int get_leading_dim(Layout<Shape,Stride> const& layout) {
-  bool is_k_major = cutlass::detail::is_major<1, Stride>();
-  return static_cast<int>(is_k_major);
-}
+template <typename T>
+struct ExtractType {
+  using type = T;
+};
+
+template <int Sparsity, class T>
+struct ExtractType<cute::sparse_elem<Sparsity, T>> {
+  using type = T;
+};
+
+template <typename T>
+struct ExtractSparsity {
+  static constexpr int value = 1;
+};
+
+template <int Sparsity, class T>
+struct ExtractSparsity<cute::sparse_elem<Sparsity, T>> {
+  static constexpr int value = Sparsity;
+};
 
 template <class AuxParams, class TmaInternalType, class GEngine, class GLayout, class SLayout>
 CUTE_HOST_DEVICE auto
 make_tensor_desc(Tensor<GEngine, GLayout> const& gtensor, SLayout const& slayout, uint32_t coop_size)
 {
-  constexpr int ldm = get_leading_dim(GLayout{});
-  constexpr int non_ldm = ldm ^ 1;
+  using ValueType = typename GEngine::value_type;
+
+  constexpr int non_ldm = static_cast<int>(AuxParams::gmmaMajor);
+  constexpr int ldm = non_ldm ^ 1;
 
   // Recast the original tensor for shape/stride inspections
   Tensor gtensor_T = recast<TmaInternalType>(gtensor);
@@ -280,10 +314,20 @@ make_tensor_desc(Tensor<GEngine, GLayout> const& gtensor, SLayout const& slayout
   void* gmem_address = (void*) raw_pointer_cast(gtensor_T.data());
   auto  gmem_layout  = gtensor_T.layout();
 
+  // Recast the original smem layout for shape/stride inspections
+  constexpr auto sparsity = ExtractSparsity<ValueType>::value;
+  auto slayout_recasted = upcast<sparsity>(slayout);
+
   uint32_t width = size<ldm>(gmem_layout);
   uint32_t height = size<non_ldm>(gmem_layout);
-  uint32_t block_width = size<ldm>(slayout);
-  uint32_t block_height = size<non_ldm>(slayout) / coop_size;
+  uint32_t block_width = size<ldm>(slayout_recasted);
+  uint32_t origin_block_height = size<non_ldm>(slayout_recasted);
+  uint32_t block_height = origin_block_height / coop_size;
+
+  // MetaA and MetaB are special cases where the block height is less than 32
+  if constexpr (AuxParams::isMeta) {
+    block_height = round_up(origin_block_height, 32) / coop_size;
+  }
 
   auto tdesc_ptr = allocate_tdesc<AuxParams::tdescIdx, typename AuxParams::tdescPtr>();
   tensor_desc_fill_global_addr(tdesc_ptr, gmem_address);
@@ -291,7 +335,7 @@ make_tensor_desc(Tensor<GEngine, GLayout> const& gtensor, SLayout const& slayout
   tensor_descriptor_fill_dim_stride<2>(tdesc_ptr, width * sizeof(TmaInternalType));
   tensor_descriptor_fill_traverse_stride<2>(tdesc_ptr, sycl::vec<uint32_t, 2>{1, 1});
   tensor_descriptor_fill_roitensor_size<2>(tdesc_ptr, {block_width, block_height});
-  tensor_descriptor_fill_misc<typename GEngine::value_type, AuxParams::cmType>(tdesc_ptr);
+  tensor_descriptor_fill_misc<typename ExtractType<ValueType>::type, AuxParams::cmType>(tdesc_ptr);
 
   return tdesc_ptr;
 }

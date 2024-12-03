@@ -66,5 +66,6 @@ struct IsCutlass3ArrayKernel<ProblemShape, cute::void_t<typename ProblemShape::U
 #include "cutlass/gemm/kernel/sm90_gemm_array_tma_warpspecialized_cooperative.hpp"
 #elif defined(SYCL_LANGUAGE_VERSION)
 #include "cutlass/gemm/kernel/xe4_gemm_dma_warpspecialized.hpp"
+#include "cutlass/gemm/kernel/xe4_scale_gemm_dma_warpspecialized.hpp"
 #endif
 ////////////////////////////////////////////////////////////////////////////////

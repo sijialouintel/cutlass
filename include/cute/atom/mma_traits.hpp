@@ -184,6 +184,11 @@ struct FrgTypeC_or_Default { using type = typename X::ValTypeC; };
 template <class X>
 struct FrgTypeC_or_Default<X,void_t<typename X::FrgTypeC>> { using type = typename X::FrgTypeC; };
 
+template <class X, class = void>
+struct FrgTypeE_or_Default { using type = typename X::ValTypeE; };
+template <class X>
+struct FrgTypeE_or_Default<X,void_t<typename X::FrgTypeE>> { using type = typename X::FrgTypeE; };
+
 } // end namespace detail
 
 } // namespace cute

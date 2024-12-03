@@ -103,4 +103,56 @@ ss_op_selector()
   CUTE_GCC_UNREACHABLE;
 }
 
+template <
+  OpType opType,
+  class ElementA,
+  class ElementB,
+  class ElementC,
+  class ElementD,
+  class ElementE,
+  class TileShape_MNK,
+  GMMA::Major tnspA,
+  GMMA::Major tnspB,
+  bool ScaleA,
+  bool ScaleB,
+  class MatDesc,
+  class MetaDesc,
+  class Abarrier,
+  auto... Args
+>
+CUTE_HOST_DEVICE constexpr
+auto
+ss_op_selector_scale()
+{
+  static_assert(is_static<TileShape_MNK>::value, "TileShape_MNK must be static.");
+  static_assert(rank(TileShape_MNK{}) == 3, "TileShape_MNK must be rank 3.");
+
+  constexpr uint32_t MMA_M_MIN = 32;
+  constexpr uint32_t MMA_M_MAX = 256;
+  constexpr uint32_t MMA_N_MIN = 32;
+  constexpr uint32_t MMA_N_MAX = 512;
+  constexpr uint32_t MMA_K_MIN = cute::max(getMinMmaK<ElementA>(), getMinMmaK<ElementB>());
+  constexpr uint32_t MMA_K_MAX = cute::min(getMaxMmaK<ElementA>(), getMaxMmaK<ElementB>());
+
+  constexpr uint32_t Tile_M = size<0>(TileShape_MNK{});
+  constexpr uint32_t Tile_N = size<1>(TileShape_MNK{});
+  constexpr uint32_t Tile_K = size<2>(TileShape_MNK{});
+
+  constexpr uint32_t MMA_M = gcd<Tile_M, MMA_M_MAX>::value;
+  constexpr uint32_t MMA_N = gcd<Tile_N, MMA_N_MAX>::value;
+  constexpr uint32_t MMA_K = gcd<Tile_K, MMA_K_MAX>::value;
+
+  static_assert(MMA_M % 32 == 0, "MMA_M must be a multiple of 32.");
+  static_assert(MMA_N % 32 == 0, "MMA_N must be a multiple of 32.");
+  static_assert((MMA_K % 32 == 0) || (MMA_K == 16), "Tile_K must be a multiple of 32.");
+
+  using MMA_Shape = Shape<Int<MMA_M>,Int<MMA_N>,Int<MMA_K>>;
+
+  if constexpr (opType == OpType::NoneCluster) {
+    return XE4_ASYNC_GMMA_SCALE<ElementD, ElementC, ElementA, ElementB, ElementE, MMA_Shape, tnspA, tnspB, ScaleA, ScaleB, MatDesc, MetaDesc, Abarrier>();
+  }
+
+  CUTE_GCC_UNREACHABLE;
+}
+
 } // namespace cute::xe4::GMMA

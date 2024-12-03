@@ -52,17 +52,23 @@ struct CollectiveConv
   using StrideA = decltype(cute::Stride<cute::Stride<int64_t, int64_t, int64_t>,cute::Int<1>>{});
   using StrideB = decltype(cute::Stride<int64_t, cute::Stride<cute::Int<1>, int64_t, int64_t>>{});
 
-  static constexpr bool IsRowMajorA = cutlass::detail::is_major<1, StrideA>();
-  static constexpr bool IsRowMajorB = cutlass::detail::is_major<0, StrideB>();
-  static constexpr slm_matrix_type cm_typeA = IsRowMajorA ? slm_matrix_type::type1 : slm_matrix_type::type2;
+  static constexpr cute::xe4::GMMA::Major tnspA = TiledMma::tnspA;
+  static constexpr cute::xe4::GMMA::Major tnspB = TiledMma::tnspB;
+  static constexpr slm_matrix_type cm_typeA = tnspA == cute::xe4::GMMA::Major::K ? slm_matrix_type::type1 : slm_matrix_type::type2;
   static constexpr slm_matrix_type cm_typeB = slm_matrix_type::type1;
   using TensorDescPtr = uint64_t*;
-  using AuxParamsB = AuxParams<cm_typeB, TensorDescPtr, 0>;
+  using AuxParamsB = AuxParams<cm_typeB, tnspB, TensorDescPtr, 0>;
 
   static_assert(Stages >= 2, "Specialization requires Stages set to value 2 or more.");
 
-  using SmemLayoutA = decltype(tile_to_shape(SmemLayoutAtomA{}, make_shape(size<0>(TileShape{}), size<2>(TileShape{}), Int<Stages>{}), cute::conditional_t<IsRowMajorA, Step<_2,_1,_3>, Step<_1,_2,_3>>{}));
-  using SmemLayoutB = decltype(tile_to_shape(SmemLayoutAtomB{}, make_shape(size<1>(TileShape{}), size<2>(TileShape{}), Int<Stages>{}), cute::conditional_t<!IsRowMajorB, Step<_2,_1,_3>, Step<_1,_2,_3>>{}));
+  using SmemLayoutA = decltype(tile_to_shape(
+    SmemLayoutAtomA{},
+    make_shape(size<0>(TileShape{}), size<2>(TileShape{}), Int<Stages>{}),
+    cute::conditional_t<tnspA == cute::xe4::GMMA::Major::K, Step<_2,_1,_3>, Step<_1,_2,_3>>{}));
+  using SmemLayoutB = decltype(tile_to_shape(
+    SmemLayoutAtomB{},
+    make_shape(size<1>(TileShape{}), size<2>(TileShape{}), Int<Stages>{}),
+    cute::conditional_t<tnspB == cute::xe4::GMMA::Major::K, Step<_2,_1,_3>, Step<_1,_2,_3>>{}));
 
   using MainloopPipeline = cutlass::xe4::PipelineTmaAsync<DispatchPolicy::Stages>;
   using PipelineState  = typename cutlass::xe4::PipelineState<DispatchPolicy::Stages>;

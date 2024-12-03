@@ -70,10 +70,11 @@ struct CollectiveMma<
 
   using AuxParamsA = AuxParams<
     (tnspA == cute::xe4::GMMA::Major::K ? slm_matrix_type::type1 : slm_matrix_type::type2),
+    tnspA,
     TensorDescPtr,
     0
   >;
-  using AuxParamsB = AuxParams<slm_matrix_type::type1, TensorDescPtr, 1>;
+  using AuxParamsB = AuxParams<slm_matrix_type::type1, tnspB, TensorDescPtr, 1>;
 
   using MainloopPipeline = cutlass::xe4::PipelineTmaAsync<Stages, 0, Abarrier>;
   using PipelineState = cutlass::xe4::PipelineState<Stages>;

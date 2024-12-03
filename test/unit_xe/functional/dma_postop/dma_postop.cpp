@@ -6,6 +6,7 @@
 #include <CL/sycl.hpp>
 
 #include "inline_pisa.hpp"
+#include "cute/arch/util_xe4.hpp"
 #include "cutlass/epilogue/thread/xe4_conversion_op.hpp"
 #include "cutlass/epilogue/thread/xe4_relu_op.hpp"
 #include "cute/atom/copy_traits_xe4_dma.hpp"
@@ -87,7 +88,7 @@ int main()
             using ElementSrc = dtype_src;
             using SmemLayoutSrc = SmemLayout;
             using GmemTiledCopySrc = cute::xe4::ASYNC_TENSOR_LOAD;
-            using AuxParamsSrc = AuxParams<slm_matrix_type::type1, typename CollectiveEpilogue::TensorDescPtr, 0>;
+            using AuxParamsSrc = AuxParams<slm_matrix_type::type1, cute::xe4::GMMA::Major::K, typename CollectiveEpilogue::TensorDescPtr, 0>;
             using SrcLoadPipeline = cutlass::xe4::PipelineTmaAsync<1, 1, uint64_t*>;
             using SrcLoadPipelineState = typename SrcLoadPipeline::PipelineState;
 

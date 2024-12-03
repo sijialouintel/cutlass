@@ -28,6 +28,23 @@ struct ASYNC_TENSOR_LOAD
     copy(tdesc_ptr, abar_ptr, slm_ptr, crd0, crd1);
   }
 
+  template<class DimIdx, class T>
+  CUTE_HOST_DEVICE static void
+  copy(uint64_t const* tdesc_ptr, DimIdx const& dim_index, uint32_t dim_size, uint64_t const* abar_ptr, T* slm_ptr, int32_t crd0, int32_t crd1)
+  {
+    auto coord = sycl::vec<int32_t, 2>{crd0, crd1};
+    tensor_descriptor_set_dim_size<DimIdx::value>(tdesc_ptr, dim_size);
+    async_tensor_load<2>(tdesc_ptr, slm_space_cast(slm_ptr), coord, abar_ptr);
+  }
+
+  template<class DimIdx, class T>
+  CUTE_HOST_DEVICE static void
+  copy(uint64_t const* tdesc_ptr, DimIdx const& dim_index, uint32_t dim_size, uint64_t const* abar_ptr, T* slm_ptr, int32_t crd0, int32_t crd1, int32_t crd2)
+  {
+    (void)crd2;
+    copy(tdesc_ptr, dim_index, dim_size, abar_ptr, slm_ptr, crd0, crd1);
+  }
+
   template<class T>
   CUTE_HOST_DEVICE static void
   copy(uint64_t const* tdesc_ptr, uint64_t const* abar_ptr, T* slm_ptr, int32_t crd0, int32_t crd1, int32_t crd2, int32_t crd3)
@@ -121,7 +138,7 @@ struct SLM_VSTORE
 /// ASYNC_ROW_LOAD_IM2COL: Initiates an im2col async row copy from global memory to shared memory
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-template<typename T, typename CMType, int NumBytesPerCopy> 
+template<typename T, typename CMType, int NumBytesPerCopy>
 struct alignas(64) Im2ColDescriptor {
   uint64_t bytes[10];   // support from 3D tensor to 5D tensor
 };

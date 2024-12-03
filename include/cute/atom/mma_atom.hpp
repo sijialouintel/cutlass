@@ -191,6 +191,31 @@ struct MMA_Atom<MMA_Traits<MMAOperation, Args...>>
 
     CUTE_GCC_UNREACHABLE;
   }
+
+  template <class ETensor>
+  CUTE_HOST_DEVICE static constexpr
+  auto
+  make_fragment_E(ETensor&& etensor)
+  {
+    // Check that this tensor is likely already partitioned
+    CUTE_STATIC_ASSERT_V(rank(etensor) >= Int<3>{});
+
+    using ValTypeE = typename Traits::ValTypeE;
+    using FrgTypeE = typename detail::FrgTypeE_or_Default<Traits>::type;
+
+    if constexpr (has_dereference<FrgTypeE>::value) {
+      // If the intended FrgTypeE is a view (of the current tensor), forward the whole
+      // static_assert(is_same<ValTypeE, typename remove_cvref_t<ETensor>::value_type>::value
+      //                 , "Expecting ValTypeA type");
+      return make_tensor<FrgTypeE>(static_cast<ETensor&&>(etensor));
+    } else {
+      // Else, the intended FrgTypeE is a value type, construct a new tensor with a fragment layout
+      return make_fragment_like<FrgTypeE>(etensor);
+    }
+
+    CUTE_GCC_UNREACHABLE;
+  }
+
 };
 
 //

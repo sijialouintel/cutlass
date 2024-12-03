@@ -26,7 +26,7 @@ class GemmUniversal<
   CollectiveMainloop_,
   CollectiveEpilogue_,
   TileScheduler_,
-  cute::enable_if_t<cute::is_base_of_v<cutlass::gemm::KernelXe4WarpSpecialized, typename CollectiveMainloop_::DispatchPolicy::Schedule>>>
+  cute::enable_if_t<cute::is_base_of_v<cutlass::gemm::KernelXe4WarpSpecializedScale, typename CollectiveMainloop_::DispatchPolicy::Schedule>>>
 {
 public:
   //
@@ -115,20 +115,26 @@ public:
     };
 
     using MainloopPipeline = typename CollectiveMainloop::MainloopPipeline;
+    using MainloopPipelineB = typename CollectiveMainloop::MainloopPipelineB;
     using EpilogueStorePipeline = typename CollectiveEpilogue::EpilogueStorePipeline;
     using MainloopPipelineState = typename CollectiveMainloop::PipelineState;
+    using MainloopPipelineStateB = typename CollectiveMainloop::PipelineStateB;
     using EpilogueStorePipelineState = typename CollectiveEpilogue::StorePipelineState;
 
     uint32_t local_id = item.get_local_linear_id();
     MainloopPipeline mainloop_pipeline(local_id);
+    MainloopPipelineB mainloop_pipeline_b(local_id);
     EpilogueStorePipeline epilogue_store_pipeline(local_id);
 
     CollectiveMainloop collective_mainloop;
     CollectiveEpilogue collective_epilogue(params.epilogue);
 
     MainloopPipelineState mainloop_pipe_consumer_state;
+    MainloopPipelineStateB mainloop_pipe_consumer_state_b;
     EpilogueStorePipelineState epilogue_pipe_store_state;
+
     auto mainloop_pipe_producer_state = cutlass::xe4::make_producer_start_state<MainloopPipeline>();
+    auto mainloop_pipe_producer_state_b = cutlass::xe4::make_producer_start_state<MainloopPipelineB>();
 
     auto K = get<2>(problem_shape);
     auto wg_k = get<2>(TileShape{});
@@ -172,9 +178,9 @@ public:
     if (warp_group_role == SubGroupRole::Producer) {
       auto load_inputs = collective_mainloop.load_init(problem_shape, params.mainloop);
       static_assert(cute::tuple_size_v<decltype(load_inputs)> >= 2, "Output of load_init must have at least two elements (A, B)");
-      collective_mainloop.load(params.mainloop, mainloop_pipeline, mainloop_pipe_producer_state, load_inputs, blk_coord, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
+      collective_mainloop.load(params.mainloop, mainloop_pipeline, mainloop_pipe_producer_state, mainloop_pipeline_b, mainloop_pipe_producer_state_b, load_inputs, blk_coord, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
     } else if (warp_group_role == SubGroupRole::Consumer) {
-      collective_mainloop.mma(mainloop_pipeline, mainloop_pipe_consumer_state, epilogue_store_pipeline, epilogue_pipe_store_state, accumulator, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
+      collective_mainloop.mma(mainloop_pipeline, mainloop_pipe_consumer_state, mainloop_pipeline_b, mainloop_pipe_consumer_state_b, epilogue_store_pipeline, epilogue_pipe_store_state, accumulator, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
     }
 
     item.barrier(access::fence_space::local_space);
