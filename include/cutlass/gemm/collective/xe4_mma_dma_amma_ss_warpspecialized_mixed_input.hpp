@@ -4,7 +4,6 @@
 #include "cutlass/gemm/dispatch_policy.hpp"
 #include "cutlass/pipeline/pipeline.hpp"
 #include "cutlass/util/packed_stride.hpp"
-#include "cutlass/gemm/collective/builders/xe4_sparse_config.inl"
 
 namespace cutlass::gemm::collective {
 
@@ -15,13 +14,14 @@ using namespace cutlass::gemm;
 template <
   int Stages,
   uint32_t SplitB,
+  uint32_t MxScaleSize,
   class ClusterShape,
   class KernelSchedule,
   class TileShape_,
-  class ElementA_,
-  class LayoutPairAE_,
-  class ElementB_,
-  class LayoutPairBE_,
+  class ElementATuple,
+  class StrideA_,
+  class ElementBTuple,
+  class StrideB_,
   class TiledMma_,
   class GmemTiledCopyA_,
   class SmemLayoutAtomA_,
@@ -32,12 +32,12 @@ template <
   class SmemCopyAtomB_,
   class TransformB_>
 struct CollectiveMma<
-  MainloopXe4DmaGmmaWarpSpecializedScale<Stages, SplitB, ClusterShape, KernelSchedule>,
+  MainloopXe4DmaGmmaWarpSpecializedMixedInput<Stages, SplitB, MxScaleSize, ClusterShape, KernelSchedule>,
   TileShape_,
-  ElementA_,
-  LayoutPairAE_,
-  ElementB_,
-  LayoutPairBE_,
+  ElementATuple,
+  StrideA_,
+  ElementBTuple,
+  StrideB_,
   TiledMma_,
   GmemTiledCopyA_,
   SmemLayoutAtomA_,
@@ -48,68 +48,49 @@ struct CollectiveMma<
   SmemCopyAtomB_,
   TransformB_>
 {
-  using DispatchPolicy = MainloopXe4DmaGmmaWarpSpecializedScale<Stages, SplitB, ClusterShape, KernelSchedule>;
+  using DispatchPolicy = MainloopXe4DmaGmmaWarpSpecializedMixedInput<Stages, SplitB, MxScaleSize, ClusterShape, KernelSchedule>;
   using TileShape = TileShape_;
   using TiledMma = TiledMma_;
-  using ElementA = ElementA_;
+  using ElementA = cute::tuple_element_t<0, ElementATuple>;
+  using ElementMetaA = cute::tuple_element_t<1, ElementATuple>;
   using ElementAMma = typename TiledMma::ValTypeA;
-  using ElementAMmaRaw = typename ElementAMma::raw_type;
-  using LayoutPairAE = LayoutPairAE_;
-  using LayoutA = remove_cvref_t<decltype(get<0>(LayoutPairAE{}))>;
-  using LayoutMetaA = remove_cvref_t<decltype(get<1>(LayoutPairAE{}))>;
-  using StrideA = decltype(cute::stride(LayoutA{}));
-  using ElementB = ElementB_;
+  using StrideA = StrideA_;
+  using ElementB = cute::tuple_element_t<0, ElementBTuple>;
+  using ElementMetaB = cute::tuple_element_t<1, ElementATuple>;
   using ElementBMma = typename TiledMma::ValTypeB;
-  using ElementBMmaRaw = typename ElementBMma::raw_type;
-  using LayoutPairBE = LayoutPairBE_;
-  using LayoutB = remove_cvref_t<decltype(get<0>(LayoutPairBE{}))>;
-  using LayoutMetaB = remove_cvref_t<decltype(get<1>(LayoutPairBE{}))>;
-  using StrideB = decltype(cute::stride(LayoutB{}));
-  using ElementEMma = typename TiledMma::ValTypeE;
-  using ElementE = typename ElementEMma::raw_type;
+  using StrideB = StrideB_;
   using GmemTiledCopyA = GmemTiledCopyA_;
   using GmemTiledCopyB = GmemTiledCopyB_;
+  using GmemTiledCopyScale = cute::xe4::ASYNC_TENSOR_LOAD;
   using SmemLayoutAtomA = SmemLayoutAtomA_;
   using SmemLayoutAtomB = SmemLayoutAtomB_;
   using SmemCopyAtomA = SmemCopyAtomA_;
   using SmemCopyAtomB = SmemCopyAtomB_;
-  using TileShapeMma = typename TiledMma::Shape_MNK;
 
-  using TensorDescPtr = uint64_t*;
-  using AbarrierPtr = uint64_t*;
+  using TensorDesc = uint64_t*;
   using MatrixDesc = uint32_t;
-
-  using ElementC = typename TiledMma::ValTypeD;
+  using Abarrier = typename TiledMma::AbarrierType;
+  using ElementScale = typename TiledMma::ValTypeE;
   using ElementAccumulator = typename TiledMma::ValTypeC;
-  using StrideC = cutlass::detail::TagToStrideC_t<cutlass::layout::RowMajor>;
-
-  static_assert(is_sparse<ElementAMma>::value, "ElementAMma is sparse");
-  static_assert(is_sparse<ElementBMma>::value, "ElementBMma is sparse");
-  static_assert(is_sparse<ElementEMma>::value, "ElementEMma is sparse");
+  using StrideScale = cute::Stride<cute::Int<1>, int64_t, int64_t>;
 
   static constexpr cute::xe4::GMMA::Major tnspA = TiledMma::tnspA;
   static constexpr cute::xe4::GMMA::Major tnspB = TiledMma::tnspB;
-  static constexpr cute::xe4::GMMA::Major tnspE = cute::xe4::GMMA::Major::MN;
-  static constexpr int ElementAMmaSparsity = ElementAMma::sparsity;
-  static constexpr int ElementBMmaSparsity = ElementBMma::sparsity;
-  static constexpr int ElementEMmaSparsity = ElementEMma::sparsity;
+  static constexpr cute::xe4::GMMA::Major tnspScale = cute::xe4::GMMA::Major::MN;
 
-  using SparseConfig = cutlass::Xe4GemmSparseConfig<ElementAMma, tnspA, ElementBMma, tnspB, ElementEMma>;
+  using AuxParamsA = AuxParams<(tnspA == cute::xe4::GMMA::Major::K ? slm_matrix_type::type1 : slm_matrix_type::type2), tnspA, TensorDesc, 0>;
+  using AuxParamsB = AuxParams<slm_matrix_type::type1, tnspB, TensorDesc, 1>;
+  using AuxParamsMetaA = AuxParams<slm_matrix_type::type2, tnspScale, TensorDesc, 3, true>;
+  using AuxParamsMetaB = AuxParams<slm_matrix_type::type2, tnspScale, TensorDesc, 4, true>;
 
-  // Metadata pathways
-  using SmemCopyAtomE = AutoVectorizingCopy;
+  using MainloopPipeline = cutlass::xe4::PipelineTmaAsync<Stages, 0, Abarrier>;
+  using PipelineState = typename MainloopPipeline::PipelineState;
 
-  using AuxParamsA = AuxParams<(tnspA == cute::xe4::GMMA::Major::K ? slm_matrix_type::type1 : slm_matrix_type::type2), tnspA, TensorDescPtr, 0>;
-  using AuxParamsB = AuxParams<slm_matrix_type::type1, tnspB, TensorDescPtr, 1>;
-  using AuxParamsMetaA = AuxParams<slm_matrix_type::type2, tnspE, TensorDescPtr, 3, true>;
-  using AuxParamsMetaB = AuxParams<slm_matrix_type::type2, tnspE, TensorDescPtr, 4, true>;
-
-  using MainloopPipeline = cutlass::xe4::PipelineTmaAsync<Stages, 0, AbarrierPtr>;
-  using PipelineState = cutlass::xe4::PipelineState<Stages>;
-
-  static constexpr uint32_t StagesB = (Stages - 1) * SplitB + 1;
-  using MainloopPipelineB = cutlass::xe4::PipelineTmaAsync<StagesB, 1, AbarrierPtr>;
+  static constexpr uint32_t StagesB = DispatchPolicy::StagesB;
+  using MainloopPipelineB = cutlass::xe4::PipelineTmaAsync<StagesB, 1, Abarrier>;
   using PipelineStateB = typename MainloopPipelineB::PipelineState;
+
+  using SplitBTileShape = decltype(shape_div(TileShape{}, Shape<_1, Int<SplitB>, _1>{}));
 
   static_assert(DispatchPolicy::Stages >= 2, "Specialization requires Stages set to value 2 or more.");
   static_assert(cute::is_same_v<GmemTiledCopyA, cute::xe4::ASYNC_TENSOR_LOAD> || cute::is_same_v<GmemTiledCopyA, cute::xe4::ASYNC_TENSOR_LOAD_MULTICAST>,
@@ -118,43 +99,44 @@ struct CollectiveMma<
       "GmemTiledCopy - invalid XE4 DMA copy atom specified.");
 
   static_assert(cute::rank(SmemLayoutAtomA{}) == 2, "SmemLayoutAtom must be rank 2 (M,K)");
-  static_assert((size<0>(TileShapeMma{}) % size<0>(SmemLayoutAtomA{})) == 0, "SmemLayoutAtom must evenly divide tile shape.");
-  static_assert((size<2>(TileShapeMma{}) % size<1>(SmemLayoutAtomA{})) == 0, "SmemLayoutAtom must evenly divide tile shape.");
+  static_assert((size<0>(SplitBTileShape{}) % size<0>(SmemLayoutAtomA{})) == 0, "SmemLayoutAtom must evenly divide tile shape.");
+  static_assert((size<2>(SplitBTileShape{}) % size<1>(SmemLayoutAtomA{})) == 0, "SmemLayoutAtom must evenly divide tile shape.");
 
   static_assert(cute::rank(SmemLayoutAtomB{}) == 2, "SmemLayoutAtom must be rank 2 (N,K)");
-  static_assert((size<1>(TileShapeMma{}) % size<0>(SmemLayoutAtomB{})) == 0, "SmemLayoutAtom must evenly divide tile shape.");
-  static_assert((size<2>(TileShapeMma{}) % size<1>(SmemLayoutAtomB{})) == 0, "SmemLayoutAtom must evenly divide tile shape.");
-
-  static constexpr auto SplitTileShape = replace<1>(TileShapeMma{}, shape<1>(TileShapeMma{})/C<SplitB>{});
+  static_assert((size<1>(SplitBTileShape{}) % size<0>(SmemLayoutAtomB{})) == 0, "SmemLayoutAtom must evenly divide tile shape.");
+  static_assert((size<2>(SplitBTileShape{}) % size<1>(SmemLayoutAtomB{})) == 0, "SmemLayoutAtom must evenly divide tile shape.");
 
   // Tile along modes in a way that maximizes the TMA box size.
   using SmemLayoutA = decltype(tile_to_shape(
     SmemLayoutAtomA{},
-    make_shape(shape<0>(TileShapeMma{}), shape<2>(TileShapeMma{}), Int<DispatchPolicy::Stages>{}),
+    append(select<0,2>(SplitBTileShape{}), Int<Stages>{}),
     cute::conditional_t<tnspA == cute::xe4::GMMA::Major::K, Step<_2,_1,_3>, Step<_1,_2,_3>>{}));
 
   using SmemLayoutB = decltype(tile_to_shape(
     SmemLayoutAtomB{},
-    make_shape(shape<1>(TileShapeMma{}), shape<2>(TileShapeMma{}), Int<StagesB>{}),
+    append(select<1,2>(SplitBTileShape{}), Int<StagesB>{}),
     cute::conditional_t<tnspB == cute::xe4::GMMA::Major::K, Step<_2,_1,_3>, Step<_1,_2,_3>>{}));
 
-  using MetaTileShape = decltype(SparseConfig::template deduce_MetaTileShape<TileShapeMma>());
-  using MetaALayout = cute::xe4::ABLayout<get<0>(MetaTileShape{}), get<2>(MetaTileShape{})>;
-  using MetaBLayout = cute::xe4::ABLayout<get<1>(MetaTileShape{}), get<2>(MetaTileShape{})>;
+  // for uint8_t scale tensor, we divide K dim by 32
+  using SmemLayoutAtomScale = Layout<Shape<_32, _1>, Stride<_1, _32>>;
+  using ScaleTileShape = decltype(shape_div(TileShape{}, Shape<_1, Int<SplitB>, _32>{}));
+
+  // for smem scale tensor, the K dim is rounded up to 32, and have different tile shape for partitioning
+  using ScaleTileK = decltype(get<2>(ScaleTileShape{}));
+  using ScaleTileKRoundUp = decltype(round_up(ScaleTileK{}, Int<MxScaleSize>{}));
+  using SmemScaleTileShape = decltype(append(take<0,2>(ScaleTileShape{}), ScaleTileKRoundUp{}));
+  using TVLayoutMetaA = cute::xe4::ABLayout<get<0>(SmemScaleTileShape{}), get<2>(SmemScaleTileShape{})>;
+  using TVLayoutMetaB = cute::xe4::ABLayout<get<1>(SmemScaleTileShape{}), get<2>(SmemScaleTileShape{})>;
 
   // MetaA is a column-major WgM x MetaK matrix
   using SmemLayoutMetaA = decltype(tile_to_shape(
-    make_layout(Shape<_32, _32>{}, GenColMajor{}),
-    make_shape(shape<0>(MetaTileShape{}), shape<2>(MetaTileShape{}), Int<DispatchPolicy::Stages>{})));
+    SmemLayoutAtomScale{},
+    append(select<0,2>(SmemScaleTileShape{}), Int<Stages>{})));
 
   // MetaB is a column-major WgN x MetaK matrix
   using SmemLayoutMetaB = decltype(tile_to_shape(
-    make_layout(Shape<_32, _32>{}, GenColMajor{}),
-    make_shape(shape<1>(MetaTileShape{}), shape<2>(MetaTileShape{}), Int<StagesB>{})));
-
-  using TmaInternalTypeA = uint_bit_t<sizeof_bits_v<ElementAMmaRaw>>;
-  using TmaInternalTypeB = uint_bit_t<sizeof_bits_v<ElementBMmaRaw>>;
-  using TmaInternalTypeE = uint8_t;
+    SmemLayoutAtomScale{},
+    append(select<1,2>(SmemScaleTileShape{}), Int<StagesB>{})));
 
   struct SharedStorage
   {
@@ -162,63 +144,57 @@ struct CollectiveMma<
     {
       cute::ArrayEngine<ElementAMma, cute::cosize_v<SmemLayoutA>> smem_A;
       cute::ArrayEngine<ElementBMma, cute::cosize_v<SmemLayoutB>> smem_B;
-      cute::array<uint8_t, cute::cosize_v<SmemLayoutMetaA>> smem_metaA;
-      cute::array<uint8_t, cute::cosize_v<SmemLayoutMetaB>> smem_metaB;
+      cute::array<ElementScale, cute::cosize_v<SmemLayoutMetaA>> smem_metaA;
+      cute::array<ElementScale, cute::cosize_v<SmemLayoutMetaB>> smem_metaB;
     };
   };
 
   using TensorStorage = typename SharedStorage::TensorStorage;
 
-  static constexpr auto wgMetaK = SparseConfig::deduce_wgMetaK(get<2>(TileShapeMma{}));
-  static constexpr auto wgMetaKStep = uint32_t(SparseConfig::deduce_wgMetaKStep(get<2>(TileShapeMma{})));
-
   static constexpr uint32_t TransactionBytes_A =
         cutlass::bits_to_bytes(cosize(take<0,2>(SmemLayoutA{})) * cute::sizeof_bits_v<ElementAMma>) +
-        uint32_t(size<0>(SmemLayoutMetaA{})*wgMetaK) * sizeof(ElementE);
+        uint32_t(cosize(take<0,2>(SmemLayoutMetaA{}))) * sizeof(ElementScale);
 
   static constexpr uint32_t TransactionBytes_B =
         cutlass::bits_to_bytes(cosize(take<0,2>(SmemLayoutB{})) * cute::sizeof_bits_v<ElementBMma>) +
-        uint32_t(size<0>(SmemLayoutMetaB{})*wgMetaK) * sizeof(ElementE);
+        uint32_t(cosize(take<0,2>(SmemLayoutMetaB{}))) * sizeof(ElementScale);
 
   // Host side kernel arguments
   struct Arguments {
     ElementA const* ptr_A {nullptr};
-    LayoutA layout_a;
+    StrideA dA;
     ElementB const* ptr_B {nullptr};
-    LayoutB layout_b;
-    ElementE const* ptr_metaA {nullptr};
-    LayoutMetaA layout_meta_a;
-    ElementE const* ptr_metaB {nullptr};
-    LayoutMetaB layout_meta_b;
+    StrideB dB;
+    ElementMetaA const* ptr_metaA {nullptr};
+    StrideScale dMetaA;
+    ElementMetaB const* ptr_metaB {nullptr};
+    StrideScale dMetaB;
+    int metaK = 0;
   };
 
   // Device side kernel params
   struct Params {
-    using TiledLoadA = decltype(make_xe4_copy<GmemTiledCopyA, AuxParamsA, TmaInternalTypeA>(
-      make_tensor(recast_ptr<ElementAMma>(nullptr), LayoutA{}),
-      SmemLayoutA{}(_, _, _0{}), make_shape(shape<0>(TileShapeMma{}), shape<2>(TileShapeMma{})), size<1>(ClusterShape{})));
+    using TiledLoadA = decltype(make_xe4_copy<GmemTiledCopyA, AuxParamsA, ElementA>(
+      make_tensor(recast_ptr<ElementAMma>(nullptr), repeat_like(StrideA{}, int32_t(0)), StrideA{}),
+      SmemLayoutA{}(_, _, _0{}), select<0,2>(SplitBTileShape{}), size<1>(ClusterShape{})));
 
-    using TiledLoadB = decltype(make_xe4_copy<GmemTiledCopyB, AuxParamsB, TmaInternalTypeB>(
-      make_tensor(recast_ptr<ElementBMma>(nullptr), LayoutB{}),
-      SmemLayoutB{}(_, _, _0{}), make_shape(shape<1>(TileShapeMma{}), shape<2>(TileShapeMma{})), size<0>(ClusterShape{})));
+    using TiledLoadB = decltype(make_xe4_copy<GmemTiledCopyB, AuxParamsB, ElementB>(
+      make_tensor(recast_ptr<ElementBMma>(nullptr), repeat_like(StrideB{}, int32_t(0)), StrideB{}),
+      SmemLayoutB{}(_, _, _0{}), select<1,2>(SplitBTileShape{}), size<0>(ClusterShape{})));
 
-    using TiledLoadMetaA = decltype(make_xe4_copy<GmemTiledCopyA, AuxParamsMetaA, TmaInternalTypeE>(
-      make_tensor(recast_ptr<ElementEMma>(nullptr), LayoutMetaA{}),
-      SmemLayoutA{}(_, _, _0{}), make_shape(shape<0>(TileShapeMma{}), shape<2>(TileShapeMma{})), size<1>(ClusterShape{})));
+    using TiledLoadMetaA = decltype(make_xe4_copy<GmemTiledCopyA, AuxParamsMetaA, ElementMetaA>(
+      make_tensor(recast_ptr<ElementScale>(nullptr), repeat_like(StrideScale{}, int32_t(0)), StrideScale{}),
+      make_layout(select<0,2>(ScaleTileShape{})), select<0,2>(ScaleTileShape{}), size<1>(ClusterShape{})));
 
-    using TiledLoadMetaB = decltype(make_xe4_copy<GmemTiledCopyB, AuxParamsMetaB, TmaInternalTypeE>(
-      make_tensor(recast_ptr<ElementEMma>(nullptr), LayoutMetaB{}),
-      SmemLayoutB{}(_, _, _0{}), make_shape(shape<1>(TileShapeMma{}), shape<2>(TileShapeMma{})), size<0>(ClusterShape{})));
+    using TiledLoadMetaB = decltype(make_xe4_copy<GmemTiledCopyB, AuxParamsMetaB, ElementMetaB>(
+      make_tensor(recast_ptr<ElementScale>(nullptr), repeat_like(StrideScale{}, int32_t(0)), StrideScale{}),
+      make_layout(select<1,2>(ScaleTileShape{})), select<1,2>(ScaleTileShape{}), size<0>(ClusterShape{})));
 
     TiledLoadA load_a;
     TiledLoadB load_b;
     TiledLoadMetaA load_meta_a;
     TiledLoadMetaB load_meta_b;
-
-    LayoutA layout_a;
-    LayoutB layout_b;
-    LayoutMetaA layout_meta_a;
-    LayoutMetaB layout_meta_b;
+    int metaK = 0;
   };
 
   template<class ProblemShape>
@@ -230,39 +206,38 @@ struct CollectiveMma<
 
     auto ptr_A = recast_ptr<ElementAMma>(args.ptr_A);
     auto ptr_B = recast_ptr<ElementBMma>(args.ptr_B);
-    auto ptr_metaA = recast_ptr<ElementEMma>(args.ptr_metaA);
-    auto ptr_metaB = recast_ptr<ElementEMma>(args.ptr_metaB);
+    auto ptr_metaA = recast_ptr<ElementScale>(args.ptr_metaA);
+    auto ptr_metaB = recast_ptr<ElementScale>(args.ptr_metaB);
 
-    Tensor tensor_a = make_tensor(ptr_A, args.layout_a);
-    Tensor tensor_b = make_tensor(ptr_B, args.layout_b);
-    Tensor tensor_meta_a = make_tensor(ptr_metaA, args.layout_meta_a);
-    Tensor tensor_meta_b = make_tensor(ptr_metaB, args.layout_meta_b);
+    Tensor tensor_a = make_tensor(ptr_A, make_layout(make_shape(M,K,L), args.dA));
+    Tensor tensor_b = make_tensor(ptr_B, make_layout(make_shape(N,K,L), args.dB));
 
-    auto load_a = make_xe4_copy<GmemTiledCopyA, AuxParamsA, TmaInternalTypeA>(
+    Tensor tensor_meta_a = make_tensor(ptr_metaA, make_layout(make_shape(M,args.metaK,L), args.dMetaA));
+    Tensor tensor_meta_b = make_tensor(ptr_metaB, make_layout(make_shape(N,args.metaK,L), args.dMetaB));
+
+    auto load_a = make_xe4_copy<GmemTiledCopyA, AuxParamsA, ElementA>(
       tensor_a,
       SmemLayoutA{}(_, _, _0{}),
-      make_shape(shape<0>(TileShapeMma{}), shape<2>(TileShapeMma{})),
+      select<0,2>(SplitBTileShape{}),
       size<1>(ClusterShape{}));   // mcast along N mode for this M load, if any
 
-    auto load_b = make_xe4_copy<GmemTiledCopyB, AuxParamsB, TmaInternalTypeB>(
+    auto load_b = make_xe4_copy<GmemTiledCopyB, AuxParamsB, ElementB>(
       tensor_b,
       SmemLayoutB{}(_, _, _0{}),
-      make_shape(shape<1>(TileShapeMma{}), shape<2>(TileShapeMma{})),
+      select<1,2>(SplitBTileShape{}),
       size<0>(ClusterShape{}));   // mcast along M mode for this N load, if any
 
-    auto load_meta_a = make_xe4_copy<GmemTiledCopyA, AuxParamsMetaA, TmaInternalTypeE>(
+    auto load_meta_a = make_xe4_copy<GmemTiledCopyA, AuxParamsMetaA, ElementMetaA>(
       tensor_meta_a,
-      SmemLayoutA{}(_, _, _0{}),
-      make_shape(shape<0>(TileShapeMma{}), shape<2>(TileShapeMma{})),
+      make_layout(select<0,2>(ScaleTileShape{})), select<0,2>(ScaleTileShape{}),
       size<1>(ClusterShape{})); // mcast along N mode for this M load, if any
 
-    auto load_meta_b = make_xe4_copy<GmemTiledCopyB, AuxParamsMetaB, TmaInternalTypeE>(
+    auto load_meta_b = make_xe4_copy<GmemTiledCopyB, AuxParamsMetaB, ElementMetaB>(
       tensor_meta_b,
-      SmemLayoutB{}(_, _, _0{}),
-      make_shape(shape<1>(TileShapeMma{}), shape<2>(TileShapeMma{})),
+      make_layout(select<1,2>(ScaleTileShape{})), select<1,2>(ScaleTileShape{}),
       size<0>(ClusterShape{}));   // mcast along M mode for this N load, if any
 
-    return {load_a, load_b, load_meta_a, load_meta_b, args.layout_a, args.layout_b, args.layout_meta_a, args.layout_meta_b};
+    return {load_a, load_b, load_meta_a, load_meta_b, args.metaK};
   }
 
   template <class ProblemShape>
@@ -270,17 +245,18 @@ struct CollectiveMma<
   load_init(ProblemShape const& problem_shape, Params const& mainloop_params) const {
     auto [M, N, K, L] = problem_shape;
 
-    auto mA_mkl = mainloop_params.load_a.get_tma_tensor(mainloop_params.layout_a.shape());   // (m,k,l)
-    auto mB_nkl = mainloop_params.load_b.get_tma_tensor(mainloop_params.layout_b.shape());   // (n,k,l)
+    auto mA_mkl = mainloop_params.load_a.get_tma_tensor(make_shape(M, K, L));   // (m,k,l)
+    auto mB_nkl = mainloop_params.load_b.get_tma_tensor(make_shape(N, K, L));   // (n,k,l)
 
-    auto mMetaA_mkl = mainloop_params.load_meta_a.get_tma_tensor(mainloop_params.layout_meta_a.shape());   // (m,k,l)
-    auto mMetaB_nkl = mainloop_params.load_meta_b.get_tma_tensor(mainloop_params.layout_meta_b.shape());   // (n,k,l)
+    const auto metaK = mainloop_params.metaK;
+    auto mMetaA_mkl = mainloop_params.load_meta_a.get_tma_tensor(make_shape(M, metaK, L));   // (m,meta_k,l)
+    auto mMetaB_nkl = mainloop_params.load_meta_b.get_tma_tensor(make_shape(N, metaK, L));   // (n,meta_k,l)
 
-    auto gA_mkl = local_tile(mA_mkl, TileShape_{}, make_coord(_,_,_), Step<_1, X,_1>{});        // (BLK_M,BLK_K,m,k,l)
-    auto gB_nkl = local_tile(mB_nkl, TileShape_{}, make_coord(_,_,_), Step< X,_1,_1>{});        // (BLK_N,BLK_K,n,k,l)
+    auto gA_mkl = local_tile(mA_mkl, TileShape{}, make_coord(_,_,_), Step<_1, X,_1>{});        // (BLK_M,BLK_K,m,k,l)
+    auto gB_nkl = local_tile(mB_nkl, TileShape{}, make_coord(_,_,_), Step< X,_1,_1>{});        // (BLK_N,BLK_K,n,k,l)
 
-    auto gMetaA_mkl = local_tile(mMetaA_mkl, TileShape_{}, make_coord(_,_,_), Step<_1, X,_1>{});   // (BLK_M,META_K,m,k,l)
-    auto gMetaB_nkl = local_tile(mMetaB_nkl, TileShape_{}, make_coord(_,_,_), Step< X,_1,_1>{});   // (BLK_N,META_K,n,k,l)
+    auto gMetaA_mkl = local_tile(mMetaA_mkl, ScaleTileShape{}, make_coord(_,_,_), Step<_1, X,_1>{});   // (BLK_M,META_K,m,k,l)
+    auto gMetaB_nkl = flat_divide(mMetaB_nkl, make_tile(get<1>(TileShape{}), get<2>(ScaleTileShape{})));   // (BLK_N,META_K,n,k,l)
 
     return cute::make_tuple(gA_mkl, gB_nkl, gMetaA_mkl, gMetaB_nkl);
   }
@@ -308,6 +284,11 @@ struct CollectiveMma<
   load(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState slm_pipe_write, MainloopPipelineB pipeline_b, PipelineStateB slm_pipe_write_b,
     cute::tuple<TensorA, TensorB, MetaA, MetaB> const& load_inputs, BlockCoord const& blk_coord, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
 
+    TiledMma tiled_mma;
+    Copy_Atom<AutoVectorizingCopy, uint32_t> copy_atom_scale;
+    auto load_smem_meta_a = make_tiled_copy_E(copy_atom_scale, tiled_mma, TVLayoutMetaA{}, select<0, 2>(SmemScaleTileShape{}));
+    auto load_smem_meta_b = make_tiled_copy_E(copy_atom_scale, tiled_mma, TVLayoutMetaB{}, select<1, 2>(SmemScaleTileShape{}));
+
     auto sA = make_tensor(shared_tensors.smem_A.begin(), SmemLayoutA {});
     auto sB = make_tensor(shared_tensors.smem_B.begin(), SmemLayoutB {});
     auto sMetaA = make_tensor(shared_tensors.smem_metaA.data(), SmemLayoutMetaA {});
@@ -322,6 +303,8 @@ struct CollectiveMma<
     auto block_load_b = mainloop_params.load_b.get_slice(0);
     auto block_load_meta_a = mainloop_params.load_meta_a.get_slice(0);
     auto block_load_meta_b = mainloop_params.load_meta_b.get_slice(0);
+    auto block_load_smem_meta_a = load_smem_meta_a.get_thread_slice(0);
+    auto block_load_smem_meta_b = load_smem_meta_b.get_thread_slice(0);
 
     auto [gA_mkl, gB_nkl, gMetaA_mkl, gMetaB_nkl] = load_inputs;
     auto [m_coord, n_coord, l_coord] = blk_coord;
@@ -336,22 +319,11 @@ struct CollectiveMma<
 
     auto gMetaA = gMetaA_mkl(_, _, m_coord, _, l_coord);      // (BLK_M,BLK_K,k)
     auto tAgMetaA = block_load_meta_a.partition_S(gMetaA);    // (TMA,TMA_M,TMA_K,k)
+    auto tAsMetaA = block_load_smem_meta_a.partition_D(sMetaA);    // (TMA,TMA_M,TMA_K,PIPE)
 
     auto gMetaB = gMetaB_nkl(_, _, n_coord, _, l_coord);      // (BLK_N,BLK_K,k)
     auto tBgMetaB = block_load_meta_b.partition_S(gMetaB);    // (TMA,TMA_N,TMA_K,k)
-
-    TiledMma tiled_mma;
-    auto copy_atom_E = Copy_Atom<SmemCopyAtomE, uint32_t>{};
-
-    auto metaA_tiler = make_shape(get<0>(MetaTileShape{}), get<2>(MetaTileShape{}));
-    auto smem_tiled_copy_MetaA = make_tiled_copy_E(copy_atom_E, tiled_mma, MetaALayout{}, metaA_tiler);
-    auto smem_thr_copy_MetaA   = smem_tiled_copy_MetaA.get_thread_slice(0);
-    auto tEsMetaA = smem_thr_copy_MetaA.partition_D(sMetaA);    // (TMA,TMA_M,TMA_K,PIPE)
-
-    auto metaB_tiler = make_shape(get<1>(MetaTileShape{}), get<2>(MetaTileShape{}));
-    auto smem_tiled_copy_MetaB = make_tiled_copy_E(copy_atom_E, tiled_mma, MetaBLayout{}, metaB_tiler);
-    auto smem_thr_copy_MetaB   = smem_tiled_copy_MetaB.get_thread_slice(0);
-    auto tEsMetaB = smem_thr_copy_MetaB.partition_D(sMetaB);    // (TMA,TMA_N,TMA_K,PIPE)
+    auto tBsMetaB = block_load_smem_meta_b.partition_D(sMetaB);    // (TMA,TMA_N,TMA_K,PIPE)
 
     for (int i = 0; i < k_tile_count; ++i, ++slm_pipe_write) {
       pipeline.producer_try_wait(slm_pipe_write);
@@ -360,9 +332,9 @@ struct CollectiveMma<
       auto abar_prod = pipeline.producer_get_barrier(slm_pipe_write);
 
       constexpr auto dimIndex = _2{};
-      const uint32_t newDimSize = (i+1) * wgMetaKStep;  // set dim size to make dma load meta with OOB
+      const uint32_t newDimSize = (i+1) * uint32_t(ScaleTileK{});  // set dim size to make dma load meta with OOB
       copy(mainloop_params.load_a.with(abar_prod, cluster_mask_a), tAgA(_,_,_,i), tAsA(_,_,_,write_stage));
-      copy(mainloop_params.load_meta_a.with(dimIndex, newDimSize, abar_prod, cluster_mask_a), tAgMetaA(_,_,_,i), tEsMetaA(_,_,_,write_stage));
+      copy(mainloop_params.load_meta_a.with(dimIndex, newDimSize, abar_prod), tAgMetaA(_,_,_,i), tAsMetaA(_,_,_,write_stage));
       pipeline.producer_commit(slm_pipe_write, TransactionBytes_A);
 
       for (int bIdx = 0; bIdx < SplitB; ++bIdx, ++slm_pipe_write_b) {
@@ -370,7 +342,7 @@ struct CollectiveMma<
         uint32_t write_stage_b = slm_pipe_write_b.index();
         auto abar_prod_b = pipeline_b.producer_get_barrier(slm_pipe_write_b);
         copy(mainloop_params.load_b.with(abar_prod_b, cluster_mask_b), tBgB(_,bIdx,_,i), tBsB(_,_0{},_,write_stage_b));
-        copy(mainloop_params.load_meta_b.with(dimIndex, newDimSize, abar_prod_b, cluster_mask_b), tBgMetaB(_,bIdx,_,i), tEsMetaB(_,_0{},_,write_stage_b));
+        copy(mainloop_params.load_meta_b.with(dimIndex, newDimSize, abar_prod_b), tBgMetaB(_,bIdx,_,i), tBsMetaB(_,_0{},_,write_stage_b));
         pipeline_b.producer_commit(slm_pipe_write_b, TransactionBytes_B);
       }
     }
@@ -403,8 +375,8 @@ struct CollectiveMma<
     auto tCsB = thread_mma.partition_fragment_B(sB);            // (MMA,MMA_N,MMA_K,PIPE)
     auto accum_ = thread_mma.partition_fragment_C(accumulator);  // (MMA,MMA_M,MMA_N)
     auto accum = make_tensor(accum_.data(), append(accum_.layout(), Layout<_1,_0>{}));
-    auto tEsMetaA = TiledMma::make_fragment_E(partition_E(thread_mma, sMetaA, MetaALayout{}));    // (TMA,TMA_M,TMA_K,PIPE)
-    auto tEsMetaB = TiledMma::make_fragment_E(partition_E(thread_mma, sMetaB, MetaBLayout{}));    // (TMA,TMA_N,TMA_K,PIPE)
+    auto tEsMetaA = TiledMma::make_fragment_E(partition_E(thread_mma, sMetaA, TVLayoutMetaA{}));    // (TMA,TMA_M,TMA_K,PIPE)
+    auto tEsMetaB = TiledMma::make_fragment_E(partition_E(thread_mma, sMetaB, TVLayoutMetaB{}));    // (TMA,TMA_N,TMA_K,PIPE)
 
     CUTE_STATIC_ASSERT_V(size<1>(tCsA) == size<1>(accum));                // M
     CUTE_STATIC_ASSERT_V(size<2>(tCsA) == size<2>(tCsB));                 // K
@@ -498,8 +470,8 @@ public:
     auto t_tensor = logical_divide(etensor, t_tile);                 // (PermM,PermK)
 
     // Tile the tensor for the Atom
-    auto e_tile = make_tile(make_layout(size<0>(MetaTileShape{})),
-                            make_layout(size<2>(MetaTileShape{})));
+    auto e_tile = make_tile(make_layout(size<0>(ScaleTileShape{})),
+                            make_layout(size<2>(ScaleTileShape{})));
     auto e_tensor = zipped_divide(t_tensor, e_tile);                 // ((AtomM,AtomK),(RestM,RestK))
 
     // Transform the Atom mode from (M,K) to (Thr,Val)

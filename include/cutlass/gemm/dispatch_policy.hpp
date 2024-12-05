@@ -114,7 +114,7 @@ struct KernelPtrArrayTmaWarpSpecializedCooperative { };
 struct KernelPtrArrayTmaWarpSpecializedPingpong { };
 
 struct KernelXe4WarpSpecialized { };
-struct KernelXe4WarpSpecializedScale { };
+struct KernelXe4WarpSpecializedMixedInput { };
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -341,17 +341,20 @@ struct MainloopXe4DmaGmmaWarpSpecialized {
 template<
   int Stages_,
   uint32_t SplitB_ = 1,
+  uint32_t MxScaleSize_ = 32,
   class ClusterShape_ = Shape<_1,_1,_1>,
-  class KernelSchedule = KernelXe4WarpSpecializedScale
+  class KernelSchedule = KernelXe4WarpSpecializedMixedInput
 >
-struct MainloopXe4DmaGmmaWarpSpecializedScale {
+struct MainloopXe4DmaGmmaWarpSpecializedMixedInput {
   constexpr static int Stages = Stages_;
   constexpr static uint32_t SplitB = SplitB_;
+  constexpr static uint32_t MxScaleSize = MxScaleSize_;
+  constexpr static uint32_t StagesB = (Stages - 1) * SplitB + 1;
   using ClusterShape = ClusterShape_;
   using ArchTag = arch::Sm90;
   using Schedule = KernelSchedule;
   static_assert(
-    cute::is_same_v<Schedule, KernelXe4WarpSpecializedScale>,
+    cute::is_same_v<Schedule, KernelXe4WarpSpecializedMixedInput>,
     "KernelSchedule must be one of the warp specialized policies");
 };
 

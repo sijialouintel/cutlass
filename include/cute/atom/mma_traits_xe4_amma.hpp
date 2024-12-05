@@ -17,27 +17,13 @@ CUTE_HOST_DEVICE constexpr uint32_t get_leading_stride(Layout<Shape, Stride> con
   }
 }
 
-template <xe4::GMMA::Major MajorMode, class MatDesc, class SEngine, class SLayout, __CUTE_REQUIRES(!is_sparse_ptr<SEngine>::value)>
+template <xe4::GMMA::Major MajorMode, class MatDesc, class SEngine, class SLayout>
 CUTE_HOST_DEVICE constexpr
 MatDesc make_matrix_desc(Tensor<SEngine, SLayout> const& sTensor) {
   constexpr uint32_t leading_stride = get_leading_stride<MajorMode>(SLayout{});
-  constexpr uint32_t cm_stride = (sizeof(typename SEngine::value_type) * leading_stride) >> 10;
+  constexpr uint32_t cm_stride = (leading_stride * sizeof_bits_v<typename SEngine::value_type> / 8) >> 10;
 
-  MatDesc mat_desc = reinterpret_cast<uint64_t>(slm_space_cast(sTensor.data())) >> 9;
-  mat_desc |= (cm_stride << 16);
-
-  return mat_desc;
-}
-
-template <xe4::GMMA::Major MajorMode, class MatDesc, class SEngine, class SLayout, __CUTE_REQUIRES(is_sparse_ptr<SEngine>::value)>
-CUTE_HOST_DEVICE constexpr
-MatDesc make_matrix_desc(Tensor<SEngine, SLayout> const& sTensor) {
-  auto uint8_tensor = recast<uint8_t>(sTensor);
-  using CastedSLayout = decltype(uint8_tensor.layout());
-  constexpr uint32_t leading_stride = get_leading_stride<MajorMode>(CastedSLayout{});
-  constexpr uint32_t cm_stride = (sizeof(typename SEngine::value_type) * leading_stride) >> 10;
-
-  MatDesc mat_desc = reinterpret_cast<uint64_t>(slm_space_cast(uint8_tensor.data())) >> 9;
+  MatDesc mat_desc = reinterpret_cast<uint64_t>(slm_space_cast(raw_pointer_cast(sTensor.data()))) >> 9;
   mat_desc |= (cm_stride << 16);
 
   return mat_desc;
@@ -217,10 +203,10 @@ template <class TD, class TC, class TA, class TB, class TMeta, class Shape_MNK_,
 struct MMA_Traits<XE4_ASYNC_GMMA_SCALE<TD, TC, TA, TB, TMeta, Shape_MNK_, tnspA_, tnspB_, ScaleA, ScaleB, MatDesc, MetaDesc, Abarrier>>
 {
   using ValTypeD = TD;
-  using ValTypeA = sparse_elem<packed_num<TA>::value, TA>;
-  using ValTypeB = sparse_elem<packed_num<TB>::value, TB>;
+  using ValTypeA = uint_bit_t<sizeof(TA) * 8 / packed_num<TA>::value>;
+  using ValTypeB = uint_bit_t<sizeof(TA) * 8 / packed_num<TB>::value>;
   using ValTypeC = float;
-  using ValTypeE = sparse_elem<32, TMeta>;
+  using ValTypeE = uint_bit_t<sizeof(TA) * 8 / packed_num<TMeta>::value>;
 
   using FrgTypeA = xe4::slm_desc<tnspA_, MatDesc>;
   using FrgTypeB = xe4::slm_desc<tnspB_, MatDesc>;
@@ -234,6 +220,8 @@ struct MMA_Traits<XE4_ASYNC_GMMA_SCALE<TD, TC, TA, TB, TMeta, Shape_MNK_, tnspA_
   using CLayout = xe4::ABLayout<get<0>(Shape_MNK{}), get<1>(Shape_MNK{})>;
   using MetaALayout = ALayout;
   using MetaBLayout = BLayout;
+
+  using AbarrierType = Abarrier;
 
   static constexpr xe4::GMMA::Major tnspA = tnspA_;
   static constexpr xe4::GMMA::Major tnspB = tnspB_;

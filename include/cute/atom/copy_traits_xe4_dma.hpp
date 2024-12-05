@@ -315,19 +315,14 @@ make_tensor_desc(Tensor<GEngine, GLayout> const& gtensor, SLayout const& slayout
   auto  gmem_layout  = gtensor_T.layout();
 
   // Recast the original smem layout for shape/stride inspections
-  constexpr auto sparsity = ExtractSparsity<ValueType>::value;
-  auto slayout_recasted = upcast<sparsity>(slayout);
+  constexpr auto pack = packed_num<TmaInternalType>::value;
+  auto slayout_recasted = upcast<pack>(slayout);
 
   uint32_t width = size<ldm>(gmem_layout);
   uint32_t height = size<non_ldm>(gmem_layout);
   uint32_t block_width = size<ldm>(slayout_recasted);
-  uint32_t origin_block_height = size<non_ldm>(slayout_recasted);
-  uint32_t block_height = origin_block_height / coop_size;
-
-  // MetaA and MetaB are special cases where the block height is less than 32
-  if constexpr (AuxParams::isMeta) {
-    block_height = round_up(origin_block_height, 32) / coop_size;
-  }
+  uint32_t block_height_ = size<non_ldm>(slayout_recasted);
+  uint32_t block_height = AuxParams::isMeta ? round_up(block_height_, 32) : (block_height_ / coop_size);
 
   auto tdesc_ptr = allocate_tdesc<AuxParams::tdescIdx, typename AuxParams::tdescPtr>();
   tensor_desc_fill_global_addr(tdesc_ptr, gmem_address);
@@ -335,7 +330,7 @@ make_tensor_desc(Tensor<GEngine, GLayout> const& gtensor, SLayout const& slayout
   tensor_descriptor_fill_dim_stride<2>(tdesc_ptr, width * sizeof(TmaInternalType));
   tensor_descriptor_fill_traverse_stride<2>(tdesc_ptr, sycl::vec<uint32_t, 2>{1, 1});
   tensor_descriptor_fill_roitensor_size<2>(tdesc_ptr, {block_width, block_height});
-  tensor_descriptor_fill_misc<typename ExtractType<ValueType>::type, AuxParams::cmType>(tdesc_ptr);
+  tensor_descriptor_fill_misc<TmaInternalType, AuxParams::cmType>(tdesc_ptr);
 
   return tdesc_ptr;
 }

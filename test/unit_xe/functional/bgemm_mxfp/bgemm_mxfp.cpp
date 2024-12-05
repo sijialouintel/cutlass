@@ -10,7 +10,6 @@
 #include "cutlass/detail/layout.hpp"
 #include "cutlass/util/packed_stride.hpp"
 #include "cutlass/gemm/kernel/gemm_universal.hpp"
-#include "cutlass/gemm/collective/builders/xe4_sparse_config.inl"
 
 #include "validation.hpp"
 
@@ -85,7 +84,7 @@ void run_test() {
   constexpr mem_layout layout_b = test::layout_b;
 
   constexpr uint32_t mx_scale_elem_num = 32;
-  uint32_t meta_k = std::max(32u, mat_k / mx_scale_elem_num);
+  const int meta_k = std::max(32u, ceil_div(mat_k, mx_scale_elem_num));
   constexpr uint32_t wg_meta_k_step = wg_k / mx_scale_elem_num;
   constexpr uint32_t wg_meta_k = (wg_meta_k_step + 31) / 32 * 32;
 
@@ -157,28 +156,22 @@ void run_test() {
   using TiledMma = decltype(cute::make_tiled_mma(cute::xe4::GMMA::ss_op_selector_scale<cute::xe4::GMMA::OpType::NoneCluster,
     dtypeA, dtypeB, dtypeAcc, dtypeC, dtypeMeta, SplitTileShape, tnspA, tnspB, a_blockscaling, b_blockscaling, mat_desc_t, meta_desc_t, abar_ptr_t>()));
 
-  using ElementAMma = typename TiledMma::ValTypeA;
-  using ElementBMma = typename TiledMma::ValTypeB;
-  using ElementEMma = typename TiledMma::ValTypeE;
-  using SparseConfig = cutlass::Xe4GemmSparseConfig<ElementAMma, tnspA, ElementBMma, tnspB, ElementEMma>;
-
-  using LayoutA = decltype(SparseConfig::deduce_layoutA());
-  using LayoutB = decltype(SparseConfig::deduce_layoutB());
-  using LayoutE = decltype(SparseConfig::deduce_layoutMeta(Int<wg_k>{}));
-  using LayoutPairAE = decltype(cute::make_tuple(LayoutA{}, LayoutE{}));
-  using LayoutPairBE = decltype(cute::make_tuple(LayoutB{}, LayoutE{}));
+  using LayoutA = std::conditional_t<tnspA == xe4::GMMA::Major::K, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
+  using StrideA = cutlass::detail::TagToStrideA_t<LayoutA>;
+  using LayoutB = std::conditional_t<tnspB == xe4::GMMA::Major::MN, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
+  using StrideB = cutlass::detail::TagToStrideB_t<LayoutB>;
 
   using SmemLayoutAtomA = decltype(upcast<sizeof(dtypeA)>(make_layout(Shape<_32, _32>{}, GenRowMajor{})));
   using SmemLayoutAtomB = decltype(upcast<sizeof(dtypeB)>(make_layout(Shape<_32, _32>{}, std::conditional_t<tnspB == xe4::GMMA::Major::K, GenRowMajor, GenColMajor>{})));
   using SmemLayoutAtomC = Layout<Shape<Int<wg_m>, Int<wg_n>>, Stride<Int<wg_n>, _1>>;
 
   using CollectiveMainloop = CollectiveMma<
-    MainloopXe4DmaGmmaWarpSpecializedScale<stage, split_b>, // Dispatch Policy
+    MainloopXe4DmaGmmaWarpSpecializedMixedInput<stage, split_b, mx_scale_elem_num>, // Dispatch Policy
     TileShape,                                          // TileShape
-    dtypeA,                                             // ElementA
-    LayoutPairAE,                                       // StrideA
-    dtypeB,                                             // ElementB
-    LayoutPairBE,                                       // StrideB
+    tuple<dtypeA,dtypeMeta>,                            // ElementATuple
+    StrideA,                                            // StrideA
+    tuple<dtypeB,dtypeMeta>,                            // ElementBTuple
+    StrideB,                                            // StrideB
     TiledMma,                                           // TiledMma
     ASYNC_TENSOR_LOAD,                                  // GmemTiledCopyA
     SmemLayoutAtomA,                                    // SmemLayoutAtomA
@@ -208,20 +201,20 @@ void run_test() {
     void
   >;
 
-  // using SparseConfig = typename GemmKernel::CollectiveMainloop::SparseConfig;
+  using StrideScale = typename CollectiveMainloop::StrideScale;
 
   q.parallel_for<test>(Range, [=](nd_item<3> item) {
     auto problem_shape = make_tuple(mat_m, mat_n, mat_k, mat_l);
 
-    auto layout_A = SparseConfig::fill_layoutA(problem_shape);
-    auto layout_B = SparseConfig::fill_layoutB(problem_shape);
-    auto layout_metaA = SparseConfig::fill_layout_metaA(problem_shape);
-    auto layout_metaB = SparseConfig::fill_layout_metaB(problem_shape);
+    auto layout_A = cutlass::make_cute_packed_stride(StrideA{}, cute::make_shape(mat_m, mat_k, mat_l));
+    auto layout_B = cutlass::make_cute_packed_stride(StrideB{}, cute::make_shape(mat_n, mat_k, mat_l));
+    auto layout_metaA = cutlass::make_cute_packed_stride(StrideScale{}, cute::make_shape(mat_m, meta_k, mat_l));
+    auto layout_metaB = cutlass::make_cute_packed_stride(StrideScale{}, cute::make_shape(mat_n, meta_k, mat_l));
 
     auto args = typename GemmKernel::Arguments {
       problem_shape,
       {
-        A_d, layout_A, B_d, layout_B, MetaA_d, layout_metaA, MetaB_d, layout_metaB,
+        A_d, layout_A, B_d, layout_B, MetaA_d, layout_metaA, MetaB_d, layout_metaB, meta_k
       },
       {
         C_d, cutlass::make_cute_packed_stride(StrideC{}, cute::make_shape(mat_m, mat_n, mat_l)),

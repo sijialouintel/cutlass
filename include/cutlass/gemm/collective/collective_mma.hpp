@@ -49,6 +49,6 @@
 #include "cutlass/gemm/collective/sm90_mma_tma_gmma_ss_warpspecialized_fp8.hpp"
 #elif defined(SYCL_LANGUAGE_VERSION)
 #include "cutlass/gemm/collective/xe4_mma_dma_amma_ss_warpspecialized.hpp"
-#include "cutlass/gemm/collective/xe4_scale_mma_dma_amma_ss_warpspecialized.hpp"
+#include "cutlass/gemm/collective/xe4_mma_dma_amma_ss_warpspecialized_mixed_input.hpp"
 #endif
 /////////////////////////////////////////////////////////////////////////////////////////////////
