@@ -106,29 +106,29 @@ PipelineState<Pipeline::Stages> make_producer_start_state() {
   return {InitialProducerStage, InitialProducerPhase, InitialProducerCount};
 }
 
-template <int Stages_, int AllocId = 0, typename BarrierPtr = uint64_t*>
+template <int Stages_, int AllocId = 0, typename ABarrier = uint64_t*>
 class PipelineTmaAsync {
 public:
-  using ProducerBarrier = BarrierPtr;
-  using ConsumerBarrier = BarrierPtr;
+  using ProducerBarrier = ABarrier;
+  using ConsumerBarrier = ABarrier;
   static constexpr int Stages = Stages_;
   using PipelineState = cutlass::xe4::PipelineState<Stages>;
 
-  BarrierPtr abar_prod_base = nullptr;
-  BarrierPtr abar_cons_base = nullptr;
+  ABarrier abar_prod_base = nullptr;
+  ABarrier abar_cons_base = nullptr;
 
-  PipelineTmaAsync(uint32_t local_id) {
+  PipelineTmaAsync(uint32_t local_id, uint32_t prod_total_arrive_cnt = 1, uint32_t cons_total_arrive_cnt = 1) {
     abar_prod_base = allocate_abar<AllocId, 2*Stages>();;
     abar_cons_base = abar_prod_base + Stages;
     if (local_id == 0) {
       #pragma unroll
       for (int i = 0; i < Stages; i++) {
-        abarrier_init(abar_prod_base + i, 1);
+        abarrier_init(abar_prod_base + i, prod_total_arrive_cnt);
       }
     } else if (local_id == 32) {
       #pragma unroll
       for (int i = 0; i < Stages; i++) {
-        abarrier_init(abar_cons_base + i, 1);
+        abarrier_init(abar_cons_base + i, cons_total_arrive_cnt);
       }
     }
   }
@@ -194,14 +194,14 @@ public:
   }
 };
 
-template <int Stages_, int AllocId = 1, typename BarrierPtr = uint64_t*>
+template <int Stages_, int AllocId = 1, typename ABarrier = uint64_t*>
 class PipelineTmaStore {
 public:
   static constexpr int Stages = Stages_;
-  using ProducerBarrier = BarrierPtr;
+  using ProducerBarrier = ABarrier;
   using PipelineState = cutlass::xe4::PipelineState<Stages>;
 
-  BarrierPtr abar_store_base = nullptr;
+  ABarrier abar_store_base = nullptr;
 
   PipelineTmaStore(uint32_t local_id, uint32_t total_arrive_cnt = 1) {
     abar_store_base = allocate_abar<AllocId, Stages>();

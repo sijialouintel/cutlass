@@ -23,7 +23,7 @@ INCLUDE_PATHS="-I$CUTLASS_PISA_PATH/include \
 EPILOGUE_OP=CONVERSION
 
 rm -rf build; mkdir build; cd build
-icpx -fsycl $INCLUDE_PATHS -D$EPILOGUE_OP ../dma_postop.cpp -o dma_postop
+icpx -fsycl -std=c++20 $INCLUDE_PATHS -D$EPILOGUE_OP ../dma_postop.cpp -o dma_postop
 
 export LD_LIBRARY_PATH=$ZESIM_ROOT:$LD_LIBRARY_PATH
 export L0SIM_DEVICE_KIND=Xe4

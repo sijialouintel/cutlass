@@ -61,7 +61,7 @@ struct CollectiveMma<
   using SmemCopyAtomA = SmemCopyAtomA_;
   using SmemCopyAtomB = SmemCopyAtomB_;
 
-  using TensorDescPtr = uint64_t*;
+  using TensorDesc = uint64_t*;
   using Abarrier = typename TiledMma::AbarrierType;
   using ElementAccumulator = typename TiledMma::ValTypeC;
 
@@ -71,10 +71,10 @@ struct CollectiveMma<
   using AuxParamsA = AuxParams<
     (tnspA == cute::xe4::GMMA::Major::K ? slm_matrix_type::type1 : slm_matrix_type::type2),
     tnspA,
-    TensorDescPtr,
+    TensorDesc,
     0
   >;
-  using AuxParamsB = AuxParams<slm_matrix_type::type1, tnspB, TensorDescPtr, 1>;
+  using AuxParamsB = AuxParams<slm_matrix_type::type1, tnspB, TensorDesc, 1>;
 
   using MainloopPipeline = cutlass::xe4::PipelineTmaAsync<Stages, 0, Abarrier>;
   using PipelineState = cutlass::xe4::PipelineState<Stages>;
@@ -216,9 +216,9 @@ struct CollectiveMma<
     }
   }
 
-  template <class FinalPipeline, class FinalPipelineState, class FrgTensorC, class ClusterMask>
+  template <class EpiPipeline, class EpiPipeState, class FrgTensorC, class ClusterMask>
   CUTLASS_DEVICE void
-  mma(MainloopPipeline pipeline, PipelineState slm_pipe_read, FinalPipeline finalPipeline, FinalPipelineState& finalPipelineState, FrgTensorC& accumulator, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
+  mma(MainloopPipeline pipeline, PipelineState slm_pipe_read, EpiPipeline epi_pipeline, EpiPipeState& epi_pipe_write, FrgTensorC& accumulator, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
     static_assert(cute::rank(SmemLayoutA{}) == 3, "Smem layout must be rank 3.");
     static_assert(cute::rank(SmemLayoutB{}) == 3, "Smem layout must be rank 3.");
     static_assert(cute::is_void_v<SmemCopyAtomA>,
@@ -274,12 +274,12 @@ struct CollectiveMma<
       uint32_t read_stage = slm_pipe_read.index();
       pipeline.consumer_try_wait(slm_pipe_read);
       auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
-      auto abar_cons_d = finalPipeline.store_get_barrier(finalPipelineState);
+      auto abar_cons_d = epi_pipeline.store_get_barrier(epi_pipe_write);
       cute::gemm(tiled_mma.with(scaleOutOne, dstType, abar_cons_d, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,_,read_stage), tCsB(_,_,_,read_stage), accum);
       pipeline.consumer_commit(slm_pipe_read, cluster_expect_tx);
-      finalPipeline.store_commit(finalPipelineState, 1);
-      finalPipeline.store_try_wait(finalPipelineState);
-      ++finalPipelineState;
+      epi_pipeline.store_commit(epi_pipe_write, 1);
+      epi_pipeline.store_try_wait(epi_pipe_write);
+      ++epi_pipe_write;
     }
   }
 };
