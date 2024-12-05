@@ -132,6 +132,7 @@ int run_test()
 
     q.parallel_for<test>(Range, [=](nd_item<3> item) {
         auto args = typename GemmKernel::Arguments {
+            {SubGroupSize, NumControlSubGroup, NumPostOpSubGroup},
             make_shape(mat_m, mat_n, mat_k, mat_l),
             {
                 A_s, cutlass::make_cute_packed_stride(StrideA{}, cute::make_shape(mat_m, mat_k, mat_l)),

@@ -279,51 +279,35 @@ struct CollectiveMma<
     return cute::make_tuple(cluster_mask_a, cluster_mask_b);
   }
 
-  template <class TensorA, class TensorB, class MetaA, class MetaB, class BlockCoord, class ClusterMask>
+  template <class TensorA, class MetaA, class BlockCoord, class ClusterMask>
   CUTLASS_DEVICE void
-  load(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState slm_pipe_write, MainloopPipelineB pipeline_b, PipelineStateB slm_pipe_write_b,
-    cute::tuple<TensorA, TensorB, MetaA, MetaB> const& load_inputs, BlockCoord const& blk_coord, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
+  loadA(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState slm_pipe_write,
+    cute::tuple<TensorA, MetaA> const& load_inputs, BlockCoord const& blk_coord, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
 
     TiledMma tiled_mma;
     Copy_Atom<AutoVectorizingCopy, uint32_t> copy_atom_scale;
     auto load_smem_meta_a = make_tiled_copy_E(copy_atom_scale, tiled_mma, TVLayoutMetaA{}, select<0, 2>(SmemScaleTileShape{}));
-    auto load_smem_meta_b = make_tiled_copy_E(copy_atom_scale, tiled_mma, TVLayoutMetaB{}, select<1, 2>(SmemScaleTileShape{}));
 
-    auto sA = make_tensor(shared_tensors.smem_A.begin(), SmemLayoutA {});
-    auto sB = make_tensor(shared_tensors.smem_B.begin(), SmemLayoutB {});
-    auto sMetaA = make_tensor(shared_tensors.smem_metaA.data(), SmemLayoutMetaA {});
-    auto sMetaB = make_tensor(shared_tensors.smem_metaB.data(), SmemLayoutMetaB {});
-
+    auto [gA_mkl, gMetaA_mkl] = load_inputs;
+    auto [m_coord, n_coord, l_coord] = blk_coord;
     auto [cluster_mask_a, cluster_mask_b] = cluster_mask;
 
     uint32_t cluster_wgid_x = get_cluster_wgid<0>();
     uint32_t cluster_wgid_y = get_cluster_wgid<1>();
 
     auto block_load_a = mainloop_params.load_a.get_slice(0);
-    auto block_load_b = mainloop_params.load_b.get_slice(0);
     auto block_load_meta_a = mainloop_params.load_meta_a.get_slice(0);
-    auto block_load_meta_b = mainloop_params.load_meta_b.get_slice(0);
     auto block_load_smem_meta_a = load_smem_meta_a.get_thread_slice(0);
-    auto block_load_smem_meta_b = load_smem_meta_b.get_thread_slice(0);
-
-    auto [gA_mkl, gB_nkl, gMetaA_mkl, gMetaB_nkl] = load_inputs;
-    auto [m_coord, n_coord, l_coord] = blk_coord;
 
     auto gA = gA_mkl(_, _, m_coord, _, l_coord);        // (BLK_M,BLK_K,k)
     auto tAgA = block_load_a.partition_S(gA);           // (TMA,TMA_M,TMA_K,k)
+    auto sA = make_tensor(shared_tensors.smem_A.begin(), SmemLayoutA {});
     auto tAsA = block_load_a.partition_D(sA);           // (TMA,TMA_M,TMA_K,PIPE)
-
-    auto gB = gB_nkl(_, _, n_coord, _, l_coord);        // (BLK_N,BLK_K,k)
-    auto tBgB = block_load_b.partition_S(gB);           // (TMA,TMA_N,TMA_K,k)
-    auto tBsB = block_load_b.partition_D(sB);           // (TMA,TMA_N,TMA_K,PIPE)
 
     auto gMetaA = gMetaA_mkl(_, _, m_coord, _, l_coord);      // (BLK_M,BLK_K,k)
     auto tAgMetaA = block_load_meta_a.partition_S(gMetaA);    // (TMA,TMA_M,TMA_K,k)
+    auto sMetaA = make_tensor(shared_tensors.smem_metaA.data(), SmemLayoutMetaA {});
     auto tAsMetaA = block_load_smem_meta_a.partition_D(sMetaA);    // (TMA,TMA_M,TMA_K,PIPE)
-
-    auto gMetaB = gMetaB_nkl(_, _, n_coord, _, l_coord);      // (BLK_N,BLK_K,k)
-    auto tBgMetaB = block_load_meta_b.partition_S(gMetaB);    // (TMA,TMA_N,TMA_K,k)
-    auto tBsMetaB = block_load_smem_meta_b.partition_D(sMetaB);    // (TMA,TMA_N,TMA_K,PIPE)
 
     for (int i = 0; i < k_tile_count; ++i, ++slm_pipe_write) {
       pipeline.producer_try_wait(slm_pipe_write);
@@ -336,6 +320,42 @@ struct CollectiveMma<
       copy(mainloop_params.load_a.with(abar_prod, cluster_mask_a), tAgA(_,_,_,i), tAsA(_,_,_,write_stage));
       copy(mainloop_params.load_meta_a.with(dimIndex, newDimSize, abar_prod), tAgMetaA(_,_,_,i), tAsMetaA(_,_,_,write_stage));
       pipeline.producer_commit(slm_pipe_write, TransactionBytes_A);
+    }
+  }
+
+  template <class TensorB, class MetaB, class BlockCoord, class ClusterMask>
+  CUTLASS_DEVICE void
+  loadB(Params const& mainloop_params, MainloopPipelineB pipeline_b, PipelineStateB slm_pipe_write_b,
+    cute::tuple<TensorB, MetaB> const& load_inputs, BlockCoord const& blk_coord, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
+
+    TiledMma tiled_mma;
+    Copy_Atom<AutoVectorizingCopy, uint32_t> copy_atom_scale;
+    auto load_smem_meta_b = make_tiled_copy_E(copy_atom_scale, tiled_mma, TVLayoutMetaB{}, select<1, 2>(SmemScaleTileShape{}));
+
+    auto [gB_nkl, gMetaB_nkl] = load_inputs;
+    auto [m_coord, n_coord, l_coord] = blk_coord;
+    auto [cluster_mask_a, cluster_mask_b] = cluster_mask;
+
+    uint32_t cluster_wgid_x = get_cluster_wgid<0>();
+    uint32_t cluster_wgid_y = get_cluster_wgid<1>();
+
+    auto block_load_b = mainloop_params.load_b.get_slice(0);
+    auto block_load_meta_b = mainloop_params.load_meta_b.get_slice(0);
+    auto block_load_smem_meta_b = load_smem_meta_b.get_thread_slice(0);
+
+    auto gB = gB_nkl(_, _, n_coord, _, l_coord);        // (BLK_N,BLK_K,k)
+    auto tBgB = block_load_b.partition_S(gB);           // (TMA,TMA_N,TMA_K,k)
+    auto sB = make_tensor(shared_tensors.smem_B.begin(), SmemLayoutB {});
+    auto tBsB = block_load_b.partition_D(sB);           // (TMA,TMA_N,TMA_K,PIPE)
+
+    auto gMetaB = gMetaB_nkl(_, _, n_coord, _, l_coord);      // (BLK_N,BLK_K,k)
+    auto tBgMetaB = block_load_meta_b.partition_S(gMetaB);    // (TMA,TMA_N,TMA_K,k)
+    auto sMetaB = make_tensor(shared_tensors.smem_metaB.data(), SmemLayoutMetaB {});
+    auto tBsMetaB = block_load_smem_meta_b.partition_D(sMetaB);    // (TMA,TMA_N,TMA_K,PIPE)
+
+    for (int i = 0; i < k_tile_count; ++i) {
+      constexpr auto dimIndex = _2{};
+      const uint32_t newDimSize = (i+1) * uint32_t(ScaleTileK{});  // set dim size to make dma load meta with OOB
 
       for (int bIdx = 0; bIdx < SplitB; ++bIdx, ++slm_pipe_write_b) {
         pipeline_b.producer_try_wait(slm_pipe_write_b);

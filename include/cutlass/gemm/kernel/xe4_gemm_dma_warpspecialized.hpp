@@ -73,8 +73,15 @@ public:
 
   static constexpr int SharedStorageSize = sizeof(SharedStorage);
 
+  struct GroupInfo {
+    uint32_t subgroup_size = 0;
+    uint32_t mainloop_subgroup_num = 0;
+    uint32_t epilogue_subgroup_num = 0;
+  };
+
   // Device side arguments
   struct Arguments {
+    GroupInfo group_info;
     ProblemShape problem_shape;
     MainloopArguments mainloop;
     EpilogueArguments epilogue;
@@ -82,6 +89,7 @@ public:
 
   // Kernel entry point API
   struct Params {
+    GroupInfo group_info;
     ProblemShape problem_shape;
     MainloopParams mainloop;
     EpilogueParams epilogue;
@@ -93,6 +101,7 @@ public:
     (void) workspace;
 
     return {
+      args.group_info,
       args.problem_shape,
       CollectiveMainloop::to_underlying_arguments(args.problem_shape, args.mainloop),
       CollectiveEpilogue::to_underlying_arguments(args.problem_shape, args.epilogue, nullptr)
@@ -142,11 +151,12 @@ public:
     auto cluster_mask = collective_mainloop.calculateClusterMasks();
 
     auto warp_group_role = [=]() {
+      auto group_info = params.group_info;
       if (local_id == 0) {
         return SubGroupRole::Producer;
-      } else if (local_id == 32) {
+      } else if (local_id == group_info.subgroup_size) {
         return SubGroupRole::Consumer;
-      } else if (local_id >= 128) {
+      } else if (local_id >= group_info.mainloop_subgroup_num * group_info.subgroup_size) {
         return SubGroupRole::EpiloguePostOp;
       } else {
         return SubGroupRole::Other;

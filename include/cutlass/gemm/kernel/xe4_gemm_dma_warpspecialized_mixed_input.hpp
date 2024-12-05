@@ -73,8 +73,15 @@ public:
 
   static constexpr int SharedStorageSize = sizeof(SharedStorage);
 
+  struct GroupInfo {
+    uint32_t subgroup_size = 0;
+    uint32_t mainloop_subgroup_num = 0;
+    uint32_t epilogue_subgroup_num = 0;
+  };
+
   // Device side arguments
   struct Arguments {
+    GroupInfo group_info;
     ProblemShape problem_shape;
     MainloopArguments mainloop;
     EpilogueArguments epilogue;
@@ -82,6 +89,7 @@ public:
 
   // Kernel entry point API
   struct Params {
+    GroupInfo group_info;
     ProblemShape problem_shape;
     MainloopParams mainloop;
     EpilogueParams epilogue;
@@ -93,6 +101,7 @@ public:
     (void) workspace;
 
     return {
+      args.group_info,
       args.problem_shape,
       CollectiveMainloop::to_underlying_arguments(args.problem_shape, args.mainloop),
       CollectiveEpilogue::to_underlying_arguments(args.problem_shape, args.epilogue, nullptr)
@@ -108,9 +117,10 @@ public:
     auto shared_storage = reinterpret_cast<SharedStorage*>(ptr);
 
     enum class SubGroupRole {
-      Producer = 0,
-      Consumer = 1,
-      EpiloguePostOp = 2,
+      Producer0 = 0,
+      Producer1,
+      Consumer,
+      Epilogue,
       Other
     };
 
@@ -148,12 +158,15 @@ public:
     auto cluster_mask = collective_mainloop.calculateClusterMasks();
 
     auto warp_group_role = [=]() {
+      auto group_info = params.group_info;
       if (local_id == 0) {
-        return SubGroupRole::Producer;
-      } else if (local_id == 32) {
+        return SubGroupRole::Producer0;
+      } else if (local_id == group_info.subgroup_size) {
+        return SubGroupRole::Producer1;
+      } else if (local_id == 2 * group_info.subgroup_size) {
         return SubGroupRole::Consumer;
-      } else if (local_id >= 128) {
-        return SubGroupRole::EpiloguePostOp;
+      } else if (local_id >= group_info.mainloop_subgroup_num * group_info.subgroup_size) {
+        return SubGroupRole::Epilogue;
       } else {
         return SubGroupRole::Other;
       }
@@ -175,17 +188,20 @@ public:
     // Wait for all thread blocks in the Cluster
     cluster_wait_fn();
 
-    if (warp_group_role == SubGroupRole::Producer) {
-      auto load_inputs = collective_mainloop.load_init(problem_shape, params.mainloop);
-      static_assert(cute::tuple_size_v<decltype(load_inputs)> >= 2, "Output of load_init must have at least two elements (A, B)");
-      collective_mainloop.load(params.mainloop, mainloop_pipeline, mainloop_pipe_producer_state, mainloop_pipeline_b, mainloop_pipe_producer_state_b, load_inputs, blk_coord, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
+    if (warp_group_role == SubGroupRole::Producer0 || warp_group_role == SubGroupRole::Producer1) {
+      auto [gA_mkl, gB_nkl, gMetaA_mkl, gMetaB_nkl] = collective_mainloop.load_init(problem_shape, params.mainloop);
+      if (warp_group_role == SubGroupRole::Producer0) {
+        collective_mainloop.loadA(params.mainloop, mainloop_pipeline, mainloop_pipe_producer_state, make_tuple(gA_mkl, gMetaA_mkl), blk_coord, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
+      } else if (warp_group_role == SubGroupRole::Producer1) {
+        collective_mainloop.loadB(params.mainloop, mainloop_pipeline_b, mainloop_pipe_producer_state_b, make_tuple(gB_nkl, gMetaB_nkl), blk_coord, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
+      }
     } else if (warp_group_role == SubGroupRole::Consumer) {
       collective_mainloop.mma(mainloop_pipeline, mainloop_pipe_consumer_state, mainloop_pipeline_b, mainloop_pipe_consumer_state_b, epilogue_store_pipeline, epilogue_pipe_store_state, accumulator, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
     }
 
     item.barrier(access::fence_space::local_space);
 
-    if (warp_group_role == SubGroupRole::EpiloguePostOp) {
+    if (warp_group_role == SubGroupRole::Epilogue) {
       collective_epilogue(accumulator, shared_storage->tensors.epilogue, local_id);
     }
 

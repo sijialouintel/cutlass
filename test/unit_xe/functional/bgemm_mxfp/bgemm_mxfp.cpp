@@ -212,6 +212,7 @@ void run_test() {
     auto layout_metaB = cutlass::make_cute_packed_stride(StrideScale{}, cute::make_shape(mat_n, meta_k, mat_l));
 
     auto args = typename GemmKernel::Arguments {
+      {SubGroupSize, NumControlSubGroup, NumPostOpSubGroup},
       problem_shape,
       {
         A_d, layout_A, B_d, layout_B, MetaA_d, layout_metaA, MetaB_d, layout_metaB, meta_k
