@@ -129,12 +129,14 @@ void pattern2(STensor const& src_tensor, DTensor& dst_tensor, uint32_t worker_id
   Tensor src_v = group_modes<1,-1>(tSR_src);
   Tensor dst_v = group_modes<1,-1>(tRS_dst);
 
+  ElementOp element_op;
+
   CUTE_UNROLL
   for (int i = 0; i < size<1>(src_v); ++i) {
     auto src_r = make_register_tensor(src_v(_, _0{}));
     auto dst_r = make_register_tensor(dst_v(_, _0{}));
     copy(tiled_s2r, src_v(_, i), src_r);
-    transform(src_r, dst_r, ElementOp{});
+    element_op.transform(src_r, dst_r);
     copy(tiled_r2s, dst_r, dst_v(_, i));
   }
 }

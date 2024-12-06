@@ -12,6 +12,21 @@ struct ReLu {
   CUTLASS_HOST_DEVICE T operator()(T value) const {
     return sycl::fmax(value, T(0));
   }
+
+  template <class EngineIn, class LayoutIn,
+            class EngineOut, class LayoutOut>
+  CUTE_HOST_DEVICE constexpr
+  void
+  transform(cute::Tensor<EngineIn, LayoutIn > const& tensor_in,
+            cute::Tensor<EngineOut,LayoutOut>      & tensor_out)
+  {
+    using T = typename EngineIn::value_type;
+    CUTE_UNROLL
+    for (int i = 0; i < size(tensor_in); ++i) {
+      tensor_out(i) = sycl::fmax(tensor_in(i), T(0));
+    }
+  }
+
   /* Use for calculating golden value. */
   template <class T>
   void run(std::vector<T> &vec) {
