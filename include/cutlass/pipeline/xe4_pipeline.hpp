@@ -154,6 +154,16 @@ public:
   }
 
   CUTLASS_DEVICE
+  void producer_arrive(PipelineState state, uint32_t bytes) {
+    producer_arrive(state.index(), bytes);
+  }
+
+  CUTLASS_DEVICE
+  void producer_arrive(uint32_t stage, uint32_t bytes) {
+    abarrier_workgroup_arrive(abar_prod_base + stage, bytes);
+  }
+
+  CUTLASS_DEVICE
   void consumer_try_wait(PipelineState state, uint32_t skip_wait = false) {
     consumer_try_wait(state.index(), state.phase(), skip_wait);
   }
@@ -174,6 +184,16 @@ public:
   }
 
   CUTLASS_DEVICE
+  void consumer_arrive(PipelineState state, uint32_t bytes) {
+    consumer_arrive(state.index(), bytes);
+  }
+
+  CUTLASS_DEVICE
+  void consumer_arrive(uint32_t stage, uint32_t bytes) {
+    abarrier_workgroup_arrive(abar_cons_base + stage, bytes);
+  }
+
+  CUTLASS_DEVICE
   ProducerBarrier producer_get_barrier(PipelineState state) {
     return producer_get_barrier(state.index());
   }
@@ -191,56 +211,6 @@ public:
   CUTLASS_DEVICE
   ConsumerBarrier consumer_get_barrier(uint32_t stage) {
     return abar_cons_base + stage;
-  }
-};
-
-template <int Stages_, int AllocId = 1, typename ABarrier = uint64_t*>
-class PipelineTmaStore {
-public:
-  static constexpr int Stages = Stages_;
-  using ProducerBarrier = ABarrier;
-  using PipelineState = cutlass::xe4::PipelineState<Stages>;
-
-  ABarrier abar_store_base = nullptr;
-
-  PipelineTmaStore(uint32_t local_id, uint32_t total_arrive_cnt = 1) {
-    abar_store_base = allocate_abar<AllocId, Stages>();
-    if (local_id == 0) {
-      #pragma unroll
-      for (int i = 0; i < Stages; i++) {
-        abarrier_init(abar_store_base + i, total_arrive_cnt);
-      }
-    }
-  }
-
-  CUTLASS_DEVICE
-  void store_commit(PipelineState state, uint32_t bytes) {
-    store_commit(state.index(), bytes);
-  }
-
-  CUTLASS_DEVICE
-  void store_commit(uint32_t stage, uint32_t bytes) {
-    abarrier_workgroup_arrive_expect_tx(abar_store_base + stage, bytes);
-  }
-
-  CUTLASS_DEVICE
-  void store_try_wait(PipelineState state, uint32_t skip_wait = false) {
-    store_try_wait(state.index(), state.phase(), skip_wait);
-  }
-
-  CUTLASS_DEVICE
-  void store_try_wait(uint32_t stage, uint32_t phase, uint32_t skip_wait = 0) {
-    abarrier_try_wait(abar_store_base + stage, phase);
-  }
-
-  CUTLASS_DEVICE
-  ProducerBarrier store_get_barrier(PipelineState state) {
-    return store_get_barrier(state.index());
-  }
-
-  CUTLASS_DEVICE
-  ProducerBarrier store_get_barrier(uint32_t stage) {
-    return abar_store_base + stage;
   }
 };
 

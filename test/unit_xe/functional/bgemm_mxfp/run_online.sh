@@ -32,7 +32,7 @@ python3 $XE4_TEST_PATH/generator/gen_mma.py \
   --shape 256x512x256 256x512x512 256x128x256 256x128x512 256x256x256 256x256x512 \
   --dtype f32_f32_bf8_e3m0 f32_bf8_e3m0 bf16_f32_bf8_e3m0 f32_f32_e3m0_e3m0 f32_e3m0_e3m0 f16_f32_e3m0_e3m0 bf16_f32_e3m0_e3m0 bf16_f32_bf8_bf8 f32_bf8_bf8 f32_f32_bf8_bf8
 
-icpx -fsycl -std=c++20 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm \
+icpx -fsycl -std=c++20 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -Xs " -xe-set-abarrier-arrive-lmc " \
   -DAMMA_HEADER_PATH=$GEN_HEADER_PATH $INCLUDE_PATHS $ORIGIN_PATH/bgemm_mxfp.cpp -o bgemm_mxfp
 
 export L0SIM_DEVICE_KIND=Xe4

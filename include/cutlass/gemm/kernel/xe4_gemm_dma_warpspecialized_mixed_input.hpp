@@ -111,6 +111,7 @@ public:
   CUTLASS_DEVICE
   void
   operator()(Params const& params, sycl::nd_item<3> item) {
+    auto& group_info = params.group_info;
     auto& problem_shape = params.problem_shape;
 
     auto ptr = alloc_slm_buffer<uint8_t, SharedStorageSize>(item.get_group());
@@ -120,31 +121,41 @@ public:
       Producer0 = 0,
       Producer1,
       Consumer,
+      Store,
       Epilogue,
-      Other
+      NonParticipant
     };
 
     using MainloopPipeline = typename CollectiveMainloop::MainloopPipeline;
     using MainloopPipelineB = typename CollectiveMainloop::MainloopPipelineB;
-    using EpilogueStorePipeline = typename CollectiveEpilogue::EpilogueStorePipeline;
+    using EpiloguePipeline = typename CollectiveEpilogue::PostOpPipeline;
+    using StorePipeline = typename CollectiveEpilogue::StorePipeline;
+
     using MainloopPipelineState = typename CollectiveMainloop::PipelineState;
     using MainloopPipelineStateB = typename CollectiveMainloop::PipelineStateB;
-    using EpilogueStorePipelineState = typename CollectiveEpilogue::StorePipelineState;
+    using EpiloguePipelineState = typename CollectiveEpilogue::PostOpPipelineState;
+    using StorePipelineState = typename CollectiveEpilogue::StorePipelineState;
 
     uint32_t local_id = item.get_local_linear_id();
     MainloopPipeline mainloop_pipeline(local_id);
     MainloopPipelineB mainloop_pipeline_b(local_id);
-    EpilogueStorePipeline epilogue_store_pipeline(local_id);
+    EpiloguePipeline epilogue_pipeline(local_id);
+    StorePipeline epilogue_store_pipeline(local_id, group_info.epilogue_subgroup_num * group_info.subgroup_size, 1);
 
     CollectiveMainloop collective_mainloop;
     CollectiveEpilogue collective_epilogue(params.epilogue);
 
-    MainloopPipelineState mainloop_pipe_consumer_state;
-    MainloopPipelineStateB mainloop_pipe_consumer_state_b;
-    EpilogueStorePipelineState epilogue_pipe_store_state;
-
     auto mainloop_pipe_producer_state = cutlass::xe4::make_producer_start_state<MainloopPipeline>();
+    auto mainloop_pipe_consumer_state = MainloopPipelineState{};
+
     auto mainloop_pipe_producer_state_b = cutlass::xe4::make_producer_start_state<MainloopPipelineB>();
+    auto mainloop_pipe_consumer_state_b = MainloopPipelineStateB{};
+
+    auto epilogue_pipe_producer_state = cutlass::xe4::make_producer_start_state<EpiloguePipeline>();
+    auto epilogue_pipe_consumer_state = EpiloguePipelineState{};
+
+    auto store_pipe_producer_state = cutlass::xe4::make_producer_start_state<StorePipelineState>();
+    auto store_pipe_consumer_state = StorePipelineState{};
 
     auto K = get<2>(problem_shape);
     auto wg_k = get<2>(TileShape{});
@@ -158,17 +169,18 @@ public:
     auto cluster_mask = collective_mainloop.calculateClusterMasks();
 
     auto warp_group_role = [=]() {
-      auto group_info = params.group_info;
       if (local_id == 0) {
         return SubGroupRole::Producer0;
       } else if (local_id == group_info.subgroup_size) {
         return SubGroupRole::Producer1;
       } else if (local_id == 2 * group_info.subgroup_size) {
         return SubGroupRole::Consumer;
+      } else if (local_id == 3 * group_info.subgroup_size) {
+        return SubGroupRole::Store;
       } else if (local_id >= group_info.mainloop_subgroup_num * group_info.subgroup_size) {
         return SubGroupRole::Epilogue;
       } else {
-        return SubGroupRole::Other;
+        return SubGroupRole::NonParticipant;
       }
     } ();
 
@@ -196,19 +208,11 @@ public:
         collective_mainloop.loadB(params.mainloop, mainloop_pipeline_b, mainloop_pipe_producer_state_b, make_tuple(gB_nkl, gMetaB_nkl), blk_coord, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
       }
     } else if (warp_group_role == SubGroupRole::Consumer) {
-      collective_mainloop.mma(mainloop_pipeline, mainloop_pipe_consumer_state, mainloop_pipeline_b, mainloop_pipe_consumer_state_b, epilogue_store_pipeline, epilogue_pipe_store_state, accumulator, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
-    }
-
-    item.barrier(access::fence_space::local_space);
-
-    if (warp_group_role == SubGroupRole::Epilogue) {
-      collective_epilogue(accumulator, shared_storage->tensors.epilogue, local_id);
-    }
-
-    item.barrier(access::fence_space::local_space);
-
-    if (warp_group_role == SubGroupRole::Consumer) {
-      collective_epilogue.store(epilogue_store_pipeline, epilogue_pipe_store_state, problem_shape, blk_coord, shared_storage->tensors.epilogue);
+      collective_mainloop.mma(mainloop_pipeline, mainloop_pipe_consumer_state, mainloop_pipeline_b, mainloop_pipe_consumer_state_b, epilogue_pipeline, epilogue_pipe_producer_state, accumulator, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
+    } else if (warp_group_role == SubGroupRole::Epilogue) {
+      collective_epilogue(epilogue_store_pipeline, store_pipe_producer_state, epilogue_pipeline, epilogue_pipe_consumer_state, accumulator, shared_storage->tensors.epilogue, local_id);
+    } else if (warp_group_role == SubGroupRole::Store) {
+      collective_epilogue.store(epilogue_store_pipeline, store_pipe_consumer_state, epilogue_pipeline, epilogue_pipe_consumer_state, problem_shape, blk_coord, shared_storage->tensors.epilogue);
     }
   }
 };

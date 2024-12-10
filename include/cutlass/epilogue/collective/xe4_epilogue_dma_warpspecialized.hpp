@@ -47,8 +47,11 @@ public:
   using GmemTiledCopyD = cute::xe4::ASYNC_TENSOR_STORE;
   using AuxParamsD = AuxParams<slm_matrix_type::type1, cute::xe4::GMMA::Major::K, TensorDescPtr, 2>;
 
-  using EpilogueStorePipeline = cutlass::xe4::PipelineTmaStore<1, 2, AbarrierPtr>;
-  using StorePipelineState = typename EpilogueStorePipeline::PipelineState;
+  using PostOpPipeline = cutlass::xe4::PipelineTmaAsync<1, 1>;
+  using PostOpPipelineState = typename PostOpPipeline::PipelineState;
+
+  using StorePipeline = cutlass::xe4::PipelineTmaAsync<1, 2>;
+  using StorePipelineState = typename StorePipeline::PipelineState;
 
   static_assert(cute::rank(StrideD{}) == 3, "StrideD must be rank-3: [M, N, L]");
 
@@ -106,14 +109,25 @@ public:
   >
   CUTLASS_DEVICE void
   operator()(
+      StorePipeline store_pipeline,
+      StorePipelineState store_pipe_state,
+      PostOpPipeline postop_pipeline,
+      PostOpPipelineState& postop_pipe_state,
       TensorAccumulator accumulator,
       TensorStorage& shared_tensors,
       uint32_t local_id)
   {
+    store_pipeline.producer_try_wait(store_pipe_state);
+    postop_pipeline.consumer_try_wait(postop_pipe_state);
+
     constexpr auto tile_mn = take<0,2>(TileShape{});
     auto acc_tensor = make_tensor(accumulator.data(), CoreMatrix::retile<ElementAccumulator>(tile_mn));
     auto dst_tensor = make_tensor(shared_tensors.smem_D.data(), CoreMatrix::retile<ElementD>(tile_mn));
     epilogue_op(acc_tensor, dst_tensor, local_id);
+
+    store_pipeline.producer_arrive(store_pipe_state, 1);
+    ++store_pipe_state;
+    ++postop_pipe_state;
   }
 
   template<
@@ -122,12 +136,17 @@ public:
   >
   CUTLASS_DEVICE void
   store(
-      EpilogueStorePipeline epilogue_store_pipeline,
-      StorePipelineState pipe_store_state,
+      StorePipeline store_pipeline,
+      StorePipelineState store_pipe_state,
+      PostOpPipeline postop_pipeline,
+      PostOpPipelineState postop_pipe_state,
       ProblemShape const& problem_shape,
       BlockCoordMNL blk_coord_mnl,
       TensorStorage& shared_tensors)
   {
+    store_pipeline.consumer_try_wait(store_pipe_state);       // Wait for all postop threads finish their calculation
+    postop_pipeline.consumer_arrive(postop_pipe_state, 1);       // Notify the mma thread. It can now overwrite the accumulator
+
     auto sD = make_tensor(reinterpret_cast<ElementD *>(shared_tensors.smem_D.data()), SmemLayoutD {});
     auto [M, N, K, L] = problem_shape;
     auto mD_mnl = params.store_d.get_tma_tensor(make_shape(M, N, L)); // (m,n,l)
@@ -139,11 +158,12 @@ public:
     auto tDgD = block_store_d.partition_S(gD);           // (TMA,TMA_M,TMA_N)
     auto tDsD = block_store_d.partition_D(sD);    // (TMA,TMA_M,TMA_N)
 
-    auto abar_store = epilogue_store_pipeline.store_get_barrier(pipe_store_state);
+    auto abar_store = store_pipeline.consumer_get_barrier(store_pipe_state);
     constexpr uint32_t slm_bytes_store = sizeof(ElementD) * size(SmemLayoutD {});
     copy(params.store_d.with(abar_store), tDsD, tDgD);
-    epilogue_store_pipeline.store_commit(pipe_store_state, slm_bytes_store);
-    epilogue_store_pipeline.store_try_wait(pipe_store_state);
+    store_pipeline.consumer_commit(store_pipe_state, slm_bytes_store);
+    store_pipeline.producer_try_wait(store_pipe_state);
+    ++store_pipe_state;
   }
 
 private:

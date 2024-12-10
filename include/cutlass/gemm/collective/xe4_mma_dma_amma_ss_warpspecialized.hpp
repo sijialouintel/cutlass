@@ -253,6 +253,7 @@ struct CollectiveMma<
     auto cluster_expect_tx = wg_expect_tx * (size<0>(cshape) + size<1>(cshape));
 
     pipeline.consumer_try_wait(slm_pipe_read);
+
     uint32_t read_stage = slm_pipe_read.index();
     auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
     cute::gemm(tiled_mma.with(scaleOutZero, dstType, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,0,read_stage), tCsB(_,_,0,read_stage), accum);
@@ -274,11 +275,10 @@ struct CollectiveMma<
       uint32_t read_stage = slm_pipe_read.index();
       pipeline.consumer_try_wait(slm_pipe_read);
       auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
-      auto abar_cons_d = epi_pipeline.store_get_barrier(epi_pipe_write);
+      auto abar_cons_d = epi_pipeline.producer_get_barrier(epi_pipe_write);
       cute::gemm(tiled_mma.with(scaleOutOne, dstType, abar_cons_d, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,_,read_stage), tCsB(_,_,_,read_stage), accum);
       pipeline.consumer_commit(slm_pipe_read, cluster_expect_tx);
-      epi_pipeline.store_commit(epi_pipe_write, 1);
-      epi_pipeline.store_try_wait(epi_pipe_write);
+      epi_pipeline.producer_commit(epi_pipe_write, wg_expect_tx);  // Notify epilogue threads to start working on the accumulator
       ++epi_pipe_write;
     }
   }

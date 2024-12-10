@@ -87,7 +87,7 @@ struct CollectiveMma<
   using PipelineState = typename MainloopPipeline::PipelineState;
 
   static constexpr uint32_t StagesB = DispatchPolicy::StagesB;
-  using MainloopPipelineB = cutlass::xe4::PipelineTmaAsync<StagesB, 1, Abarrier>;
+  using MainloopPipelineB = cutlass::xe4::PipelineTmaAsync<StagesB, 3, Abarrier>;
   using PipelineStateB = typename MainloopPipelineB::PipelineState;
 
   using SplitBTileShape = decltype(shape_div(TileShape{}, Shape<_1, Int<SplitB>, _1>{}));
@@ -368,9 +368,9 @@ struct CollectiveMma<
     }
   }
 
-  template <class FinalPipeline, class FinalPipelineState, class FrgTensorC, class ClusterMask>
+  template <class EpiPipeline, class EpiPipeState, class FrgTensorC, class ClusterMask>
   CUTLASS_DEVICE void
-  mma(MainloopPipeline& pipeline, PipelineState& slm_pipe_read, MainloopPipelineB& pipeline_b, PipelineStateB& slm_pipe_read_b, FinalPipeline finalPipeline, FinalPipelineState& finalPipelineState, FrgTensorC& accumulator, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
+  mma(MainloopPipeline& pipeline, PipelineState& slm_pipe_read, MainloopPipelineB& pipeline_b, PipelineStateB& slm_pipe_read_b, EpiPipeline epi_pipeline, EpiPipeState& epi_pipe_write, FrgTensorC& accumulator, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
     static_assert(cute::rank(SmemLayoutA{}) == 3, "Smem layout must be rank 3.");
     static_assert(cute::rank(SmemLayoutB{}) == 3, "Smem layout must be rank 3.");
     static_assert(cute::is_void_v<SmemCopyAtomA>,
@@ -452,7 +452,7 @@ struct CollectiveMma<
       uint32_t read_stage = slm_pipe_read.index();
       pipeline.consumer_try_wait(slm_pipe_read);
       auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
-      auto abar_cons_d = finalPipeline.store_get_barrier(finalPipelineState);
+      auto abar_cons_d = epi_pipeline.producer_get_barrier(epi_pipe_write);
 
       for (int ib = 0; ib < SplitB; ++ib, ++slm_pipe_read_b) {
         uint32_t read_stage_b = slm_pipe_read_b.index();
@@ -464,9 +464,8 @@ struct CollectiveMma<
         pipeline_b.consumer_commit(slm_pipe_read_b, 1);
       }
       pipeline.consumer_commit(slm_pipe_read, SplitB);
-      finalPipeline.store_commit(finalPipelineState, SplitB);
-      finalPipeline.store_try_wait(finalPipelineState);
-      ++finalPipelineState;
+      epi_pipeline.producer_commit(epi_pipe_write, SplitB);  // Notify epilogue threads to start working on the accumulator
+      ++epi_pipe_write;
     }
   }
 

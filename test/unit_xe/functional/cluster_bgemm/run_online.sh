@@ -43,7 +43,7 @@ build_test_case() {
   local work_dir=$BUILD_PATH/$test_case
   mkdir -p $work_dir
   cd $work_dir
-  icpx -fsycl -std=c++20 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm \
+  icpx -fsycl -std=c++20 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -Xs " -xe-set-abarrier-arrive-lmc " \
     -DTEST_$test_case -DAMMA_HEADER_PATH=$GEN_HEADER_PATH \
     $INCLUDE_PATHS $ORIGIN_PATH/cluster_bgemm.cpp -o $work_dir/cluster_bgemm
   cd $ORIGIN_PATH
