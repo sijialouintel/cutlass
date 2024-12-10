@@ -94,6 +94,9 @@ struct CollectiveMma<
       SmemLayoutAtomB{},
       make_shape(shape<1>(TileShape{}), shape<2>(TileShape{}), Int<DispatchPolicy::Stages>{}),
       cute::conditional_t<tnspB == cute::xe4::GMMA::Major::K, Step<_2,_1,_3>, Step<_1,_2,_3>>{}));
+  using SmemLayoutAcc = decltype(tile_to_shape(
+      upcast<sizeof(ElementAccumulator)>(make_layout(Shape<_32,_32>{}, GenRowMajor{})),
+      take<0,2>(TileShape{}), Step<_2,_1>{}));
 
   struct SharedStorage
   {
@@ -101,6 +104,7 @@ struct CollectiveMma<
     {
       cute::array<ElementA, cute::cosize_v<SmemLayoutA>> smem_A;
       cute::array<ElementB, cute::cosize_v<SmemLayoutB>> smem_B;
+      cute::array<ElementAccumulator, cute::cosize_v<SmemLayoutAcc>> smem_Acc;
     };
   };
 
@@ -218,7 +222,7 @@ struct CollectiveMma<
 
   template <class EpiPipeline, class EpiPipeState, class FrgTensorC, class ClusterMask>
   CUTLASS_DEVICE void
-  mma(MainloopPipeline pipeline, PipelineState slm_pipe_read, EpiPipeline epi_pipeline, EpiPipeState& epi_pipe_write, FrgTensorC& accumulator, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
+  mma(MainloopPipeline pipeline, PipelineState slm_pipe_read, EpiPipeline epi_pipeline, EpiPipeState& epi_pipe_write, FrgTensorC& tensor_c, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
     static_assert(cute::rank(SmemLayoutA{}) == 3, "Smem layout must be rank 3.");
     static_assert(cute::rank(SmemLayoutB{}) == 3, "Smem layout must be rank 3.");
     static_assert(cute::is_void_v<SmemCopyAtomA>,
@@ -228,6 +232,7 @@ struct CollectiveMma<
 
     auto sA = make_tensor(reinterpret_cast<ElementA *>(shared_tensors.smem_A.data()), SmemLayoutA {});
     auto sB = make_tensor(reinterpret_cast<ElementB *>(shared_tensors.smem_B.data()), SmemLayoutB {});
+    auto sAcc = make_tensor(shared_tensors.smem_Acc.data(), SmemLayoutAcc{});
 
     auto [cluster_mask_a, cluster_mask_b] = cluster_mask;
 
@@ -239,26 +244,27 @@ struct CollectiveMma<
     auto thread_mma = tiled_mma.get_thread_slice(0);
     auto tCsA = thread_mma.partition_fragment_A(sA);            // (MMA,MMA_M,MMA_K,PIPE)
     auto tCsB = thread_mma.partition_fragment_B(sB);            // (MMA,MMA_N,MMA_K,PIPE)
-    auto accum = thread_mma.partition_fragment_C(accumulator);  // (MMA,MMA_M,MMA_N)
+    auto tCsAcc = thread_mma.partition_fragment_C(sAcc);        // (MMA,MMA_M,MMA_N)
+    auto tCsC = thread_mma.partition_fragment_C(tensor_c);        // (MMA,MMA_M,MMA_N)
 
-    CUTE_STATIC_ASSERT_V(size<1>(tCsA) == size<1>(accum));                           // M
-    CUTE_STATIC_ASSERT_V(size<1>(tCsB) == size<2>(accum));                           // N
+    CUTE_STATIC_ASSERT_V(size<1>(tCsA) == size<1>(tCsAcc));                           // M
+    CUTE_STATIC_ASSERT_V(size<1>(tCsB) == size<2>(tCsAcc));                           // N
     CUTE_STATIC_ASSERT_V(size<2>(tCsA) == size<2>(tCsB));                            // K
     CUTE_STATIC_ASSERT_V(size<3>(tCsA) == size<3>(tCsB));                         // PIPE
     CUTE_STATIC_ASSERT_V(Int<DispatchPolicy::Stages>{} == size<2>(sA));           // PIPE
     CUTE_STATIC_ASSERT_V(Int<DispatchPolicy::Stages>{} == size<2>(sB));           // PIPE
 
     auto cshape = ClusterShape{};
-    auto wg_expect_tx = size<1>(accum) * size<2>(accum) * size<2>(tCsA);
+    auto wg_expect_tx = size<1>(tCsAcc) * size<2>(tCsAcc) * size<2>(tCsA);
     auto cluster_expect_tx = wg_expect_tx * (size<0>(cshape) + size<1>(cshape));
 
     pipeline.consumer_try_wait(slm_pipe_read);
 
     uint32_t read_stage = slm_pipe_read.index();
     auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
-    cute::gemm(tiled_mma.with(scaleOutZero, dstType, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,0,read_stage), tCsB(_,_,0,read_stage), accum);
+    cute::gemm(tiled_mma.with(scaleOutZero, dstType, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,0,read_stage), tCsB(_,_,0,read_stage), tCsAcc);
     for (int k_block = 1; k_block < size<2>(tCsA); ++k_block) {
-      cute::gemm(tiled_mma.with(scaleOutOne, dstType, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,k_block,read_stage), tCsB(_,_,k_block,read_stage), accum);
+      cute::gemm(tiled_mma.with(scaleOutOne, dstType, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,k_block,read_stage), tCsB(_,_,k_block,read_stage), tCsAcc);
     }
     pipeline.consumer_commit(slm_pipe_read, cluster_expect_tx);
     ++slm_pipe_read;
@@ -267,16 +273,17 @@ struct CollectiveMma<
       uint32_t read_stage = slm_pipe_read.index();
       pipeline.consumer_try_wait(slm_pipe_read);
       auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
-      cute::gemm(tiled_mma.with(scaleOutOne, dstType, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,_,read_stage), tCsB(_,_,_,read_stage), accum);
+      cute::gemm(tiled_mma.with(scaleOutOne, dstType, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,_,read_stage), tCsB(_,_,_,read_stage), tCsAcc);
       pipeline.consumer_commit(slm_pipe_read, cluster_expect_tx);
     }
 
     {
       uint32_t read_stage = slm_pipe_read.index();
+      constexpr auto dstTypeMatC = C<cute::xe4::GMMA::DstType::MatC>{};
       pipeline.consumer_try_wait(slm_pipe_read);
       auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
       auto abar_cons_d = epi_pipeline.producer_get_barrier(epi_pipe_write);
-      cute::gemm(tiled_mma.with(scaleOutOne, dstType, abar_cons_d, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,_,read_stage), tCsB(_,_,_,read_stage), accum);
+      cute::gemm(tiled_mma.with(scaleOutOne, dstTypeMatC, abar_cons_d, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsC, tCsA(_,_,_,read_stage), tCsB(_,_,_,read_stage), tCsAcc);
       pipeline.consumer_commit(slm_pipe_read, cluster_expect_tx);
       epi_pipeline.producer_commit(epi_pipe_write, wg_expect_tx);  // Notify epilogue threads to start working on the accumulator
       ++epi_pipe_write;

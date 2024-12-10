@@ -13,19 +13,35 @@ struct Conversion {
   }
 
   template <class EngineIn, class LayoutIn,
-            class EngineOut, class LayoutOut>
+            class EngineOut, class LayoutOut,
+            __CUTE_REQUIRES(!cute::is_same_v<typename EngineIn::value_type, typename EngineOut::value_type>)>
   CUTE_HOST_DEVICE constexpr
   void
   transform(cute::Tensor<EngineIn, LayoutIn > const& tensor_in,
             cute::Tensor<EngineOut,LayoutOut>      & tensor_out)
   {
     using OutType = typename EngineOut::value_type;
+
     using PackType = cute::uint_bit_t<2 * cute::sizeof_bits_v<OutType>>;
     auto packed_out = recast<PackType>(tensor_out);
 
     CUTE_UNROLL
     for (int i = 0; i < size(packed_out); ++i) {
       cvt_pack<OutType>(packed_out(i), tensor_in(2*i), tensor_in(2*i+1));
+    }
+  }
+
+  template <class EngineIn, class LayoutIn,
+            class EngineOut, class LayoutOut,
+            __CUTE_REQUIRES(cute::is_same_v<typename EngineIn::value_type, typename EngineOut::value_type>)>
+  CUTE_HOST_DEVICE constexpr
+  void
+  transform(cute::Tensor<EngineIn, LayoutIn > const& tensor_in,
+            cute::Tensor<EngineOut,LayoutOut>      & tensor_out)
+  {
+    CUTE_UNROLL
+    for (int i = 0; i < size(tensor_in); ++i) {
+      tensor_out(i) = tensor_in(i);
     }
   }
 };

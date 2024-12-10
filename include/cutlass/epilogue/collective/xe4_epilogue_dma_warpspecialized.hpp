@@ -35,7 +35,6 @@ class DefaultEpilogue {
 public:
   using ThreadEpilogueOp = ThreadEpilogueOp_;
   using ElementOutput = typename ThreadEpilogueOp::ElementOutput;
-  using ElementAccumulator = typename ThreadEpilogueOp::ElementAccumulator;
   using ElementD = ElementOutput;
   using StrideD = StrideD_;
   using TileShape = TileShape_;
@@ -43,7 +42,6 @@ public:
   using TensorDescPtr = uint64_t*;
   using AbarrierPtr = uint64_t*;
 
-  using SmemLayoutD = SmemLayoutD_;
   using GmemTiledCopyD = cute::xe4::ASYNC_TENSOR_STORE;
   using AuxParamsD = AuxParams<slm_matrix_type::type1, cute::xe4::GMMA::Major::K, TensorDescPtr, 2>;
 
@@ -52,6 +50,10 @@ public:
 
   using StorePipeline = cutlass::xe4::PipelineTmaAsync<1, 2>;
   using StorePipelineState = typename StorePipeline::PipelineState;
+
+  using SmemLayoutD = decltype(tile_to_shape(
+    upcast<sizeof(ElementD)>(make_layout(Shape<_32,_32>{}, GenRowMajor{})),
+    take<0,2>(TileShape{}), Step<_2,_1>{}));
 
   static_assert(cute::rank(StrideD{}) == 3, "StrideD must be rank-3: [M, N, L]");
 
@@ -76,7 +78,7 @@ public:
   {
     using TiledStoreD = decltype(make_xe4_copy<GmemTiledCopyD, AuxParamsD>(
       make_tensor(static_cast<ElementD const*>(nullptr), repeat_like(StrideD{}, int32_t(0)), StrideD{}),
-      SmemLayoutD{}, make_shape(shape<0>(TileShape{}), shape<1>(TileShape{}))));
+      SmemLayoutD{}, take<0,2>(TileShape{})));
 
     TiledStoreD store_d;
   };
@@ -104,16 +106,12 @@ public:
   DefaultEpilogue(Params const& params_)
       : params(params_), epilogue_op() { }
 
-  template<
-    class TensorAccumulator
-  >
   CUTLASS_DEVICE void
   operator()(
       StorePipeline store_pipeline,
       StorePipelineState store_pipe_state,
       PostOpPipeline postop_pipeline,
       PostOpPipelineState& postop_pipe_state,
-      TensorAccumulator accumulator,
       TensorStorage& shared_tensors,
       uint32_t local_id)
   {
@@ -121,9 +119,8 @@ public:
     postop_pipeline.consumer_try_wait(postop_pipe_state);
 
     constexpr auto tile_mn = take<0,2>(TileShape{});
-    auto acc_tensor = make_tensor(accumulator.data(), CoreMatrix::retile<ElementAccumulator>(tile_mn));
-    auto dst_tensor = make_tensor(shared_tensors.smem_D.data(), CoreMatrix::retile<ElementD>(tile_mn));
-    epilogue_op(acc_tensor, dst_tensor, local_id);
+    auto tensor_d = make_tensor(shared_tensors.smem_D.data(), CoreMatrix::retile<ElementD>(tile_mn));
+    epilogue_op(tensor_d, tensor_d, local_id);
 
     store_pipeline.producer_arrive(store_pipe_state, 1);
     ++store_pipe_state;

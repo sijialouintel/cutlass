@@ -117,6 +117,10 @@ struct CollectiveMma<
     append(select<1,2>(SplitBTileShape{}), Int<StagesB>{}),
     cute::conditional_t<tnspB == cute::xe4::GMMA::Major::K, Step<_2,_1,_3>, Step<_1,_2,_3>>{}));
 
+  using SmemLayoutAcc = decltype(tile_to_shape(
+      upcast<sizeof(ElementAccumulator)>(make_layout(Shape<_32,_32>{}, GenRowMajor{})),
+      take<0,2>(TileShape{}), Step<_2,_1>{}));
+
   // for uint8_t scale tensor, we divide K dim by 32
   using SmemLayoutAtomScale = Layout<Shape<_32, _1>, Stride<_1, _32>>;
   using ScaleTileShape = decltype(shape_div(TileShape{}, Shape<_1, Int<SplitB>, _32>{}));
@@ -146,6 +150,7 @@ struct CollectiveMma<
       cute::ArrayEngine<ElementBMma, cute::cosize_v<SmemLayoutB>> smem_B;
       cute::array<ElementScale, cute::cosize_v<SmemLayoutMetaA>> smem_metaA;
       cute::array<ElementScale, cute::cosize_v<SmemLayoutMetaB>> smem_metaB;
+      cute::array<ElementAccumulator, cute::cosize_v<SmemLayoutAcc>> smem_Acc;
     };
   };
 
@@ -370,7 +375,7 @@ struct CollectiveMma<
 
   template <class EpiPipeline, class EpiPipeState, class FrgTensorC, class ClusterMask>
   CUTLASS_DEVICE void
-  mma(MainloopPipeline& pipeline, PipelineState& slm_pipe_read, MainloopPipelineB& pipeline_b, PipelineStateB& slm_pipe_read_b, EpiPipeline epi_pipeline, EpiPipeState& epi_pipe_write, FrgTensorC& accumulator, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
+  mma(MainloopPipeline& pipeline, PipelineState& slm_pipe_read, MainloopPipelineB& pipeline_b, PipelineStateB& slm_pipe_read_b, EpiPipeline epi_pipeline, EpiPipeState& epi_pipe_write, FrgTensorC& tensorC, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
     static_assert(cute::rank(SmemLayoutA{}) == 3, "Smem layout must be rank 3.");
     static_assert(cute::rank(SmemLayoutB{}) == 3, "Smem layout must be rank 3.");
     static_assert(cute::is_void_v<SmemCopyAtomA>,
@@ -382,6 +387,7 @@ struct CollectiveMma<
     auto sB = make_tensor(shared_tensors.smem_B.begin(), SmemLayoutB {});
     auto sMetaA = make_tensor(shared_tensors.smem_metaA.data(), SmemLayoutMetaA {});
     auto sMetaB = make_tensor(shared_tensors.smem_metaB.data(), SmemLayoutMetaB {});
+    auto sAcc = make_tensor(shared_tensors.smem_Acc.data(), SmemLayoutAcc {});
 
     auto [cluster_mask_a, cluster_mask_b] = cluster_mask;
 
@@ -393,18 +399,20 @@ struct CollectiveMma<
     auto thread_mma = tiled_mma.get_thread_slice(0);
     auto tCsA = thread_mma.partition_fragment_A(sA);            // (MMA,MMA_M,MMA_K,PIPE)
     auto tCsB = thread_mma.partition_fragment_B(sB);            // (MMA,MMA_N,MMA_K,PIPE)
-    auto accum_ = thread_mma.partition_fragment_C(accumulator);  // (MMA,MMA_M,MMA_N)
-    auto accum = make_tensor(accum_.data(), append(accum_.layout(), Layout<_1,_0>{}));
+    auto tCsAcc_ = thread_mma.partition_fragment_C(sAcc);       // (MMA,MMA_M,MMA_N)
+    auto tCsAcc = make_tensor(tCsAcc_.data(), append(tCsAcc_.layout(), Layout<_1,_0>{}));
+    auto tCsC_ = thread_mma.partition_fragment_C(tensorC);       // (MMA,MMA_M,MMA_N)
+    auto tCsC = make_tensor(tCsC_.data(), append(tCsC_.layout(), Layout<_1,_0>{}));
     auto tEsMetaA = TiledMma::make_fragment_E(partition_E(thread_mma, sMetaA, TVLayoutMetaA{}));    // (TMA,TMA_M,TMA_K,PIPE)
     auto tEsMetaB = TiledMma::make_fragment_E(partition_E(thread_mma, sMetaB, TVLayoutMetaB{}));    // (TMA,TMA_N,TMA_K,PIPE)
 
-    CUTE_STATIC_ASSERT_V(size<1>(tCsA) == size<1>(accum));                // M
+    CUTE_STATIC_ASSERT_V(size<1>(tCsA) == size<1>(tCsAcc));                // M
     CUTE_STATIC_ASSERT_V(size<2>(tCsA) == size<2>(tCsB));                 // K
     CUTE_STATIC_ASSERT_V(Int<DispatchPolicy::Stages>{} == size<2>(sA));   // PIPE
     CUTE_STATIC_ASSERT_V(Int<StagesB>{} == size<2>(sB));                  // PIPE
 
     auto cshape = ClusterShape{};
-    auto wg_expect_tx = size<1>(accum) * size<2>(accum) * size<2>(tCsA);
+    auto wg_expect_tx = size<1>(tCsAcc) * size<2>(tCsAcc) * size<2>(tCsA);
     auto cluster_expect_tx = wg_expect_tx * (size<0>(cshape) + size<1>(cshape));
 
     pipeline.consumer_try_wait(slm_pipe_read);
@@ -418,12 +426,12 @@ struct CollectiveMma<
 
       cute::gemm(tiled_mma.with(scaleOutZero, dstType, abar_cons, cluster_mask_a, abar_cons_b, cluster_mask_b),
         make_zip_tensor(tCsA(_,_,0,read_stage), tEsMetaA(_,_,0,read_stage)),
-        make_zip_tensor(tCsB(_,_,0,read_stage_b), tEsMetaB(_,_,0,read_stage_b)), accum(_,_,ib,_));
+        make_zip_tensor(tCsB(_,_,0,read_stage_b), tEsMetaB(_,_,0,read_stage_b)), tCsAcc(_,_,ib,_));
 
       for (int k_block = 1; k_block < size<2>(tCsA); ++k_block) {
         cute::gemm(tiled_mma.with(scaleOutOne, dstType, abar_cons, cluster_mask_a, abar_cons_b, cluster_mask_b),
           make_zip_tensor(tCsA(_,_,k_block,read_stage), tEsMetaA(_,_,k_block,read_stage)),
-          make_zip_tensor(tCsB(_,_,k_block,read_stage_b), tEsMetaB(_,_,k_block,read_stage_b)), accum(_,_,ib,_));
+          make_zip_tensor(tCsB(_,_,k_block,read_stage_b), tEsMetaB(_,_,k_block,read_stage_b)), tCsAcc(_,_,ib,_));
       }
 
       pipeline_b.consumer_commit(slm_pipe_read_b, 1);
@@ -442,7 +450,7 @@ struct CollectiveMma<
         auto abar_cons_b = pipeline_b.consumer_get_barrier(slm_pipe_read_b);
         cute::gemm(tiled_mma.with(scaleOutOne, dstType, abar_cons, cluster_mask_a, abar_cons_b, cluster_mask_b),
         make_zip_tensor(tCsA(_,_,_,read_stage), tEsMetaA(_,_,_,read_stage)),
-        make_zip_tensor(tCsB(_,_,_,read_stage_b), tEsMetaB(_,_,_,read_stage_b)), accum(_,_,ib,_));
+        make_zip_tensor(tCsB(_,_,_,read_stage_b), tEsMetaB(_,_,_,read_stage_b)), tCsAcc(_,_,ib,_));
         pipeline_b.consumer_commit(slm_pipe_read_b, 1);
       }
       pipeline.consumer_commit(slm_pipe_read, SplitB);
@@ -453,14 +461,16 @@ struct CollectiveMma<
       pipeline.consumer_try_wait(slm_pipe_read);
       auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
       auto abar_cons_d = epi_pipeline.producer_get_barrier(epi_pipe_write);
+      constexpr auto dstTypeMatC = C<cute::xe4::GMMA::DstType::MatC>{};
 
       for (int ib = 0; ib < SplitB; ++ib, ++slm_pipe_read_b) {
         uint32_t read_stage_b = slm_pipe_read_b.index();
         pipeline_b.consumer_try_wait(slm_pipe_read_b);
         auto abar_cons_b = pipeline_b.consumer_get_barrier(slm_pipe_read_b);
-        cute::gemm(tiled_mma.with(scaleOutOne, dstType, abar_cons_d, abar_cons, cluster_mask_a, abar_cons_b, cluster_mask_b),
+        cute::gemm(tiled_mma.with(scaleOutOne, dstTypeMatC, abar_cons_d, abar_cons, cluster_mask_a, abar_cons_b, cluster_mask_b),
+          tCsC(_,_,ib,_),
           make_zip_tensor(tCsA(_,_,_,read_stage), tEsMetaA(_,_,_,read_stage)),
-          make_zip_tensor(tCsB(_,_,_,read_stage_b), tEsMetaB(_,_,_,read_stage_b)), accum(_,_,ib,_));
+          make_zip_tensor(tCsB(_,_,_,read_stage_b), tEsMetaB(_,_,_,read_stage_b)), tCsAcc(_,_,ib,_));
         pipeline_b.consumer_commit(slm_pipe_read_b, 1);
       }
       pipeline.consumer_commit(slm_pipe_read, SplitB);

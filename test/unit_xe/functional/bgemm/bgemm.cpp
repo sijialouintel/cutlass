@@ -51,7 +51,7 @@ int run_test()
     using dtypeA = bf16;
     using dtypeB = bf16;
     using dtypeAcc = float;
-    using dtypeC = fp16;
+    using dtypeC = bf16;
 
     static constexpr auto tnspA = (layout_a == mem_layout::row_major) ? xe4::GMMA::Major::K : xe4::GMMA::Major::MN;
     static constexpr auto tnspB = (layout_b == mem_layout::row_major) ? xe4::GMMA::Major::MN : xe4::GMMA::Major::K;
