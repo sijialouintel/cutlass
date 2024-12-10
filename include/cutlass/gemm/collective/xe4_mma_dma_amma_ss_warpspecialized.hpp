@@ -77,7 +77,7 @@ struct CollectiveMma<
   using AuxParamsB = AuxParams<slm_matrix_type::type1, tnspB, TensorDesc, 1>;
 
   using MainloopPipeline = cutlass::xe4::PipelineTmaAsync<Stages, 0, Abarrier>;
-  using PipelineState = cutlass::xe4::PipelineState<Stages>;
+  using PipelineState = typename MainloopPipeline::PipelineState;
 
   static_assert(DispatchPolicy::Stages >= 2, "Specialization requires Stages set to value 2 or more.");
   static_assert(cute::is_same_v<GmemTiledCopyA, cute::xe4::ASYNC_TENSOR_LOAD> || cute::is_same_v<GmemTiledCopyA, cute::xe4::ASYNC_TENSOR_LOAD_MULTICAST>,
@@ -88,11 +88,11 @@ struct CollectiveMma<
   // Tile along modes in a way that maximizes the TMA box size.
   using SmemLayoutA = decltype(tile_to_shape(
       SmemLayoutAtomA{},
-      make_shape(shape<0>(TileShape{}), shape<2>(TileShape{}), Int<DispatchPolicy::Stages>{}),
+      append(select<0,2>(TileShape{}), Int<Stages>{}),
       cute::conditional_t<tnspA == cute::xe4::GMMA::Major::K, Step<_2,_1,_3>, Step<_1,_2,_3>>{}));
   using SmemLayoutB = decltype(tile_to_shape(
       SmemLayoutAtomB{},
-      make_shape(shape<1>(TileShape{}), shape<2>(TileShape{}), Int<DispatchPolicy::Stages>{}),
+      append(select<1,2>(TileShape{}), Int<Stages>{}),
       cute::conditional_t<tnspB == cute::xe4::GMMA::Major::K, Step<_2,_1,_3>, Step<_1,_2,_3>>{}));
   using SmemLayoutAcc = decltype(tile_to_shape(
       upcast<sizeof(ElementAccumulator)>(make_layout(Shape<_32,_32>{}, GenRowMajor{})),
@@ -122,11 +122,11 @@ struct CollectiveMma<
   struct Params {
     using TiledLoadA = decltype(make_xe4_copy<GmemTiledCopyA, AuxParamsA>(
       make_tensor(static_cast<ElementA const*>(nullptr), repeat_like(StrideA{}, int32_t(0)), StrideA{}),
-      SmemLayoutA{}(_, _, _0{}), make_shape(shape<0>(TileShape{}), shape<2>(TileShape{})), size<1>(ClusterShape{})));
+      SmemLayoutA{}(_, _, _0{}), select<0,2>(TileShape{}), size<1>(ClusterShape{})));
 
     using TiledLoadB = decltype(make_xe4_copy<GmemTiledCopyB, AuxParamsB>(
       make_tensor(static_cast<ElementB const*>(nullptr), repeat_like(StrideB{}, int32_t(0)), StrideB{}),
-      SmemLayoutB{}(_, _, _0{}), make_shape(shape<1>(TileShape{}), shape<2>(TileShape{})), size<0>(ClusterShape{})));
+      SmemLayoutB{}(_, _, _0{}), select<1,2>(TileShape{}), size<0>(ClusterShape{})));
 
     TiledLoadA load_a;
     TiledLoadB load_b;
@@ -140,8 +140,8 @@ struct CollectiveMma<
     auto A = make_tensor(args.ptr_A, make_layout(make_shape(M,K,L), args.dA));
     auto B = make_tensor(args.ptr_B, make_layout(make_shape(N,K,L), args.dB));
 
-    auto load_a = make_xe4_copy<GmemTiledCopyA, AuxParamsA>(A, SmemLayoutA{}(_, _, _0{}), make_shape(shape<0>(TileShape{}), shape<2>(TileShape{})), size<1>(ClusterShape{}));
-    auto load_b = make_xe4_copy<GmemTiledCopyB, AuxParamsB>(B, SmemLayoutB{}(_, _, _0{}), make_shape(shape<1>(TileShape{}), shape<2>(TileShape{})), size<0>(ClusterShape{}));
+    auto load_a = make_xe4_copy<GmemTiledCopyA, AuxParamsA>(A, SmemLayoutA{}(_, _, _0{}), select<0,2>(TileShape{}), size<1>(ClusterShape{}));
+    auto load_b = make_xe4_copy<GmemTiledCopyB, AuxParamsB>(B, SmemLayoutB{}(_, _, _0{}), select<1,2>(TileShape{}), size<0>(ClusterShape{}));
 
     return {load_a, load_b};
   }
@@ -154,8 +154,8 @@ struct CollectiveMma<
     auto mA_mkl = mainloop_params.load_a.get_tma_tensor(make_shape(M, K, L));   // (m,k,l)
     auto mB_knl = mainloop_params.load_b.get_tma_tensor(make_shape(N, K, L));   // (n,k,l)
 
-    auto gA_mkl = flat_divide(mA_mkl, make_shape(shape<0>(TileShape{}), shape<2>(TileShape{})));  // (BLK_M,BLK_K,m,k,l)
-    auto gB_knl = flat_divide(mB_knl, make_shape(shape<1>(TileShape{}), shape<2>(TileShape{})));  // (BLK_N,BLK_K,n,k,l)
+    auto gA_mkl = flat_divide(mA_mkl, select<0,2>(TileShape{}));  // (BLK_M,BLK_K,m,k,l)
+    auto gB_knl = flat_divide(mB_knl, select<1,2>(TileShape{}));  // (BLK_N,BLK_K,n,k,l)
 
     return cute::make_tuple(gA_mkl, gB_knl);
   }
@@ -182,8 +182,8 @@ struct CollectiveMma<
   CUTLASS_DEVICE void
   load(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState slm_pipe_write,
     cute::tuple<TensorA, TensorB> const& load_inputs, BlockCoord const& blk_coord, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
-    auto sA = make_tensor(reinterpret_cast<ElementA *>(shared_tensors.smem_A.data()), SmemLayoutA {});
-    auto sB = make_tensor(reinterpret_cast<ElementB *>(shared_tensors.smem_B.data()), SmemLayoutB {});
+    auto sA = make_tensor(shared_tensors.smem_A.data(), SmemLayoutA {});
+    auto sB = make_tensor(shared_tensors.smem_B.data(), SmemLayoutB {});
 
     auto [load_a, load_b] = mainloop_params;
     auto [cluster_mask_a, cluster_mask_b] = cluster_mask;
@@ -230,8 +230,8 @@ struct CollectiveMma<
     static_assert(cute::is_void_v<SmemCopyAtomB>,
       "XE4 GMMA mainloops cannot have a non-void copy atom for smem sourced instructions.");
 
-    auto sA = make_tensor(reinterpret_cast<ElementA *>(shared_tensors.smem_A.data()), SmemLayoutA {});
-    auto sB = make_tensor(reinterpret_cast<ElementB *>(shared_tensors.smem_B.data()), SmemLayoutB {});
+    auto sA = make_tensor(shared_tensors.smem_A.data(), SmemLayoutA {});
+    auto sB = make_tensor(shared_tensors.smem_B.data(), SmemLayoutB {});
     auto sAcc = make_tensor(shared_tensors.smem_Acc.data(), SmemLayoutAcc{});
 
     auto [cluster_mask_a, cluster_mask_b] = cluster_mask;

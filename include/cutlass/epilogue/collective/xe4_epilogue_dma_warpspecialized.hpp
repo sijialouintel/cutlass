@@ -144,7 +144,7 @@ public:
     store_pipeline.consumer_try_wait(store_pipe_state);       // Wait for all postop threads finish their calculation
     postop_pipeline.consumer_arrive(postop_pipe_state, 1);       // Notify the mma thread. It can now overwrite the accumulator
 
-    auto sD = make_tensor(reinterpret_cast<ElementD *>(shared_tensors.smem_D.data()), SmemLayoutD {});
+    auto sD = make_tensor(shared_tensors.smem_D.data(), SmemLayoutD {});
     auto [M, N, K, L] = problem_shape;
     auto mD_mnl = params.store_d.get_tma_tensor(make_shape(M, N, L)); // (m,n,l)
     auto gD_mnl = flat_divide(mD_mnl, make_shape(shape<0>(TileShape {}), shape<1>(TileShape {}))); // (BLK_M,BLK_N,m,n,l)

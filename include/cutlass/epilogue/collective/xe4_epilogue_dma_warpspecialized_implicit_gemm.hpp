@@ -124,7 +124,7 @@ public:
     int thread_idx,
     TensorStorage& shared_tensors)
   {
-    auto sD = make_tensor(reinterpret_cast<ElementD *>(shared_tensors.smem_D.data()), SmemLayoutD {});
+    auto sD = make_tensor(shared_tensors.smem_D.data(), SmemLayoutD {});
 
     auto [M, N, K, L] = problem_shape_MNKL;
     Tensor mD_mn = epilogue_params.tma_store_d.get_tma_tensor(make_shape(M,N));

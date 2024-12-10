@@ -113,7 +113,7 @@ public:
     auto& problem_shape = params.problem_shape;
 
     auto ptr = alloc_slm_buffer<uint8_t, SharedStorageSize>(item.get_group());
-    auto shared_storage = reinterpret_cast<SharedStorage*>(ptr);
+    auto& shared_tensors = reinterpret_cast<SharedStorage*>(ptr)->tensors;
 
     enum class SubGroupRole {
       Producer = 0,
@@ -145,7 +145,7 @@ public:
     auto epilogue_pipe_producer_state = cutlass::xe4::make_producer_start_state<EpiloguePipeline>();
     auto epilogue_pipe_consumer_state = EpiloguePipelineState{};
 
-    auto store_pipe_producer_state = cutlass::xe4::make_producer_start_state<StorePipelineState>();
+    auto store_pipe_producer_state = cutlass::xe4::make_producer_start_state<StorePipeline>();
     auto store_pipe_consumer_state = StorePipelineState{};
 
     auto K = get<2>(problem_shape);
@@ -153,7 +153,7 @@ public:
     uint32_t k_tile_count = (K + wg_k -1) / wg_k;
 
     using SmemLayoutD = typename CollectiveEpilogue::SmemLayoutD;
-    auto tensorD = make_tensor(shared_storage->tensors.epilogue.smem_D.data(), SmemLayoutD{});
+    auto tensorD = make_tensor(shared_tensors.epilogue.smem_D.data(), SmemLayoutD{});
 
     auto blk_coord = cute::make_tuple(item.get_group(1), item.get_group(2), 0);
     auto cluster_mask = collective_mainloop.calculateClusterMasks();
@@ -191,13 +191,13 @@ public:
     if (warp_group_role == SubGroupRole::Producer) {
       auto load_inputs = collective_mainloop.load_init(problem_shape, params.mainloop);
       static_assert(cute::tuple_size_v<decltype(load_inputs)> >= 2, "Output of load_init must have at least two elements (A, B)");
-      collective_mainloop.load(params.mainloop, mainloop_pipeline, mainloop_pipe_producer_state, load_inputs, blk_coord, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
+      collective_mainloop.load(params.mainloop, mainloop_pipeline, mainloop_pipe_producer_state, load_inputs, blk_coord, k_tile_count, local_id, cluster_mask, shared_tensors.mainloop);
     } else if (warp_group_role == SubGroupRole::Consumer) {
-      collective_mainloop.mma(mainloop_pipeline, mainloop_pipe_consumer_state, epilogue_pipeline, epilogue_pipe_producer_state, tensorD, k_tile_count, local_id, cluster_mask, shared_storage->tensors.mainloop);
+      collective_mainloop.mma(mainloop_pipeline, mainloop_pipe_consumer_state, epilogue_pipeline, epilogue_pipe_producer_state, tensorD, k_tile_count, local_id, cluster_mask, shared_tensors.mainloop);
     } else if (warp_group_role == SubGroupRole::Epilogue) {
-      collective_epilogue(epilogue_store_pipeline, store_pipe_producer_state, epilogue_pipeline, epilogue_pipe_consumer_state, shared_storage->tensors.epilogue, local_id);
+      collective_epilogue(epilogue_store_pipeline, store_pipe_producer_state, epilogue_pipeline, epilogue_pipe_consumer_state, shared_tensors.epilogue, local_id);
     } else if (warp_group_role == SubGroupRole::Store) {
-      collective_epilogue.store(epilogue_store_pipeline, store_pipe_consumer_state, epilogue_pipeline, epilogue_pipe_consumer_state, problem_shape, blk_coord, shared_storage->tensors.epilogue);
+      collective_epilogue.store(epilogue_store_pipeline, store_pipe_consumer_state, epilogue_pipeline, epilogue_pipe_consumer_state, problem_shape, blk_coord, shared_tensors.epilogue);
     }
   }
 };

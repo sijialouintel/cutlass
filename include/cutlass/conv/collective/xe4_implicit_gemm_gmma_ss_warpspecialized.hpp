@@ -63,11 +63,11 @@ struct CollectiveConv
 
   using SmemLayoutA = decltype(tile_to_shape(
     SmemLayoutAtomA{},
-    make_shape(size<0>(TileShape{}), size<2>(TileShape{}), Int<Stages>{}),
+    append(select<0,2>(TileShape{}), Int<Stages>{}),
     cute::conditional_t<tnspA == cute::xe4::GMMA::Major::K, Step<_2,_1,_3>, Step<_1,_2,_3>>{}));
   using SmemLayoutB = decltype(tile_to_shape(
     SmemLayoutAtomB{},
-    make_shape(size<1>(TileShape{}), size<2>(TileShape{}), Int<Stages>{}),
+    append(select<1,2>(TileShape{}), Int<Stages>{}),
     cute::conditional_t<tnspB == cute::xe4::GMMA::Major::K, Step<_2,_1,_3>, Step<_1,_2,_3>>{}));
 
   using MainloopPipeline = cutlass::xe4::PipelineTmaAsync<DispatchPolicy::Stages>;
@@ -90,8 +90,8 @@ struct CollectiveConv
   using TensorStorage = typename SharedStorage::TensorStorage;
 
   static constexpr uint32_t TmaTransactionBytes =
-      (size<0>(SmemLayoutA{}) * size<1>(SmemLayoutA{}) * static_cast<uint32_t>(sizeof(ElementA)))+
-      (size<0>(SmemLayoutB{}) * size<1>(SmemLayoutB{}) * static_cast<uint32_t>(sizeof(ElementB)));
+      (size(take<0,2>(SmemLayoutA{})) * static_cast<uint32_t>(sizeof(ElementA)))+
+      (size(take<0,2>(SmemLayoutB{})) * static_cast<uint32_t>(sizeof(ElementB)));
 
   struct Arguments {
     ElementA const* ptr_A {nullptr};
@@ -297,8 +297,8 @@ public:
   mma(Pipeline pipeline, PipelineState slm_pipe_read, FinalPipeline finalPipeline, FinalPipelineState& finalPipelineState,
     FrgTensorAcc& accumulator, FrgTensorC& sC, int k_tile_count, int local_id, SlmPtr slm_ptr) {
     auto shared_tensors = reinterpret_cast<TensorStorage*>(slm_ptr);
-    auto sA = make_tensor(reinterpret_cast<ElementA *>(shared_tensors->smem_A.data()), SmemLayoutA {});
-    auto sB = make_tensor(reinterpret_cast<ElementB *>(shared_tensors->smem_B.data()), SmemLayoutB {});
+    auto sA = make_tensor(shared_tensors->smem_A.data(), SmemLayoutA {});
+    auto sB = make_tensor(shared_tensors->smem_B.data(), SmemLayoutB {});
 
     TiledMma tiled_mma;
     auto thread_mma = tiled_mma.get_thread_slice(0);

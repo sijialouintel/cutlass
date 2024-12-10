@@ -20,10 +20,14 @@ struct ReLu {
   transform(cute::Tensor<EngineIn, LayoutIn > const& tensor_in,
             cute::Tensor<EngineOut,LayoutOut>      & tensor_out)
   {
-    using T = typename EngineIn::value_type;
+    using PackType = uint32_t;
+    auto packed_in = recast<PackType>(tensor_in);
+    auto packed_out = recast<PackType>(tensor_out);
+
     CUTE_UNROLL
-    for (int i = 0; i < size(tensor_in); ++i) {
-      tensor_out(i) = sycl::fmax(tensor_in(i), T(0));
+    for (int i = 0; i < size(packed_in); ++i) {
+      using OutType = typename EngineOut::value_type;
+      packed_out(i) = packed_fmax<OutType>(packed_in(i), PackType(0));
     }
   }
 
