@@ -57,6 +57,7 @@ class CollectiveEpilogue {
 //
 // Gemm
 //
+#if defined(__CUDA_ARCH__)
 #include "default_epilogue.hpp"
 #include "default_epilogue_array.hpp"
 #include "epilogue_tensor_broadcast.hpp"
@@ -65,6 +66,9 @@ class CollectiveEpilogue {
 #include "sm90_epilogue_tma_warpspecialized.hpp"
 #include "sm90_epilogue_tma_warpspecialized_bias_elementwise.hpp"
 #include "sm90_epilogue_array_tma_warpspecialized.hpp"
+#elif defined(SYCL_LANGUAGE_VERSION)
+#include "xe4_epilogue_dma_warpspecialized.hpp"
+#endif
 //
 // Conv
 //

@@ -423,12 +423,12 @@ public:
     return NumericConverter<result_type, middle_type, Round>::convert(middle);
   }
 
-  CUTLASS_HOST_DEVICE result_type  
+  CUTLASS_HOST_DEVICE result_type
   operator()(source_type const& s) const {
     return convert(s);
   }
 };
-  
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Partial specialization for float <= cutlass::half_t
@@ -999,7 +999,7 @@ struct NumericArrayConverter<cutlass::half_t, float, 2, FloatRoundStyle::round_t
     #else
       NumericConverter<cutlass::half_t, float, round_style> convert_;
       // NOTE: cutlass::Array<half, N> is NOT an aggregate type and
-      //  below `{}` does NOT conduct zero initialization. Below `{}` will 
+      //  below `{}` does NOT conduct zero initialization. Below `{}` will
       //  conduct default initialization (calling default ctr). We use this syntax
       //  to resolve compiler warning on uninitialized member variable.
       Array<cutlass::half_t, 2> result{};
@@ -3656,7 +3656,7 @@ private:
       result_as_int[ii] += fp32_base;
       r[ii] -= reinterpret_cast<const float&>(fp32_base);
     }
-  #else
+  #elif !defined(SYCL_LANGUAGE_VERSION)
     int32_t x = to_int32(source);
     int32_t t[4];
     constexpr int32_t mask[4] = {0x00000001, 0x00000100, 0x00010000, 0x01000000};
@@ -3732,6 +3732,7 @@ private:
     // View the input as reg
     uint32_t src_reg = to_reg(source);
 
+#if !defined(SYCL_LANGUAGE_VERSION)
     // __byte_perm simulates the add.u32 0x4B000000 to every u8 element of u8x4 source and stores
     // the result in r (without introducing extra cvt.u32.u8 instruction)
     uint32_t const prmt_indices[4] = {0x7650, 0x7651, 0x7652, 0x7653};
@@ -3741,6 +3742,7 @@ private:
       // Subtract the magic number 0x4B000000 from tmp in floating-point arithmetic to obtain final result
       r[ii] -= 8388608.f;
     }
+#endif
 
     return r;
   }
@@ -3819,6 +3821,7 @@ private:
     using RegArray = cutlass::AlignedArray<uint32_t, PackedResultType::kElements / 2, sizeof(PackedResultType)>;
     RegArray r;
 
+#if !defined(SYCL_LANGUAGE_VERSION)
     // View the input as reg
     uint32_t src_reg = to_reg(source);
 
@@ -3888,6 +3891,8 @@ private:
       half2& fp16x2_val = reinterpret_cast<__half2&>(r[ii]);
       fp16x2_val = __hfma2(hfma_scale, fp16x2_val, hfma_bias);
     }
+#endif
+
     return reinterpret_cast<PackedResultType&>(r);
   }
 
@@ -3963,6 +3968,7 @@ private:
     }
     #endif
 
+#if !defined(SYCL_LANGUAGE_VERSION)
     // View the input as reg
     uint32_t src_reg = to_reg(source);
     uint32_t const prmt_indices[2] = {0x9180, 0xB3A2};
@@ -4002,6 +4008,8 @@ private:
       half2& fp16x2_val = reinterpret_cast<__half2&>(r[ii]);
       fp16x2_val = __hsub2(fp16x2_val, bias);
     }
+#endif
+
     return reinterpret_cast<PackedResultType&>(r);
   }
 
@@ -4065,6 +4073,7 @@ private:
     using RegArray = cutlass::AlignedArray<uint32_t, PackedResultType::kElements / 2, sizeof(PackedResultType)>;
     RegArray r;
 
+#if !defined(SYCL_LANGUAGE_VERSION)
     // View the input as reg
     uint32_t src_reg = to_reg(source);
     uint32_t const prmt_indices[2] = {0x5150, 0x5352};
@@ -4081,6 +4090,7 @@ private:
       half2& fp16x2_val = reinterpret_cast<__half2&>(r[ii]);
       fp16x2_val = __hsub2(fp16x2_val, bias);
     }
+#endif
 
     return reinterpret_cast<PackedResultType&>(r);
   }
@@ -4427,9 +4437,11 @@ struct FastNumericArrayConverter<int8_t, float, 4, Round> {
       result[i] = reinterpret_cast<int32_t const &>(tmp);
     }
 
+#if !defined(SYCL_LANGUAGE_VERSION)
     result[0] = __byte_perm(result[0], result[1], 0x40);
     result[2] = __byte_perm(result[2], result[3], 0x40);
     result[0] = __byte_perm(result[0], result[2], 0x5410);
+#endif
 
     return reinterpret_cast<result_type const &>(result[0]);
   }

@@ -4,6 +4,7 @@
 #include "cutlass/pipeline/pipeline.hpp"
 
 #include "cutlass/util/packed_stride.hpp"
+#include "cute/atom/copy_traits_xe4_dma.hpp"
 #include "cute/atom/mma_traits_xe4_amma.hpp"
 
 namespace cutlass::gemm::collective {

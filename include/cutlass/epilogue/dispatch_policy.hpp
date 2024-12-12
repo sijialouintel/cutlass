@@ -190,6 +190,17 @@ struct Sm90TmaWarpSpecializedBiasElementwise {
   constexpr static int FragmentSize = FragmentSize_;
 };
 
+template<
+  int FragmentSize_,
+  uint32_t EpiSgNum_,
+  uint32_t SgSize_
+>
+struct Xe4DmaWarpSpecialized {
+  constexpr static int FragmentSize = FragmentSize_;
+  constexpr static uint32_t EpiSgNum = EpiSgNum_;
+  constexpr static uint32_t SgSize = SgSize_;
+};
+
 //////////////////////////////////////////////////////////////////////////////
 
 } // namespace cutlass::epilogue

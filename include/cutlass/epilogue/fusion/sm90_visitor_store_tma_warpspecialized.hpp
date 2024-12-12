@@ -293,11 +293,11 @@ template <
   class LayoutOrStrideMNL,
   class SmemLayoutAtom, // Unused
   class CopyOpR2S,      // Unused
-  int Alignment, 
+  int Alignment,
   bool EnableNullptr
 >
 struct Sm90AuxStore<
-  0, EpilogueTile, Element, RoundStyle, LayoutOrStrideMNL, 
+  0, EpilogueTile, Element, RoundStyle, LayoutOrStrideMNL,
   SmemLayoutAtom, CopyOpR2S, Alignment, EnableNullptr
 > {
   using ElementAux = Element;
@@ -343,7 +343,7 @@ struct Sm90AuxStore<
   CUTLASS_HOST_DEVICE
   Sm90AuxStore(Params const& params, SharedStorage const& shared_storage)
     : params_ptr(&params) { }
-  
+
   Params const* params_ptr;
 
   CUTLASS_DEVICE bool
@@ -381,7 +381,7 @@ struct Sm90AuxStore<
         tC_cAux(cute::forward<CTensorR2G>(tC_cAux)),
         problem_shape_mnl(problem_shape_mnl),
         params_ptr(params_ptr) {}
-    
+
     GTensorR2G tC_gAux;
     RTensor tC_rAux;
     CTensorR2G tC_cAux;
@@ -414,7 +414,7 @@ struct Sm90AuxStore<
 
       Tensor tC_cAux_mn = tC_cAux(_,_,_,epi_m,epi_n);
       Tensor tC_cAux_vec = tensor<1>(zipped_divide(coalesce(tC_cAux_mn), MCL.compose(Int<V>{})));
-      
+
       Tensor tC_gAux_vec = recast<Array<Element, V>>(coalesce(tC_gAux(_,_,_,epi_m,epi_n)));
       Tensor tC_rAux_vec = recast<Array<Element, V>>(coalesce(tC_rAux));
 
@@ -451,7 +451,7 @@ struct Sm90AuxStore<
     // Predication support
     Tensor coordAux = make_identity_tensor(shape(mAux));
     Tensor tC_cAux = sm90_partition_for_epilogue<ReferenceSrc>(
-                      coordAux, args.tile_shape_mnk, args.tile_coord_mnkl, args.epi_tile, args.tiled_copy, args.thread_idx);   
+                      coordAux, args.tile_shape_mnk, args.tile_coord_mnkl, args.epi_tile, args.tiled_copy, args.thread_idx);
 
     return ConsumerStoreCallbacks<decltype(tC_gAux), decltype(tC_rAux), decltype(tC_cAux), decltype(problem_shape_mnl)>(
       cute::move(tC_gAux),
@@ -642,6 +642,7 @@ public:
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+#if !defined(SYCL_LANGUAGE_VERSION)
 // Row vector reduction
 template <
   template <class> class RegReduceFn,
@@ -759,7 +760,7 @@ public:
       return Status::kSuccess;
     }
     else
-#endif 
+#endif
     if constexpr (FinalReduction) {
       auto [M, N, K, L] = problem_shape;
       auto [tile_M, tile_N, tile_K] = CtaTileShapeMNK{};
@@ -1351,7 +1352,7 @@ public:
       return Status::kSuccess;
     }
     else
-#endif 
+#endif
     if constexpr (FinalReduction) {
       auto [M, N, K, L] = problem_shape;
       auto [tile_M, tile_N, tile_K] = CtaTileShapeMNK{};
@@ -1706,6 +1707,7 @@ public:
     return ConsumerStoreCallbacks<decltype(args_tuple)>(std::move(args_tuple), params);
   }
 };
+#endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 

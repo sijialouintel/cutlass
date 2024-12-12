@@ -163,8 +163,21 @@ struct ReLu<Array<T, N>> {
 
   CUTLASS_HOST_DEVICE
   Array<T, N> operator()(Array<T, N> const &frag) const {
+#if defined(SYCL_LANGUAGE_VERSION)
+    Array<T, N> result;
+    constexpr int PackSize = 2;
+    using PackType = cute::uint_byte_t<PackSize*sizeof(T)>;
+    auto packed_in = reinterpret_cast<PackType const*>(frag.data());
+    auto packed_out = reinterpret_cast<PackType*>(result.data());
+    CUTLASS_PRAGMA_UNROLL
+    for (int i = 0; i < N / PackSize; ++i) {
+      packed_out[i] = packed_fmax<T>(packed_in[i], PackType(0));
+    }
+    return result;
+#else
     maximum<Array<T, N>> mx;
     return mx(frag, T(0));
+#endif
   }
 };
 

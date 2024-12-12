@@ -4,10 +4,8 @@
 #include <cute/tensor.hpp>
 
 #include "cute/arch/copy_xe4_dma.hpp"
-#include "cutlass/epilogue/thread/xe4_conversion_op.hpp"
-#include "cutlass/epilogue/thread/xe4_relu_op.hpp"
 #include "cutlass/gemm/collective/collective_mma.hpp"
-#include "cutlass/epilogue/collective/xe4_epilogue_dma_warpspecialized.hpp"
+#include "cutlass/epilogue/collective/collective_epilogue.hpp"
 
 namespace cutlass::gemm::kernel {
 
@@ -195,7 +193,8 @@ public:
     } else if (warp_group_role == SubGroupRole::Consumer) {
       collective_mainloop.mma(mainloop_pipeline, mainloop_pipe_consumer_state, epilogue_pipeline, epilogue_pipe_producer_state, tensorD, k_tile_count, local_id, cluster_mask, shared_tensors.mainloop);
     } else if (warp_group_role == SubGroupRole::Epilogue) {
-      collective_epilogue(epilogue_store_pipeline, store_pipe_producer_state, epilogue_pipeline, epilogue_pipe_consumer_state, shared_tensors.epilogue, local_id);
+      uint32_t work_id = local_id - group_info.mainloop_subgroup_num * group_info.subgroup_size;
+      collective_epilogue(epilogue_store_pipeline, store_pipe_producer_state, epilogue_pipeline, epilogue_pipe_consumer_state, shared_tensors.epilogue, work_id);
     } else if (warp_group_role == SubGroupRole::Store) {
       collective_epilogue.store(epilogue_store_pipeline, store_pipe_consumer_state, epilogue_pipeline, epilogue_pipe_consumer_state, problem_shape, blk_coord, shared_tensors.epilogue);
     }

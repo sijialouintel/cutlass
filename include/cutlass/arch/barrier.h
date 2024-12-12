@@ -34,7 +34,10 @@
 
 #pragma once
 
+
+#if !defined(SYCL_LANGUAGE_VERSION)
 #include <cutlass/arch/memory_sm75.h>
+#endif
 #include <cute/arch/cluster_sm90.hpp>
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 900 && (__CUDACC_VER_MAJOR__ >= 12)
 #define CUDA_BARRIER_ENABLED 1
@@ -49,7 +52,7 @@ namespace arch {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Enumerates the reserved named barriers to avoid potential conflicts
 // This enum class specifies the NamedBarriers reserved by CUTLASS.
-enum class ReservedNamedBarriers { 
+enum class ReservedNamedBarriers {
   EpilogueBarrier = 1,
   TransposeBarrier = 2,
   TransformBarrier = 3,
@@ -118,42 +121,42 @@ class NamedBarrier {
 
   //  Static variants
 
-  // Calling interface for CUTLASS users: 
+  // Calling interface for CUTLASS users:
   // effective barrier ID starts from ReservedNamedBarrierCount
   CUTLASS_DEVICE
   static void arrive_and_wait(uint32_t num_threads, uint32_t barrier_id) {
     arrive_and_wait_internal(num_threads, barrier_id + ReservedNamedBarrierCount);
   }
 
-  // Calling interface for CUTLASS developers: 
+  // Calling interface for CUTLASS developers:
   // effective barrier ID starts from 0
   CUTLASS_DEVICE
   static void arrive_and_wait(uint32_t num_threads, ReservedNamedBarriers reserved_named_barriers) {
     arrive_and_wait_internal(num_threads, static_cast<int>(reserved_named_barriers));
   }
 
-  // Calling interface for CUTLASS users: 
+  // Calling interface for CUTLASS users:
   // effective barrier ID starts from ReservedNamedBarrierCount
   CUTLASS_DEVICE
   static void arrive(uint32_t num_threads, uint32_t barrier_id) {
     arrive_internal(num_threads, barrier_id + ReservedNamedBarrierCount);
   }
 
-  // Calling interface for CUTLASS developers: 
+  // Calling interface for CUTLASS developers:
   // effective barrier ID starts from 0
   CUTLASS_DEVICE
   static void arrive(uint32_t num_threads, ReservedNamedBarriers reserved_named_barriers) {
     arrive_internal(num_threads, static_cast<int>(reserved_named_barriers));
   }
 
-  // Calling interface for CUTLASS users: 
+  // Calling interface for CUTLASS users:
   // effective barrier ID starts from ReservedNamedBarrierCount
   CUTLASS_DEVICE
   static void sync(uint32_t num_threads, uint32_t barrier_id) {
     sync_internal(num_threads, barrier_id + ReservedNamedBarrierCount);
   }
 
-  // Calling interface for CUTLASS developers: 
+  // Calling interface for CUTLASS developers:
   // effective barrier ID starts from 0
   CUTLASS_DEVICE
   static void sync(uint32_t num_threads, ReservedNamedBarriers reserved_named_barriers) {
@@ -208,7 +211,7 @@ class NamedBarrier {
   }
 
  public:
-  // Currently we reserve 8 NamedBarriers for CUTLASS' own use cases, 
+  // Currently we reserve 8 NamedBarriers for CUTLASS' own use cases,
   // while leaving the renaming for general users.
   static const uint32_t ReservedNamedBarrierCount = static_cast<uint32_t>(ReservedNamedBarriers::FirstUserBarrier);
   static const uint32_t HardwareMaxNumNamedBarriers = 16;
@@ -606,7 +609,7 @@ void fence_view_async_shared() {
 #endif
 }
 
-// Arrive on completion of in-flight cp.async operations issued by the calling thread 
+// Arrive on completion of in-flight cp.async operations issued by the calling thread
 CUTLASS_DEVICE
 void cpasync_barrier_arrive(uint64_t const* smem_ptr) {
 #if CUDA_BARRIER_ENABLED

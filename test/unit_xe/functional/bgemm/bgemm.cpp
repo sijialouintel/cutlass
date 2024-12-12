@@ -13,20 +13,28 @@ using namespace cute;
 using namespace sycl;
 using namespace cute::xe4;
 using namespace cutlass::gemm;
+using namespace cutlass::epilogue;
 using namespace cutlass::gemm::collective;
+using namespace cutlass::epilogue::collective;
 using namespace cutlass::epilogue::collective::detail;
 using namespace cutlass::epilogue::thread;
 
-class BGEMM_ROW_ROW;
-class BGEMM_COL_ROW;
-class BGEMM_ROW_COL;
-class BGEMM_COL_COL;
 class BGEMM_ROW_ROW_RELU;
 class BGEMM_COL_ROW_RELU;
 class BGEMM_ROW_COL_RELU;
 class BGEMM_COL_COL_RELU;
 
-template<typename test, mem_layout layout_a, mem_layout layout_b, typename PostOp>
+struct relu_op_t
+{
+    template<typename dtype_acc>
+    void run(std::vector<dtype_acc>& gold_acc){
+        for(size_t i = 0; i < gold_acc.size(); i++){
+            gold_acc[i] = gold_acc[i] > 0 ? gold_acc[i] : 0;
+        }
+    }
+};
+
+template<typename test, mem_layout layout_a, mem_layout layout_b>
 int run_test()
 {
     queue q;
@@ -110,17 +118,16 @@ int run_test()
         void                                                                                    // TransformB
     >;
 
-    using EpilogueOp = std::conditional_t<std::is_same_v<PostOp, ReLu>,
-        DMAPostOPReLu<dtypeC, dtypeAcc, SubGroupSize, NumControlSubGroup, NumPostOpSubGroup, EpilogueAccessPattern::Pattern2>,
-        DMAPostOPConvert<dtypeC, dtypeAcc, SubGroupSize, NumControlSubGroup, NumPostOpSubGroup, EpilogueAccessPattern::Pattern2>
+    static constexpr int FragmentSize = 2;
+    using FusionOp = fusion::LinCombEltAct<thread::ReLu, dtypeC, dtypeC, void>;  // LinCombEltAct<ElementOutput, ElementCompute, ElementSource>
+    using FusionCallbacks = fusion::FusionCallbacks<
+        Sm90TmaWarpSpecialized<1, 1, FragmentSize, false, false>,
+        FusionOp, Shape<Int<wg_m>, Int<wg_n>, _1>, Shape<_2,_1>
     >;
 
-    using CollectiveEpilogue = cutlass::epilogue::collective::DefaultEpilogue<
-        StrideC,
-        SmemLayoutAtomC,
-        decltype(take<0, 2>(TileShape{})),
-        EpilogueOp,
-        cutlass::gemm::EpilogueDefault
+    using CollectiveEpilogue = CollectiveEpilogue<
+        Xe4DmaWarpSpecialized<FragmentSize, NumPostOpSubGroup, SubGroupSize>,
+        dtypeC, StrideC, SmemLayoutAtomC, Shape<Int<wg_m>, Int<wg_n>>, FusionCallbacks
     >;
 
     using GemmKernel = cutlass::gemm::kernel::GemmUniversal<
@@ -139,6 +146,7 @@ int run_test()
                 B_s, cutlass::make_cute_packed_stride(StrideB{}, cute::make_shape(mat_n, mat_k, mat_l)),
             },
             {
+                typename FusionCallbacks::Arguments{},
                 C_s, cutlass::make_cute_packed_stride(StrideC{}, cute::make_shape(mat_m, mat_n, mat_l)),
             }
         };
@@ -148,7 +156,7 @@ int run_test()
         kernel(params, item);
      }).wait();
 
-    uint32_t err_cnt = validate_gemm_result(A_s, B_s, C_s, mat_m, mat_n, mat_k, layout_a, layout_b, PostOp{});
+    uint32_t err_cnt = validate_gemm_result(A_s, B_s, C_s, mat_m, mat_n, mat_k, layout_a, layout_b, relu_op_t{});
     if (err_cnt > 0) {
         std::cout << "Test Failed!" << std::endl;
         return -1;
@@ -160,23 +168,14 @@ int run_test()
 
 int main()
 {
-
-#if defined(TEST_ROW_ROW)
-    run_test<BGEMM_ROW_ROW, mem_layout::row_major, mem_layout::row_major, DoNothing>();
-#elif defined(TEST_COL_ROW)
-    run_test<BGEMM_COL_ROW, mem_layout::col_major, mem_layout::row_major, DoNothing>();
-#elif defined(TEST_ROW_COL)
-    run_test<BGEMM_ROW_COL, mem_layout::row_major, mem_layout::col_major, DoNothing>();
-#elif defined(TEST_COL_COL)
-    run_test<BGEMM_COL_COL, mem_layout::col_major, mem_layout::col_major, DoNothing>();
-#elif defined(TEST_ROW_ROW_RELU)
-    run_test<BGEMM_ROW_ROW_RELU, mem_layout::row_major, mem_layout::row_major, ReLu>();
+#if defined(TEST_ROW_ROW_RELU)
+    run_test<BGEMM_ROW_ROW_RELU, mem_layout::row_major, mem_layout::row_major>();
 #elif defined(TEST_COL_ROW_RELU)
-    run_test<BGEMM_COL_ROW_RELU, mem_layout::col_major, mem_layout::row_major, ReLu>();
+    run_test<BGEMM_COL_ROW_RELU, mem_layout::col_major, mem_layout::row_major>();
 #elif defined(TEST_ROW_COL_RELU)
-    run_test<BGEMM_ROW_COL_RELU, mem_layout::row_major, mem_layout::col_major, ReLu>();
+    run_test<BGEMM_ROW_COL_RELU, mem_layout::row_major, mem_layout::col_major>();
 #elif defined(TEST_COL_COL_RELU)
-    run_test<BGEMM_COL_COL_RELU, mem_layout::col_major, mem_layout::col_major, ReLu>();
+    run_test<BGEMM_COL_COL_RELU, mem_layout::col_major, mem_layout::col_major>();
 #endif
 
     return 0;

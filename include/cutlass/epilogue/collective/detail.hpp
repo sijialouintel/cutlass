@@ -207,6 +207,8 @@ struct IsThreadEpilogueOpWithElementwiseArguments<
         ThreadEpilogueOp,
         cute::void_t<typename ThreadEpilogueOp::ElementwiseOp::Arguments>> : cute::true_type {};
 
+#if !defined(SYCL_LANGUAGE_VERSION)
+
 // Wrapper class to use operator-style epilogues in sm90 TMA warp-specialized kernels
 template <class EpilogueOp>
 class Sm90TmaWarpSpecializedAdapter : public EpilogueOp {
@@ -464,6 +466,8 @@ public:
   void
   tensormaps_fence_acquire([[maybe_unused]] cute::TmaDescriptor const* tensormap) { }
 };
+
+#endif
 
 // SFINAE helpers for detecting beta/beta_ptr in EVT arguments.
 template <class Arguments, class = void>

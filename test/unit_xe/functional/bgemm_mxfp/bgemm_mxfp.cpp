@@ -16,7 +16,9 @@
 using namespace cute;
 using namespace sycl;
 using namespace cute::xe4;
+using namespace cutlass::epilogue;
 using namespace cutlass::gemm::collective;
+using namespace cutlass::epilogue::collective;
 using namespace cutlass::epilogue::collective::detail;
 using namespace cutlass::epilogue::thread;
 
@@ -183,15 +185,18 @@ void run_test() {
     void                                                // TransformB
   >;
 
+  static constexpr int FragmentSize = 2;
+  using FusionOp = fusion::ScaledAcc<dtypeC, dtypeC>;
   using StrideC = cutlass::detail::TagToStrideC_t<cutlass::layout::RowMajor>;
-  using EpilogueOp = DMAPostOPConvert<dtypeC, dtypeAcc, SubGroupSize, NumControlSubGroup, NumPostOpSubGroup, EpilogueAccessPattern::Pattern2>;
 
-  using CollectiveEpilogue = cutlass::epilogue::collective::DefaultEpilogue<
-    StrideC,
-    SmemLayoutAtomC,
-    decltype(take<0, 2>(TileShape{})),
-    EpilogueOp,
-    cutlass::gemm::EpilogueDefault
+  using FusionCallbacks = fusion::FusionCallbacks<
+    Sm90TmaWarpSpecialized<1, 1, FragmentSize, false, false>,
+    FusionOp, Shape<Int<wg_m>, Int<wg_n>, _1>, Shape<_2,_1>
+  >;
+
+  using CollectiveEpilogue = CollectiveEpilogue<
+    Xe4DmaWarpSpecialized<FragmentSize, NumPostOpSubGroup, SubGroupSize>,
+    dtypeC, StrideC, SmemLayoutAtomC, Shape<Int<wg_m>, Int<wg_n>>, FusionCallbacks
   >;
 
   using GemmKernel = cutlass::gemm::kernel::GemmUniversal<
@@ -218,6 +223,7 @@ void run_test() {
         A_d, layout_A, B_d, layout_B, MetaA_d, layout_metaA, MetaB_d, layout_metaB, meta_k
       },
       {
+        typename FusionCallbacks::Arguments{},
         C_d, cutlass::make_cute_packed_stride(StrideC{}, cute::make_shape(mat_m, mat_n, mat_l)),
       }
     };

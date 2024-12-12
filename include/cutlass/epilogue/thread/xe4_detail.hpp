@@ -105,14 +105,15 @@ CUTLASS_HOST_DEVICE constexpr auto make_register_tensor(Tensor const& tensor) {
 }
 
 template <
-  typename ElementOp,
+  int FragmentSize,
   int SubgroupNum,
   int SubgroupSize,
+  typename CstCallbacks,
   typename STensor,
   typename DTensor
 >
 CUTLASS_HOST_DEVICE
-void pattern2(STensor const& src_tensor, DTensor& dst_tensor, uint32_t worker_id) {
+void pattern2(CstCallbacks& cst_callbacks, STensor const& src_tensor, DTensor& dst_tensor, uint32_t worker_id) {
   using SType = typename STensor::value_type;
   using DType = typename DTensor::value_type;
 
@@ -129,16 +130,29 @@ void pattern2(STensor const& src_tensor, DTensor& dst_tensor, uint32_t worker_id
   Tensor src_v = group_modes<1,-1>(tSR_src);
   Tensor dst_v = group_modes<1,-1>(tRS_dst);
 
-  ElementOp element_op;
+  cst_callbacks.begin();
+
+  int epi_m = 0, epi_n = 0;
 
   CUTE_UNROLL
   for (int i = 0; i < size<1>(src_v); ++i) {
     auto src_r = make_register_tensor(src_v(_, _0{}));
     auto dst_r = make_register_tensor(dst_v(_, _0{}));
+
     copy(tiled_s2r, src_v(_, i), src_r);
-    element_op.transform(src_r, dst_r);
+
+    auto trSrc_frg = recast<Array<SType, FragmentSize>>(src_r);
+    auto trDst_frg = recast<Array<DType, FragmentSize>>(dst_r);
+
+    CUTE_UNROLL
+    for (int epi_v = 0; epi_v < size(trSrc_frg); ++epi_v) {
+      trDst_frg(epi_v) = cst_callbacks.visit(trSrc_frg(epi_v), epi_v, epi_m, epi_n);
+    }
+
     copy(tiled_r2s, dst_r, dst_v(_, i));
   }
+
+  cst_callbacks.end();
 }
 
 } // namespace detail
