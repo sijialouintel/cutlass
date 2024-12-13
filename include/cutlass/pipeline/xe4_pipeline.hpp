@@ -60,6 +60,13 @@ struct PipelineState {
   }
 
   CUTLASS_DEVICE
+  PipelineState operator++(int) {
+    PipelineState temp = *this;
+    ++(*this);
+    return temp;
+  }
+
+  CUTLASS_DEVICE
   PipelineState& operator+=(uint32_t num_iterations) {
     return advance(num_iterations);
   }

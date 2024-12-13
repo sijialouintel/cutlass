@@ -191,12 +191,12 @@ public:
       static_assert(cute::tuple_size_v<decltype(load_inputs)> >= 2, "Output of load_init must have at least two elements (A, B)");
       collective_mainloop.load(params.mainloop, mainloop_pipeline, mainloop_pipe_producer_state, load_inputs, blk_coord, k_tile_count, local_id, cluster_mask, shared_tensors.mainloop);
     } else if (warp_group_role == SubGroupRole::Consumer) {
-      collective_mainloop.mma(mainloop_pipeline, mainloop_pipe_consumer_state, epilogue_pipeline, epilogue_pipe_producer_state, tensorD, k_tile_count, local_id, cluster_mask, shared_tensors.mainloop);
+      collective_mainloop.mma(mainloop_pipeline, mainloop_pipe_consumer_state, epilogue_store_pipeline, store_pipe_producer_state, epilogue_pipeline, epilogue_pipe_producer_state, tensorD, k_tile_count, local_id, cluster_mask, shared_tensors.mainloop);
     } else if (warp_group_role == SubGroupRole::Epilogue) {
       uint32_t work_id = local_id - group_info.mainloop_subgroup_num * group_info.subgroup_size;
       collective_epilogue(epilogue_store_pipeline, store_pipe_producer_state, epilogue_pipeline, epilogue_pipe_consumer_state, shared_tensors.epilogue, work_id);
     } else if (warp_group_role == SubGroupRole::Store) {
-      collective_epilogue.store(epilogue_store_pipeline, store_pipe_consumer_state, epilogue_pipeline, epilogue_pipe_consumer_state, problem_shape, blk_coord, shared_tensors.epilogue);
+      collective_epilogue.store(epilogue_store_pipeline, store_pipe_consumer_state, problem_shape, blk_coord, shared_tensors.epilogue);
     }
   }
 };

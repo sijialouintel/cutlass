@@ -50,11 +50,9 @@ public:
   using TileShape = TileShape_;
   using FusionCallbacks = FusionCallbacks_;
 
-  using TensorDescPtr = uint64_t*;
-  using AbarrierPtr = uint64_t*;
-
-  using GmemTiledCopyD = cute::xe4::ASYNC_TENSOR_STORE;
-  using AuxParamsD = AuxParams<slm_matrix_type::type1, cute::xe4::GMMA::Major::K, TensorDescPtr, 2>;
+  using TensorDesc = uint64_t*;
+  using TiledCopyD = cute::xe4::ASYNC_TENSOR_STORE;
+  using AuxParamsD = AuxParams<slm_matrix_type::type1, cute::xe4::GMMA::Major::K, TensorDesc, 2>;
 
   using PostOpPipeline = cutlass::xe4::PipelineTmaAsync<1, 1>;
   using PostOpPipelineState = typename PostOpPipeline::PipelineState;
@@ -91,7 +89,7 @@ public:
   // Device side epilogue params
   struct Params
   {
-    using TiledStoreD = decltype(make_xe4_copy<GmemTiledCopyD, AuxParamsD>(
+    using TiledStoreD = decltype(make_xe4_copy<TiledCopyD, AuxParamsD>(
       make_tensor(static_cast<ElementD const*>(nullptr), repeat_like(StrideD{}, int32_t(0)), StrideD{}),
       SmemLayoutD{}, take<0,2>(TileShape{})));
 
@@ -112,7 +110,7 @@ public:
 
     auto [M, N, K, L] = problem_shape;
     auto D = make_tensor(args.ptr_D, make_layout(make_shape(M, N, L), args.dD));
-    auto store_d = make_xe4_copy<GmemTiledCopyD, AuxParamsD>(D, SmemLayoutD {}, make_shape(shape<0>(TileShape {}), shape<1>(TileShape {})));
+    auto store_d = make_xe4_copy<TiledCopyD, AuxParamsD>(D, SmemLayoutD {}, take<0, 2>(TileShape {}));
 
     return {
       FusionCallbacks::to_underlying_arguments(problem_shape, args.thread, workspace),
@@ -128,14 +126,13 @@ public:
   CUTLASS_DEVICE void
   operator()(
       StorePipeline store_pipeline,
-      StorePipelineState store_pipe_state,
+      StorePipelineState& store_pipe_write,
       PostOpPipeline postop_pipeline,
-      PostOpPipelineState& postop_pipe_state,
+      PostOpPipelineState& postop_pipe_read,
       TensorStorage& shared_tensors,
       uint32_t worker_id)
   {
-    store_pipeline.producer_try_wait(store_pipe_state);
-    postop_pipeline.consumer_try_wait(postop_pipe_state);
+    postop_pipeline.consumer_try_wait(postop_pipe_read++);
 
     constexpr auto tile_mn = take<0,2>(TileShape{});
     auto tensor_d = make_tensor(shared_tensors.smem_D.data(), CoreMatrix::retile<ElementD>(tile_mn));
@@ -161,9 +158,7 @@ public:
     auto cst_callbacks = fusion_callbacks.template get_consumer_store_callbacks<true>(cst_args);
     pattern2<FragmentSize, EpiSgNum, SgSize>(cst_callbacks, tensor_d, tensor_d, worker_id);
 
-    store_pipeline.producer_arrive(store_pipe_state, 1);
-    ++store_pipe_state;
-    ++postop_pipe_state;
+    store_pipeline.producer_arrive(store_pipe_write++, 1);
   }
 
   template<
@@ -173,15 +168,12 @@ public:
   CUTLASS_DEVICE void
   store(
       StorePipeline store_pipeline,
-      StorePipelineState store_pipe_state,
-      PostOpPipeline postop_pipeline,
-      PostOpPipelineState postop_pipe_state,
+      StorePipelineState& store_pipe_state,
       ProblemShape const& problem_shape,
       BlockCoordMNL blk_coord_mnl,
       TensorStorage& shared_tensors)
   {
     store_pipeline.consumer_try_wait(store_pipe_state);       // Wait for all postop threads finish their calculation
-    postop_pipeline.consumer_arrive(postop_pipe_state, 1);       // Notify the mma thread. It can now overwrite the accumulator
 
     auto sD = make_tensor(shared_tensors.smem_D.data(), SmemLayoutD {});
     auto [M, N, K, L] = problem_shape;

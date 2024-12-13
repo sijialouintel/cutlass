@@ -221,9 +221,9 @@ struct CollectiveMma<
     }
   }
 
-  template <class EpiPipeline, class EpiPipeState, class FrgTensorC, class ClusterMask>
+  template <class StorePipeline, class StorePipeState, class EpiPipeline, class EpiPipeState, class FrgTensorC, class ClusterMask>
   CUTLASS_DEVICE void
-  mma(MainloopPipeline pipeline, PipelineState slm_pipe_read, EpiPipeline epi_pipeline, EpiPipeState& epi_pipe_write, FrgTensorC& tensor_c, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
+  mma(MainloopPipeline pipeline, PipelineState& slm_pipe_read, StorePipeline store_pipeline, StorePipeState& store_pipe_read, EpiPipeline epi_pipeline, EpiPipeState& epi_pipe_write, FrgTensorC& tensor_c, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
     static_assert(cute::rank(SmemLayoutA{}) == 3, "Smem layout must be rank 3.");
     static_assert(cute::rank(SmemLayoutB{}) == 3, "Smem layout must be rank 3.");
     static_assert(cute::is_void_v<SmemCopyAtomA>,
@@ -282,11 +282,13 @@ struct CollectiveMma<
       uint32_t read_stage = slm_pipe_read.index();
       constexpr auto dstTypeMatC = C<cute::xe4::GMMA::DstType::MatC>{};
       pipeline.consumer_try_wait(slm_pipe_read);
+      store_pipeline.producer_try_wait(store_pipe_read++);
       auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
       auto abar_cons_d = epi_pipeline.producer_get_barrier(epi_pipe_write);
       cute::gemm(tiled_mma.with(scaleOutOne, dstTypeMatC, abar_cons_d, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsC, tCsA(_,_,_,read_stage), tCsB(_,_,_,read_stage), tCsAcc);
       pipeline.consumer_commit(slm_pipe_read, cluster_expect_tx);
       epi_pipeline.producer_commit(epi_pipe_write, wg_expect_tx);  // Notify epilogue threads to start working on the accumulator
+      ++slm_pipe_read;
       ++epi_pipe_write;
     }
   }
