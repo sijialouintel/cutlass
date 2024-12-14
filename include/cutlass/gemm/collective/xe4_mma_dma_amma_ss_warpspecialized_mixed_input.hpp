@@ -83,11 +83,11 @@ struct CollectiveMma<
   using AuxParamsMetaA = AuxParams<slm_matrix_type::type2, tnspScale, TensorDesc, 3, true>;
   using AuxParamsMetaB = AuxParams<slm_matrix_type::type2, tnspScale, TensorDesc, 4, true>;
 
-  using MainloopPipeline = cutlass::xe4::PipelineTmaAsync<Stages, 0, Abarrier>;
+  using MainloopPipeline = cutlass::xe4::PipelineTmaAsync<Stages, Abarrier>;
   using PipelineState = typename MainloopPipeline::PipelineState;
 
   static constexpr uint32_t StagesB = DispatchPolicy::StagesB;
-  using MainloopPipelineB = cutlass::xe4::PipelineTmaAsync<StagesB, 3, Abarrier>;
+  using MainloopPipelineB = cutlass::xe4::PipelineTmaAsync<StagesB, Abarrier>;
   using PipelineStateB = typename MainloopPipelineB::PipelineState;
 
   using SplitBTileShape = decltype(shape_div(TileShape{}, Shape<_1, Int<SplitB>, _1>{}));

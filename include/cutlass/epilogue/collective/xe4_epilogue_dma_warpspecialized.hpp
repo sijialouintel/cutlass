@@ -54,10 +54,10 @@ public:
   using TiledCopyD = cute::xe4::ASYNC_TENSOR_STORE;
   using AuxParamsD = AuxParams<slm_matrix_type::type1, cute::xe4::GMMA::Major::K, TensorDesc, 2>;
 
-  using PostOpPipeline = cutlass::xe4::PipelineTmaAsync<1, 1>;
+  using PostOpPipeline = cutlass::xe4::PipelineTmaAsync<1>;
   using PostOpPipelineState = typename PostOpPipeline::PipelineState;
 
-  using StorePipeline = cutlass::xe4::PipelineTmaAsync<1, 2>;
+  using StorePipeline = cutlass::xe4::PipelineTmaAsync<1>;
   using StorePipelineState = typename StorePipeline::PipelineState;
 
   using SmemLayoutD = decltype(tile_to_shape(

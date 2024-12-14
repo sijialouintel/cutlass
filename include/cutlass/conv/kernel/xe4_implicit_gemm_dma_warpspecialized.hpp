@@ -118,9 +118,12 @@ public:
     using EpilogueStorePipelineState = typename CollectiveEpilogue::StorePipelineState;
 
     uint32_t local_id = item.get_local_linear_id();
-    uint32_t subgroup_id = local_id / 32;
-    MainloopPipeline mainloop_pipeline(local_id);
-    EpilogueStorePipeline epilogue_store_pipeline(local_id);
+    constexpr uint32_t abar_count = 2 * (MainloopPipeline::Stages + EpilogueStorePipeline::Stages);
+
+    auto abar_base = allocate_abar<0, abar_count>();
+    MainloopPipeline mainloop_pipeline(abar_base, local_id);
+    auto abar_store_base = abar_base + 2 * MainloopPipeline::Stages;
+    EpilogueStorePipeline epilogue_store_pipeline(abar_store_base, local_id);
 
     CollectiveMainloop collective_mainloop;
     CollectiveEpilogue collective_epilogue;
@@ -153,11 +156,11 @@ public:
     auto k_tile_count = size<3>(gA_mk);
 
     auto warp_group_role = [=]() {
-      if (subgroup_id == 0) {
+      if (local_id == 0) {
         return SubGroupRole::Producer;
       } else if (local_id == 32) {
         return SubGroupRole::Consumer;
-      } else if (subgroup_id == 2) {
+      } else if (local_id == 64) {
         return SubGroupRole::EpiloguePostOp;
       } else {
         return SubGroupRole::Other;

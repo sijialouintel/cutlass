@@ -36,7 +36,7 @@ public:
   using TileShape = TileShape_;
   using SmemLayoutD = SmemLayoutD_;
 
-  using EpilogueStorePipeline = cutlass::xe4::PipelineTmaAsync<1, 1>;
+  using EpilogueStorePipeline = cutlass::xe4::PipelineTmaAsync<1>;
   using StorePipelineState = typename cutlass::xe4::PipelineState<1>;
 
   using StrideC = decltype(cute::Stride<cute::Stride<int64_t, int64_t, int64_t>,cute::Int<1>>{});

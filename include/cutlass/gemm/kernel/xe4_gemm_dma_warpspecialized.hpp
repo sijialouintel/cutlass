@@ -130,9 +130,15 @@ public:
     using StorePipelineState = typename CollectiveEpilogue::StorePipelineState;
 
     uint32_t local_id = item.get_local_linear_id();
-    MainloopPipeline mainloop_pipeline(local_id);
-    EpiloguePipeline epilogue_pipeline(local_id);
-    StorePipeline epilogue_store_pipeline(local_id, group_info.epilogue_subgroup_num * group_info.subgroup_size, 1);
+    constexpr uint32_t abar_count = 2 * (MainloopPipeline::Stages + EpiloguePipeline::Stages + StorePipeline::Stages);
+
+    auto abar_base = allocate_abar<0, abar_count>();
+    MainloopPipeline mainloop_pipeline(abar_base, local_id);
+    auto abar_epilogue_base = abar_base + 2 * MainloopPipeline::Stages;
+    EpiloguePipeline epilogue_pipeline(abar_epilogue_base, local_id);
+    auto abar_store_base = abar_epilogue_base + 2 * EpiloguePipeline::Stages;
+    auto epilogue_thread_count = group_info.epilogue_subgroup_num * group_info.subgroup_size;
+    StorePipeline epilogue_store_pipeline(abar_store_base, local_id, epilogue_thread_count, 1);
 
     CollectiveMainloop collective_mainloop;
     CollectiveEpilogue collective_epilogue(params.epilogue);

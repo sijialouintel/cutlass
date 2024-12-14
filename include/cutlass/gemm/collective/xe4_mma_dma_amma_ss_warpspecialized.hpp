@@ -77,7 +77,7 @@ struct CollectiveMma<
   >;
   using AuxParamsB = AuxParams<slm_matrix_type::type1, tnspB, TensorDesc, 1>;
 
-  using MainloopPipeline = cutlass::xe4::PipelineTmaAsync<Stages, 0, Abarrier>;
+  using MainloopPipeline = cutlass::xe4::PipelineTmaAsync<Stages, Abarrier>;
   using PipelineState = typename MainloopPipeline::PipelineState;
 
   static_assert(DispatchPolicy::Stages >= 2, "Specialization requires Stages set to value 2 or more.");

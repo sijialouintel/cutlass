@@ -113,7 +113,7 @@ PipelineState<Pipeline::Stages> make_producer_start_state() {
   return {InitialProducerStage, InitialProducerPhase, InitialProducerCount};
 }
 
-template <int Stages_, int AllocId = 0, typename ABarrier = uint64_t*>
+template <int Stages_, typename ABarrier = uint64_t*>
 class PipelineTmaAsync {
 public:
   using ProducerBarrier = ABarrier;
@@ -124,9 +124,7 @@ public:
   ABarrier abar_prod_base = nullptr;
   ABarrier abar_cons_base = nullptr;
 
-  PipelineTmaAsync(uint32_t local_id, uint32_t prod_total_arrive_cnt = 1, uint32_t cons_total_arrive_cnt = 1) {
-    abar_prod_base = allocate_abar<AllocId, 2*Stages>();;
-    abar_cons_base = abar_prod_base + Stages;
+  PipelineTmaAsync(ABarrier abar_base, uint32_t local_id, uint32_t prod_total_arrive_cnt = 1, uint32_t cons_total_arrive_cnt = 1) : abar_prod_base(abar_base), abar_cons_base(abar_base + Stages) {
     if (local_id == 0) {
       #pragma unroll
       for (int i = 0; i < Stages; i++) {
