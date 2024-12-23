@@ -1,3 +1,4 @@
+#include <sstream>
 #include <sycl/sycl.hpp>
 #include <cute/tensor.hpp>
 
@@ -18,10 +19,30 @@ using namespace cutlass::epilogue::collective;
 using namespace cutlass::epilogue::collective::detail;
 using namespace cutlass::epilogue::thread;
 
-class CLUSTER_BGEMM_ROW_ROW_RELU;
-class CLUSTER_BGEMM_COL_ROW_RELU;
-class CLUSTER_BGEMM_ROW_COL_RELU;
-class CLUSTER_BGEMM_COL_COL_RELU;
+struct BGEMM_ROW_ROW
+{
+    static constexpr mem_layout layout_a = mem_layout::row_major;
+    static constexpr mem_layout layout_b = mem_layout::row_major;
+    static constexpr uint32_t cluster_size_x = 2;
+    static constexpr uint32_t cluster_size_y = 2;
+};
+
+
+struct BGEMM_COL_ROW
+{
+    static constexpr mem_layout layout_a = mem_layout::col_major;
+    static constexpr mem_layout layout_b = mem_layout::row_major;
+    static constexpr uint32_t cluster_size_x = 2;
+    static constexpr uint32_t cluster_size_y = 2;
+};
+
+struct BGEMM_ROW_COL
+{
+    static constexpr mem_layout layout_a = mem_layout::row_major;
+    static constexpr mem_layout layout_b = mem_layout::col_major;
+    static constexpr uint32_t cluster_size_x = 2;
+    static constexpr uint32_t cluster_size_y = 2;
+};
 
 struct relu_op_t
 {
@@ -33,27 +54,33 @@ struct relu_op_t
     }
 };
 
-template<typename test, mem_layout layout_a, mem_layout layout_b>
-int run_test()
+template<typename test>
+void run_test()
 {
     queue q;
     auto dev = q.get_device();
     std::cout << "Running on " << dev.get_info<info::device::name>() << "\n";
 
-    setenv("XE4_CLUSTER_SIZE", "2x2x1", 1);
-
-    int mat_m = 512;
+    int mat_m = 1024;
     int mat_n = 1024;
-    int mat_k = 512;
+    int mat_k = 1024;
     int mat_l = 1;
     constexpr uint32_t wg_m = 256;
     constexpr uint32_t wg_n = 512;
     constexpr uint32_t wg_k = 128;
     constexpr uint32_t stage = 3;
-    constexpr uint32_t cluster_size_x = 2;
-    constexpr uint32_t cluster_size_y = 2;
 
-    assert(((mat_k + wg_k - 1) / wg_k) > 1);
+    constexpr mem_layout layout_a = test::layout_a;
+    constexpr mem_layout layout_b = test::layout_b;
+    constexpr uint32_t cluster_size_x = test::cluster_size_x;
+    constexpr uint32_t cluster_size_y = test::cluster_size_y;
+    constexpr uint32_t cluster_size = cluster_size_x * cluster_size_y;
+
+    std::stringstream ss;
+    ss << cluster_size_x << "x" << cluster_size_y << "x1";
+    std::string cluster_size_config = ss.str();
+    setenv("XE4_CLUSTER_SIZE", cluster_size_config.c_str(), 1);
+    std::cout << "cluster size is: " << cluster_size_config << std::endl;
 
     uint32_t sizeA = mat_m * mat_k;
     uint32_t sizeB = mat_n * mat_k;
@@ -80,8 +107,8 @@ int run_test()
     constexpr uint32_t NumControlSubGroup = 4;
     constexpr uint32_t NumPostOpSubGroup = 16;
     range<3> local_range(1, NumControlSubGroup + NumPostOpSubGroup, SubGroupSize);
-    uint32_t group_range_m = (mat_m + wg_m - 1) / wg_m;
-    uint32_t group_range_n = (mat_n + wg_n - 1) / wg_n;
+    uint32_t group_range_m = round_up(ceil_div(mat_m, wg_m), cluster_size_y);
+    uint32_t group_range_n = round_up(ceil_div(mat_n, wg_n), cluster_size_x);
     range<3> group_range(1, group_range_m, group_range_n);
     std::cout << "Group range: {" << 1 << ", " << group_range_m << ", " << group_range_n << "} \n";
     nd_range<3> Range(group_range * local_range, local_range);
@@ -159,26 +186,18 @@ int run_test()
      }).wait();
 
     uint32_t err_cnt = validate_gemm_result(A_s, B_s, C_s, mat_m, mat_n, mat_k, layout_a, layout_b, relu_op_t{});
-    if (err_cnt > 0) {
-        std::cout << "Test Failed!" << std::endl;
-        return -1;
-    }
 
-    std::cout << "Test Pass!" << std::endl;
-    return 0;
+    if (err_cnt > 0) {
+        throw std::runtime_error("Test Failed!");
+    } else {
+        std::cout << "Test Pass!" << std::endl;
+    }
 }
 
 int main()
 {
-#if defined(TEST_ROW_ROW_RELU)
-    run_test<CLUSTER_BGEMM_ROW_ROW_RELU, mem_layout::row_major, mem_layout::row_major>();
-#elif defined(TEST_COL_ROW_RELU)
-    run_test<CLUSTER_BGEMM_COL_ROW_RELU, mem_layout::col_major, mem_layout::row_major>();
-#elif defined(TEST_ROW_COL_RELU)
-    run_test<CLUSTER_BGEMM_ROW_COL_RELU, mem_layout::row_major, mem_layout::col_major>();
-#elif defined(TEST_COL_COL_RELU)
-    run_test<CLUSTER_BGEMM_COL_COL_RELU, mem_layout::col_major, mem_layout::col_major>();
-#endif
-
+    run_test<BGEMM_ROW_ROW>();
+    run_test<BGEMM_COL_ROW>();
+    run_test<BGEMM_ROW_COL>();
     return 0;
 }

@@ -159,8 +159,7 @@ public:
     using SmemLayoutD = typename CollectiveEpilogue::SmemLayoutD;
     auto tensorD = make_tensor(shared_tensors.epilogue.smem_D.data(), SmemLayoutD{});
 
-    auto blk_coord = cute::make_tuple(item.get_group(1), item.get_group(2), 0);
-    auto cluster_mask = collective_mainloop.calculateClusterMasks();
+    auto [blk_coord, cluster_mask_tuple] = collective_mainloop.calculateClusterMasks(item);
 
     auto warp_group_role = SubGroupRole::NonParticipant;
     if (local_id == 0) {
@@ -192,9 +191,9 @@ public:
     if (warp_group_role == SubGroupRole::Producer) {
       auto load_inputs = collective_mainloop.load_init(problem_shape, params.mainloop);
       static_assert(cute::tuple_size_v<decltype(load_inputs)> >= 2, "Output of load_init must have at least two elements (A, B)");
-      collective_mainloop.load(params.mainloop, mainloop_pipeline, mainloop_pipe_producer_state, load_inputs, blk_coord, k_tile_count, local_id, cluster_mask, shared_tensors.mainloop);
+      collective_mainloop.load(params.mainloop, mainloop_pipeline, mainloop_pipe_producer_state, load_inputs, blk_coord, k_tile_count, local_id, cluster_mask_tuple, shared_tensors.mainloop);
     } else if (warp_group_role == SubGroupRole::Consumer) {
-      collective_mainloop.mma(mainloop_pipeline, mainloop_pipe_consumer_state, epilogue_store_pipeline, store_pipe_producer_state, epilogue_pipeline, epilogue_pipe_producer_state, tensorD, k_tile_count, local_id, cluster_mask, shared_tensors.mainloop);
+      collective_mainloop.mma(mainloop_pipeline, mainloop_pipe_consumer_state, epilogue_store_pipeline, store_pipe_producer_state, epilogue_pipeline, epilogue_pipe_producer_state, tensorD, k_tile_count, local_id, cluster_mask_tuple, shared_tensors.mainloop);
     } else if (warp_group_role == SubGroupRole::Epilogue) {
       uint32_t work_id = local_id - group_info.mainloop_subgroup_num * group_info.subgroup_size;
       collective_epilogue(epilogue_store_pipeline, store_pipe_producer_state, epilogue_pipeline, epilogue_pipe_consumer_state, shared_tensors.epilogue, work_id);

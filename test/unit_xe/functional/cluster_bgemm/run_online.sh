@@ -23,7 +23,7 @@ INCLUDE_PATHS="-I$CUTLASS_PISA_PATH/include \
 ORIGIN_PATH=$(pwd)
 BUILD_PATH=$ORIGIN_PATH/build
 
-rm -rf $BUILD_PATH; mkdir -p $BUILD_PATH
+rm -rf $BUILD_PATH; mkdir -p $BUILD_PATH; cd $BUILD_PATH
 
 GEN_HEADER_PATH=$BUILD_PATH/generated_headers/async_gmma.hpp
 
@@ -33,34 +33,8 @@ python3 $XE4_TEST_PATH/generator/gen_mma.py \
   --shape 128x128x128 256x512x128 \
   --dtype f32_f32_bf16_bf16 bf16_f32_bf16_bf16
 
-test_cases=("ROW_ROW_RELU" "COL_ROW_RELU" "ROW_COL_RELU" "COL_COL_RELU")
-
-limit=${1:-${#test_cases[@]}}
-limit=$((limit > 0 && limit <= ${#test_cases[@]} ? limit : ${#test_cases[@]}))
-
-build_test_case() {
-  local test_case=$1
-  echo "Building $test_case"
-  local work_dir=$BUILD_PATH/$test_case
-  mkdir -p $work_dir
-  cd $work_dir
-  icpx -fsycl -std=c++20 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -Xs " -xe-set-abarrier-arrive-lmc " \
-    -DTEST_$test_case -DAMMA_HEADER_PATH=$GEN_HEADER_PATH \
-    $INCLUDE_PATHS $ORIGIN_PATH/cluster_bgemm.cpp -o $work_dir/cluster_bgemm
-  cd $ORIGIN_PATH
-}
-
-run_test_case() {
-  local test_case=$1
-  local work_dir=$BUILD_PATH/$test_case
-  cd $work_dir
-  ./cluster_bgemm
-  cd $ORIGIN_PATH
-}
-
-for ((i=0; i<limit; i++)); do
-  build_test_case ${test_cases[i]}
-done
+icpx -fsycl -std=c++20 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -Xs " -xe-set-abarrier-arrive-lmc " \
+  -DAMMA_HEADER_PATH=$GEN_HEADER_PATH $INCLUDE_PATHS $ORIGIN_PATH/cluster_bgemm.cpp -o $BUILD_PATH/cluster_bgemm
 
 export L0SIM_DEVICE_KIND=Xe4
 export L0SIM_GRITS_PATH=/root/XE3P_V2
@@ -73,9 +47,7 @@ export ZESIM_ROOT=/root/zesim/debug/zesim
 export LD_LIBRARY_PATH=$ZESIM_ROOT:$LD_LIBRARY_PATH
 export L0SIM_GRITS_AUBLOAD_OPTS="-frametime 0 -msglevel verbose -attr EU.Debug true -attr EU.CmdDasm true -attr GT_LSC_L1_NUM_WAYS 180 -attr Mempipe.LoopbackCmpDelay 500 Mempipe.LoopbackDataDelay 500  -sim_mode perf_mfu -enableFeature clusterSupportForSystolic2 "
 
-for ((i=0; i<limit; i++)); do
-  run_test_case ${test_cases[i]}
-done
+./cluster_bgemm
 
 find . -type f -name "*.pisa" | while read -r file; do
   sed -i '/Inline assembly/d' "$file"
