@@ -89,7 +89,7 @@ public:
   // Device side epilogue params
   struct Params
   {
-    using TiledStoreD = decltype(make_xe4_copy<TiledCopyD, AuxParamsD>(
+    using TiledStoreD = decltype(make_xe4_copy<TiledCopyD, AuxParamsD, ElementD>(
       make_tensor(static_cast<ElementD const*>(nullptr), repeat_like(StrideD{}, int32_t(0)), StrideD{}),
       SmemLayoutD{}, take<0,2>(TileShape{})));
 
@@ -110,7 +110,7 @@ public:
 
     auto [M, N, K, L] = problem_shape;
     auto D = make_tensor(args.ptr_D, make_layout(make_shape(M, N, L), args.dD));
-    auto store_d = make_xe4_copy<TiledCopyD, AuxParamsD>(D, SmemLayoutD {}, take<0, 2>(TileShape {}));
+    auto store_d = make_xe4_copy<TiledCopyD, AuxParamsD, ElementD>(D, SmemLayoutD {}, take<0, 2>(TileShape {}));
 
     return {
       FusionCallbacks::to_underlying_arguments(problem_shape, args.thread, workspace),
@@ -178,7 +178,7 @@ public:
     auto sD = make_tensor(shared_tensors.smem_D.data(), SmemLayoutD {});
     auto [M, N, K, L] = problem_shape;
     auto mD_mnl = _params.store_d.get_tma_tensor(make_shape(M, N, L)); // (m,n,l)
-    auto gD_mnl = flat_divide(mD_mnl, make_shape(shape<0>(TileShape {}), shape<1>(TileShape {}))); // (BLK_M,BLK_N,m,n,l)
+    auto gD_mnl = flat_divide(mD_mnl, take<0,2>(TileShape {})); // (BLK_M,BLK_N,m,n,l)
     auto block_store_d = _params.store_d.get_slice(0);
     auto [m_coord, n_coord, l_coord] = blk_coord_mnl;
 

@@ -62,6 +62,12 @@ struct Xe4Im2ColCache {
     return coord_tensor_;
   }
 
+  template <typename... Args>
+  CUTE_HOST_DEVICE constexpr
+  auto make_args_tuple(Args&&... args) const {
+    return make_tuple(&tensor_desc_, static_cast<Args&&>(args)...);
+  }
+
   TensorDesc tensor_desc_;
   CoordTensor coord_tensor_;
 };

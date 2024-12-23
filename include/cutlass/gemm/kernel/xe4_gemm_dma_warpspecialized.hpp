@@ -162,19 +162,16 @@ public:
     auto blk_coord = cute::make_tuple(item.get_group(1), item.get_group(2), 0);
     auto cluster_mask = collective_mainloop.calculateClusterMasks();
 
-    auto warp_group_role = [=]() {
-      if (local_id == 0) {
-        return SubGroupRole::Producer;
-      } else if (local_id == group_info.subgroup_size) {
-        return SubGroupRole::Consumer;
-      } else if (local_id == 2 * group_info.subgroup_size) {
-        return SubGroupRole::Store;
-      } else if (local_id >= group_info.mainloop_subgroup_num * group_info.subgroup_size) {
-        return SubGroupRole::Epilogue;
-      } else {
-        return SubGroupRole::NonParticipant;
-      }
-    } ();
+    auto warp_group_role = SubGroupRole::NonParticipant;
+    if (local_id == 0) {
+      warp_group_role = SubGroupRole::Producer;
+    } else if (local_id == group_info.subgroup_size) {
+      warp_group_role = SubGroupRole::Consumer;
+    } else if (local_id == 2 * group_info.subgroup_size) {
+      warp_group_role = SubGroupRole::Store;
+    } else if (local_id >= group_info.mainloop_subgroup_num * group_info.subgroup_size) {
+      warp_group_role = SubGroupRole::Epilogue;
+    }
 
     auto cluster_wait_fn = [&] () {
       // We need this to guarantee that the Pipeline init is visible

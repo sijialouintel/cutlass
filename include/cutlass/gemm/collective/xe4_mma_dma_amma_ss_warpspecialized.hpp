@@ -238,10 +238,6 @@ struct CollectiveMma<
     auto [cluster_mask_a, cluster_mask_b] = cluster_mask;
 
     TiledMma tiled_mma;
-    constexpr auto scaleOutOne = C<cute::xe4::GMMA::ScaleOut::One>{};
-    constexpr auto scaleOutZero = C<cute::xe4::GMMA::ScaleOut::Zero>{};
-    constexpr auto dstType = C<cute::xe4::GMMA::DstType::Accum>{};
-
     auto thread_mma = tiled_mma.get_thread_slice(0);
     auto tCsA = thread_mma.partition_fragment_A(sA);            // (MMA,MMA_M,MMA_K,PIPE)
     auto tCsB = thread_mma.partition_fragment_B(sB);            // (MMA,MMA_N,MMA_K,PIPE)
@@ -259,23 +255,15 @@ struct CollectiveMma<
     auto wg_expect_tx = size<1>(tCsAcc) * size<2>(tCsAcc) * size<2>(tCsA);
     auto cluster_expect_tx = wg_expect_tx * (size<0>(cshape) + size<1>(cshape));
 
-    pipeline.consumer_try_wait(slm_pipe_read);
-
-    uint32_t read_stage = slm_pipe_read.index();
-    auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
-    cute::gemm(tiled_mma.with(scaleOutZero, dstType, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,0,read_stage), tCsB(_,_,0,read_stage), tCsAcc);
-    for (int k_block = 1; k_block < size<2>(tCsA); ++k_block) {
-      cute::gemm(tiled_mma.with(scaleOutOne, dstType, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,k_block,read_stage), tCsB(_,_,k_block,read_stage), tCsAcc);
-    }
-    pipeline.consumer_commit(slm_pipe_read, cluster_expect_tx);
-    ++slm_pipe_read;
-
-    for (uint32_t i = 1; i < k_tile_count-1; ++i, ++slm_pipe_read) {
+    uint64_t mma_ctrl = 0x100;
+    constexpr auto dstType = C<cute::xe4::GMMA::DstType::Accum>{};
+    for (uint32_t i = 0; i < k_tile_count-1; ++i, ++slm_pipe_read) {
       uint32_t read_stage = slm_pipe_read.index();
       pipeline.consumer_try_wait(slm_pipe_read);
       auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
-      cute::gemm(tiled_mma.with(scaleOutOne, dstType, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,_,read_stage), tCsB(_,_,_,read_stage), tCsAcc);
+      cute::gemm(tiled_mma.with(dstType, mma_ctrl, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsA(_,_,_,read_stage), tCsB(_,_,_,read_stage), tCsAcc);
       pipeline.consumer_commit(slm_pipe_read, cluster_expect_tx);
+      mma_ctrl = 0;
     }
 
     {
@@ -285,7 +273,7 @@ struct CollectiveMma<
       store_pipeline.producer_try_wait(store_pipe_read++);
       auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
       auto abar_cons_d = epi_pipeline.producer_get_barrier(epi_pipe_write);
-      cute::gemm(tiled_mma.with(scaleOutOne, dstTypeMatC, abar_cons_d, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsC, tCsA(_,_,_,read_stage), tCsB(_,_,_,read_stage), tCsAcc);
+      cute::gemm(tiled_mma.with(dstTypeMatC, mma_ctrl, abar_cons_d, abar_cons, cluster_mask_a, abar_cons, cluster_mask_b), tCsC, tCsA(_,_,_,read_stage), tCsB(_,_,_,read_stage), tCsAcc);
       pipeline.consumer_commit(slm_pipe_read, cluster_expect_tx);
       epi_pipeline.producer_commit(epi_pipe_write, wg_expect_tx);  // Notify epilogue threads to start working on the accumulator
       ++slm_pipe_read;

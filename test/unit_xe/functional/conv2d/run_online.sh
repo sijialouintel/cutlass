@@ -28,9 +28,10 @@ rm -rf $BUILD_PATH; mkdir -p $BUILD_PATH
 GEN_HEADER_PATH=$BUILD_PATH/generated_headers/async_gmma.hpp
 
 python3 $XE4_TEST_PATH/generator/gen_mma.py \
+  --mma_type mma \
   --output $GEN_HEADER_PATH \
   --shape 64x256x128 \
-  --dtype bf16_bf16_bf16 f32_f32_bf16_bf16 f32_bf16_bf16 bf16_f32_bf16_bf16
+  --dtype f32_f32_bf16_bf16 bf16_f32_bf16_bf16
 
 # test_cases=("SMALL" "LARGE" "SMALL_WITH_PAD_WITH_STRIDE" "LARGE_WITH_PAD_WITH_STRIDE" "OTHER_WITH_PAD_WITH_STRIDE" "ASYNMMETRIC_PAD_ASYNMMETRIC_STRIDE" "LARGE_WITH_PAD_WITH_STRIDE_WITH_DILATION" "OTHER_WITH_PAD_WITH_STRIDE_WITH_DILATION" "ASYNMMETRIC_PAD_ASYNMMETRIC_STRIDE_WITH_DILATION")
 test_cases=("ASYNMMETRIC_PAD_ASYNMMETRIC_STRIDE_WITH_DILATION")
@@ -69,7 +70,7 @@ export L0SIM_SELECT_DEVICES=XE4ISAI
 
 export XE4_LOG_ON="1"
 export XE4_LOG_FOLDER_PATH="./logdump"
-export ZESIM_ROOT=/root/working_dir/drivers.gpu.simulation.gen-isa-interpreter/build/debug-sys20/runtime/src
+export ZESIM_ROOT=/root/zesim/debug/zesim
 export LD_LIBRARY_PATH=$ZESIM_ROOT:$LD_LIBRARY_PATH
 
 for ((i=0; i<limit; i++)); do

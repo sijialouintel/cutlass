@@ -12,46 +12,46 @@ namespace cute::xe4
 
 struct ASYNC_TENSOR_LOAD
 {
-  template<class T>
+  template<class TS, class CMType, class TD>
   CUTE_HOST_DEVICE static void
-  copy(uint64_t const* tdesc_ptr, uint64_t const* abar_ptr, T* slm_ptr, int32_t crd0, int32_t crd1)
+  copy(uint64_t const* tdesc_ptr, TS* gmem_ptr, CMType cm_type, uint64_t const* abar_ptr, TD* slm_ptr, int32_t crd0, int32_t crd1)
   {
     auto coord = sycl::vec<int32_t, 2>{crd0, crd1};
-    async_tensor_load<2>(tdesc_ptr, slm_space_cast(slm_ptr), coord, abar_ptr);
+    async_tensor_load<CMType::value>(tdesc_ptr, slm_space_cast(slm_ptr), gmem_ptr, coord, abar_ptr);
   }
 
-  template<class T>
+  template<class TS, class CMType, class TD>
   CUTE_HOST_DEVICE static void
-  copy(uint64_t const* tdesc_ptr, uint64_t const* abar_ptr, T* slm_ptr, int32_t crd0, int32_t crd1, int32_t crd2)
+  copy(uint64_t const* tdesc_ptr, TS* gmem_ptr, CMType cm_type, uint64_t const* abar_ptr, TD* slm_ptr, int32_t crd0, int32_t crd1, int32_t crd2)
   {
     (void)crd2;
-    copy(tdesc_ptr, abar_ptr, slm_ptr, crd0, crd1);
+    copy(tdesc_ptr, gmem_ptr, cm_type, abar_ptr, slm_ptr, crd0, crd1);
   }
 
-  template<class DimIdx, class T>
+  template<class DimIdx, class TS, class CMType, class TD>
   CUTE_HOST_DEVICE static void
-  copy(uint64_t const* tdesc_ptr, DimIdx const& dim_index, uint32_t dim_size, uint64_t const* abar_ptr, T* slm_ptr, int32_t crd0, int32_t crd1)
+  copy(uint64_t const* tdesc_ptr, TS* gmem_ptr, CMType cm_type, DimIdx const& dim_index, uint32_t dim_size, uint64_t const* abar_ptr, TD* slm_ptr, int32_t crd0, int32_t crd1)
   {
     auto coord = sycl::vec<int32_t, 2>{crd0, crd1};
-    tensor_descriptor_set_dim_size<DimIdx::value>(tdesc_ptr, dim_size);
-    async_tensor_load<2>(tdesc_ptr, slm_space_cast(slm_ptr), coord, abar_ptr);
+    tensordesc_set_dim_size<DimIdx::value>(tdesc_ptr, dim_size);
+    async_tensor_load<CMType::value>(tdesc_ptr, slm_space_cast(slm_ptr), gmem_ptr, coord, abar_ptr);
   }
 
-  template<class DimIdx, class T>
+  template<class DimIdx, class TS, class CMType, class TD>
   CUTE_HOST_DEVICE static void
-  copy(uint64_t const* tdesc_ptr, DimIdx const& dim_index, uint32_t dim_size, uint64_t const* abar_ptr, T* slm_ptr, int32_t crd0, int32_t crd1, int32_t crd2)
+  copy(uint64_t const* tdesc_ptr, TS* gmem_ptr, CMType cm_type, DimIdx const& dim_index, uint32_t dim_size, uint64_t const* abar_ptr, TD* slm_ptr, int32_t crd0, int32_t crd1, int32_t crd2)
   {
     (void)crd2;
-    copy(tdesc_ptr, dim_index, dim_size, abar_ptr, slm_ptr, crd0, crd1);
+    copy(tdesc_ptr, gmem_ptr, cm_type, dim_index, dim_size, abar_ptr, slm_ptr, crd0, crd1);
   }
 
-  template<class T>
+  template<class TS, class CMType, class TD>
   CUTE_HOST_DEVICE static void
-  copy(uint64_t const* tdesc_ptr, uint64_t const* abar_ptr, T* slm_ptr, int32_t crd0, int32_t crd1, int32_t crd2, int32_t crd3)
+  copy(uint64_t const* tdesc_ptr, TS* gmem_ptr, CMType cm_type, uint64_t const* abar_ptr, TD* slm_ptr, int32_t crd0, int32_t crd1, int32_t crd2, int32_t crd3)
   {
     // Note: the coord order doesn't align with that in cutlass
     auto coord = sycl::vec<int32_t, 4>{crd0, crd2, crd3, crd1};
-    async_tensor_load<4>(tdesc_ptr, slm_space_cast(slm_ptr), coord, abar_ptr);
+    async_tensor_load<CMType::value>(tdesc_ptr, slm_space_cast(slm_ptr), gmem_ptr, coord, abar_ptr);
   }
 };
 
@@ -62,20 +62,20 @@ struct ASYNC_TENSOR_LOAD
 
 struct ASYNC_TENSOR_STORE
 {
-  template<class T>
+  template<class TS, class CMType, class TD>
   CUTE_HOST_DEVICE static void
-  copy(uint64_t const* tdesc_ptr, uint64_t const* abar_ptr, T* slm_ptr, int32_t crd0, int32_t crd1)
+  copy(uint64_t const* tdesc_ptr, TS* gmem_ptr, CMType cm_type, uint64_t const* abar_ptr, TD* slm_ptr, int32_t crd0, int32_t crd1)
   {
     auto coord = sycl::vec<int32_t, 2>{crd0, crd1};
-    async_tensor_store<2>(tdesc_ptr, slm_space_cast(slm_ptr), coord, abar_ptr);
+    async_tensor_store<CMType::value>(tdesc_ptr, slm_space_cast(slm_ptr), gmem_ptr, coord, abar_ptr);
   }
 
-  template<class T>
+  template<class TS, class CMType, class TD>
   CUTE_HOST_DEVICE static void
-  copy(uint64_t const* tdesc_ptr, uint64_t const* abar_ptr, T* slm_ptr, int32_t crd0, int32_t crd1, int32_t crd2)
+  copy(uint64_t const* tdesc_ptr, TS* gmem_ptr, CMType cm_type, uint64_t const* abar_ptr, TD* slm_ptr, int32_t crd0, int32_t crd1, int32_t crd2)
   {
     (void)crd2;
-    copy(tdesc_ptr, abar_ptr, slm_ptr, crd0, crd1);
+    copy(tdesc_ptr, gmem_ptr, cm_type, abar_ptr, slm_ptr, crd0, crd1);
   }
 };
 
@@ -86,20 +86,20 @@ struct ASYNC_TENSOR_STORE
 
 struct ASYNC_TENSOR_LOAD_MULTICAST
 {
-  template<class T>
+  template<class TS, class CMType, class TD>
   CUTE_HOST_DEVICE static void
-  copy(uint64_t const* tdesc_ptr, uint64_t const* abar_ptr, uint32_t multicast_mask, T* slm_ptr, int32_t crd0, int32_t crd1)
+  copy(uint64_t const* tdesc_ptr, TS* gmem_ptr, CMType cm_type, uint64_t const* abar_ptr, uint32_t multicast_mask, TD* slm_ptr, int32_t crd0, int32_t crd1)
   {
     auto coord = sycl::vec<int32_t, 2>{crd0, crd1};
-    async_tensor_load<2>(tdesc_ptr, slm_space_cast(slm_ptr), coord, abar_ptr, multicast_mask);
+    async_tensor_load<CMType::value>(tdesc_ptr, slm_space_cast(slm_ptr), gmem_ptr, coord, abar_ptr, multicast_mask);
   }
 
-  template<class T>
+  template<class TS, class CMType, class TD>
   CUTE_HOST_DEVICE static void
-  copy(uint64_t const* tdesc_ptr, uint64_t const* abar_ptr, uint32_t multicast_mask, T* slm_ptr, int32_t crd0, int32_t crd1, int32_t crd2)
+  copy(uint64_t const* tdesc_ptr, TS* gmem_ptr, CMType cm_type, uint64_t const* abar_ptr, uint32_t multicast_mask, TD* slm_ptr, int32_t crd0, int32_t crd1, int32_t crd2)
   {
     (void)crd2;
-    copy(tdesc_ptr, abar_ptr, multicast_mask, slm_ptr, crd0, crd1);
+    copy(tdesc_ptr, gmem_ptr, cm_type, abar_ptr, multicast_mask, slm_ptr, crd0, crd1);
   }
 };
 
@@ -190,7 +190,7 @@ struct XE4_ASYNC_ROW_LOAD_IM2COL_4D
     uint32_t offset = crd_c * sizeof(TG) + crd1 * tma_desc->bytes[6] + crd2 * tma_desc->bytes[7] + crd_n * tma_desc->bytes[8];
     offset = is_coord_valid ? offset : 0;
     uint32_t copy_size = is_coord_valid ? get_copy_size<TG>(crd_c, tma_desc->bytes[1], NumBytesPerCopy) : 0;
-    async_2d_tiled_load<CMType::value, NumBytesPerCopy>(slm_inst_ptr, gmem_address, offset, copy_size, abar_ptr);
+    row_copy_tiled_load<CMType::value, NumBytesPerCopy>(slm_inst_ptr, gmem_address, offset, copy_size, abar_ptr);
   }
 };
 
@@ -230,7 +230,7 @@ struct XE4_ASYNC_ROW_STORE_IM2COL_4D
     uint32_t offset = crd_c * sizeof(TG) + crd_w * tma_desc->bytes[6] + crd_h * tma_desc->bytes[7] + crd_n * tma_desc->bytes[8];
     offset = is_coord_valid ? offset : 0;
     uint32_t copy_size = is_coord_valid ? get_copy_size<TG>(crd_c, tma_desc->bytes[1], NumBytesPerCopy) : 0;
-    async_2d_tiled_store<CMType::value, NumBytesPerCopy>(slm_inst_ptr, gmem_address, offset, copy_size, abar_ptr);
+    row_copy_tiled_store<CMType::value, NumBytesPerCopy>(slm_inst_ptr, gmem_address, offset, copy_size, abar_ptr);
   }
 };
 

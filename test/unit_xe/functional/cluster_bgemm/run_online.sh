@@ -28,9 +28,10 @@ rm -rf $BUILD_PATH; mkdir -p $BUILD_PATH
 GEN_HEADER_PATH=$BUILD_PATH/generated_headers/async_gmma.hpp
 
 python3 $XE4_TEST_PATH/generator/gen_mma.py \
+  --mma_type mma \
   --output $GEN_HEADER_PATH \
   --shape 128x128x128 256x512x128 \
-  --dtype bf16_bf16_bf16 f32_f32_bf16_bf16 f32_bf16_bf16 bf16_f32_bf16_bf16
+  --dtype f32_f32_bf16_bf16 bf16_f32_bf16_bf16
 
 test_cases=("ROW_ROW_RELU" "COL_ROW_RELU" "ROW_COL_RELU" "COL_COL_RELU")
 
@@ -63,13 +64,14 @@ done
 
 export L0SIM_DEVICE_KIND=Xe4
 export L0SIM_GRITS_PATH=/root/XE3P_V2
-export L0SIM_SELECT_DEVICES=XE4ISAI
-# export L0SIM_SELECT_DEVICES=GRITS
+# export L0SIM_SELECT_DEVICES=XE4ISAI
+export L0SIM_SELECT_DEVICES=GRITS
 
 export XE4_LOG_ON="1"
 export XE4_LOG_FOLDER_PATH="./logdump"
-export ZESIM_ROOT=/root/zesim/debug-sys20/zesim
+export ZESIM_ROOT=/root/zesim/debug/zesim
 export LD_LIBRARY_PATH=$ZESIM_ROOT:$LD_LIBRARY_PATH
+export L0SIM_GRITS_AUBLOAD_OPTS="-frametime 0 -msglevel verbose -attr EU.Debug true -attr EU.CmdDasm true -attr GT_LSC_L1_NUM_WAYS 180 -attr Mempipe.LoopbackCmpDelay 500 Mempipe.LoopbackDataDelay 500  -sim_mode perf_mfu -enableFeature clusterSupportForSystolic2 "
 
 for ((i=0; i<limit; i++)); do
   run_test_case ${test_cases[i]}

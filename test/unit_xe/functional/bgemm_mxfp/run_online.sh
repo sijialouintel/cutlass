@@ -28,9 +28,10 @@ rm -rf $BUILD_PATH; mkdir -p $BUILD_PATH; cd $BUILD_PATH
 GEN_HEADER_PATH=$BUILD_PATH/generated_headers/async_gmma.hpp
 
 python3 $XE4_TEST_PATH/generator/gen_mma.py \
+  --mma_type scale_mma \
   --output $GEN_HEADER_PATH \
   --shape 256x512x256 256x512x512 256x128x256 256x128x512 256x256x256 256x256x512 \
-  --dtype f32_f32_bf8_e3m0 f32_bf8_e3m0 bf16_f32_bf8_e3m0 f32_f32_e3m0_e3m0 f32_e3m0_e3m0 f16_f32_e3m0_e3m0 bf16_f32_e3m0_e3m0 bf16_f32_bf8_bf8 f32_bf8_bf8 f32_f32_bf8_bf8
+  --dtype f32_f32_bf8_e3m0 bf16_f32_bf8_e3m0 f32_f32_e3m0_e3m0 f16_f32_e3m0_e3m0 bf16_f32_e3m0_e3m0 bf16_f32_bf8_bf8 f32_f32_bf8_bf8
 
 icpx -fsycl -std=c++20 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -Xs " -xe-set-abarrier-arrive-lmc " \
   -DAMMA_HEADER_PATH=$GEN_HEADER_PATH $INCLUDE_PATHS $ORIGIN_PATH/bgemm_mxfp.cpp -o bgemm_mxfp
@@ -42,7 +43,7 @@ export L0SIM_SELECT_DEVICES=GRITS
 
 export XE4_LOG_ON="1"
 export XE4_LOG_FOLDER_PATH="./logdump"
-export ZESIM_ROOT=/root/zesim/debug-sys20/zesim
+export ZESIM_ROOT=/root/zesim/debug/zesim
 export LD_LIBRARY_PATH=$ZESIM_ROOT:$LD_LIBRARY_PATH
 
 ./bgemm_mxfp

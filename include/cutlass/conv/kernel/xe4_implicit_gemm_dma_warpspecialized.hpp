@@ -155,12 +155,13 @@ public:
     auto k_tile_iter = cute::make_coord_iterator(shape<3>(gA_mk));
     auto k_tile_count = size<3>(gA_mk);
 
+    uint32_t subgroup_id = local_id / 32;
     auto warp_group_role = [=]() {
-      if (local_id == 0) {
+      if (subgroup_id == 0) {
         return SubGroupRole::Producer;
       } else if (local_id == 32) {
         return SubGroupRole::Consumer;
-      } else if (local_id == 64) {
+      } else if (subgroup_id == 2) {
         return SubGroupRole::EpiloguePostOp;
       } else {
         return SubGroupRole::Other;

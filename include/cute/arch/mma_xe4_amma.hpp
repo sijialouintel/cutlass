@@ -6,12 +6,6 @@
 namespace cute {
 
 namespace xe4::GMMA {
-
-enum class ScaleOut {
-  Zero = 0,
-  One  = 1
-};
-
 enum class DstType {
   Accum = 0,
   MatC = 1
@@ -29,13 +23,12 @@ struct XE4_ASYNC_GMMA
   using Shape_MNK = Shape_MNK_;
   using Abarrier = Abarrier_;
 
-  template<typename ConstScaleOut, typename ConstDstType, typename... Args>
+  template<typename ConstDstType, typename... Args>
   CUTE_HOST_DEVICE static void
   fma(MatDesc const& mat_desc_d,
       MatDesc const& mat_desc_c,
       MatDesc const& mat_desc_a,
       MatDesc const& mat_desc_b,
-      ConstScaleOut const& scale_D,
       ConstDstType const& dst_type,
       Args&&... args)
   {
@@ -47,12 +40,7 @@ struct XE4_ASYNC_GMMA
     constexpr mem_layout layout_b = (tnspB == xe4::GMMA::Major::MN) ? mem_layout::row_major: mem_layout::col_major;
 
     using TDst = std::conditional_t<ConstDstType::value == xe4::GMMA::DstType::MatC, TD, TC>;
-    auto& mat_desc_dst = (ConstDstType::value == xe4::GMMA::DstType::MatC) ? mat_desc_d : mat_desc_c;
-    if constexpr (ConstScaleOut::value == xe4::GMMA::ScaleOut::Zero) {
-      async_gmma<TDst, TA, TB, Tile_M, Tile_N, Tile_K, layout_a, layout_b>(mat_desc_dst, mat_desc_a, mat_desc_b, static_cast<Args&&>(args)...);
-    } else {
-      async_gmma<TDst, TC, TA, TB, Tile_M, Tile_N, Tile_K, layout_a, layout_b>(mat_desc_dst, mat_desc_c, mat_desc_a, mat_desc_b, static_cast<Args&&>(args)...);
-    }
+    async_gmma<TDst, TC, TA, TB, Tile_M, Tile_N, Tile_K, layout_a, layout_b>(mat_desc_d, mat_desc_c, mat_desc_a, mat_desc_b, static_cast<Args&&>(args)...);
   }
 };
 
@@ -67,13 +55,12 @@ struct XE4_ASYNC_GMMA_MULTICAST
   using Shape_MNK = Shape_MNK_;
   using Abarrier = Abarrier_;
 
-  template<typename ConstScaleOut, typename ConstDstType, typename... Args>
+  template<typename ConstDstType, typename... Args>
   CUTE_HOST_DEVICE static void
   fma(MatDesc const& mat_desc_d,
       MatDesc const& mat_desc_c,
       MatDesc const& mat_desc_a,
       MatDesc const& mat_desc_b,
-      ConstScaleOut const& scale_D,
       ConstDstType const& dst_type,
       Args&&... args)
   {
@@ -86,12 +73,7 @@ struct XE4_ASYNC_GMMA_MULTICAST
     constexpr mem_layout layout_b = (tnspB == xe4::GMMA::Major::MN) ? mem_layout::row_major: mem_layout::col_major;
 
     using TDst = std::conditional_t<ConstDstType::value == xe4::GMMA::DstType::MatC, TD, TC>;
-    auto& mat_desc_dst = (ConstDstType::value == xe4::GMMA::DstType::MatC) ? mat_desc_d : mat_desc_c;
-    if constexpr (ConstScaleOut::value == xe4::GMMA::ScaleOut::Zero) {
-      async_gmma<TDst, TA, TB, Tile_M, Tile_N, Tile_K, layout_a, layout_b>(mat_desc_dst, mat_desc_a, mat_desc_b, static_cast<Args&&>(args)...);
-    } else {
-      async_gmma<TDst, TC, TA, TB, Tile_M, Tile_N, Tile_K, layout_a, layout_b>(mat_desc_dst, mat_desc_c, mat_desc_a, mat_desc_b, static_cast<Args&&>(args)...);
-    }
+    async_gmma<TDst, TC, TA, TB, Tile_M, Tile_N, Tile_K, layout_a, layout_b>(mat_desc_d, mat_desc_c, mat_desc_a, mat_desc_b, static_cast<Args&&>(args)...);
   }
 };
 
@@ -106,7 +88,7 @@ struct XE4_ASYNC_GMMA_SCALE
   using Shape_MNK = Shape_MNK_;
   using Abarrier = Abarrier_;
 
-  template<typename ConstScaleOut, typename ConstDstType, typename... Args>
+  template<typename ConstDstType, typename... Args>
   CUTE_HOST_DEVICE static void
   fma(MatDesc const& mat_desc_d,
       MatDesc const& mat_desc_c,
@@ -114,7 +96,6 @@ struct XE4_ASYNC_GMMA_SCALE
       MatDesc const& mat_desc_b,
       MetaDesc const& mat_desc_meta_a,
       MetaDesc const& mat_desc_meta_b,
-      ConstScaleOut const& scale_D,
       ConstDstType const& dst_type,
       Args&&... args)
   {
@@ -126,13 +107,7 @@ struct XE4_ASYNC_GMMA_SCALE
     constexpr mem_layout layout_b = (tnspB == xe4::GMMA::Major::MN) ? mem_layout::row_major: mem_layout::col_major;
 
     using TDst = std::conditional_t<ConstDstType::value == xe4::GMMA::DstType::MatC, TD, TC>;
-    auto& mat_desc_dst = (ConstDstType::value == xe4::GMMA::DstType::MatC) ? mat_desc_d : mat_desc_c;
-
-    if constexpr (ConstScaleOut::value == xe4::GMMA::ScaleOut::Zero) {
-      async_gmma<TDst, TA, TB, Tile_M, Tile_N, Tile_K, layout_a, layout_b, ScaleA, ScaleB>(mat_desc_dst, mat_desc_a, mat_desc_b, mat_desc_meta_a, mat_desc_meta_b, static_cast<Args&&>(args)...);
-    } else {
-      async_gmma<TDst, TC, TA, TB, Tile_M, Tile_N, Tile_K, layout_a, layout_b, ScaleA, ScaleB>(mat_desc_dst, mat_desc_c, mat_desc_a, mat_desc_b, mat_desc_meta_a, mat_desc_meta_b, static_cast<Args&&>(args)...);
-    }
+    async_gmma<TDst, TC, TA, TB, Tile_M, Tile_N, Tile_K, layout_a, layout_b, ScaleA, ScaleB>(mat_desc_d, mat_desc_c, mat_desc_a, mat_desc_b, mat_desc_meta_a, mat_desc_meta_b, static_cast<Args&&>(args)...);
   }
 };
 

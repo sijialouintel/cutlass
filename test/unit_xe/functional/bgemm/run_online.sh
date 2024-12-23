@@ -28,9 +28,9 @@ rm -rf $BUILD_PATH; mkdir -p $BUILD_PATH
 GEN_HEADER_PATH=$BUILD_PATH/generated_headers/async_gmma.hpp
 
 python3 $XE4_TEST_PATH/generator/gen_mma.py \
+  --mma_type mma \
   --output $GEN_HEADER_PATH \
-  --shape 128x128x128 256x512x128 \
-  --dtype bf16_bf16_bf16 f32_f32_bf16_bf16 f32_bf16_bf16 bf16_f32_bf16_bf16
+  --shape 128x128x128 256x512x128 --dtype f32_f32_bf16_bf16 bf16_f32_bf16_bf16
 
 test_cases=("ROW_ROW_RELU" "COL_ROW_RELU" "ROW_COL_RELU" "COL_COL_RELU")
 
@@ -68,7 +68,7 @@ export L0SIM_SELECT_DEVICES=GRITS
 
 export XE4_LOG_ON="1"
 export XE4_LOG_FOLDER_PATH="./logdump"
-export ZESIM_ROOT=/root/zesim/debug-sys20/zesim
+export ZESIM_ROOT=/root/zesim/debug/zesim
 export LD_LIBRARY_PATH=$ZESIM_ROOT:$LD_LIBRARY_PATH
 
 for ((i=0; i<limit; i++)); do

@@ -63,7 +63,7 @@ struct Xe4CopyOp {};
 template <typename CopyOperation>
 struct Xe4CopyOpWrapper : CopyOperation {};
 
-template <class TensorDesc, class AuxParams>
+template <class TensorDesc, class AuxParams, class GmemPtr, class CmType>
 struct Xe4DmaCache {
   template <typename CopyOp>
   using OpUnpack = XE4_COPY_Unpack<CopyOp>;
@@ -80,8 +80,15 @@ struct Xe4DmaCache {
     return make_counting_tensor(make_layout(g_shape, aux_params_.g_stride_));
   }
 
+  template <typename... Args>
+  CUTE_HOST_DEVICE constexpr
+  auto make_args_tuple(Args&&... args) const {
+    return make_tuple(tdesc_ptr_, gmem_ptr_, CmType{}, static_cast<Args&&>(args)...);
+  }
+
   TensorDesc tdesc_ptr_;
   AuxParams aux_params_;
+  GmemPtr gmem_ptr_ {nullptr};
 };
 
 template <class CopyOperation, class NumBitsPerTMA, class DmaCache>
@@ -100,7 +107,7 @@ struct Copy_Traits<Xe4CopyOp<CopyOperation>, NumBitsPerTMA, DmaCache>
     using Wrapper = Xe4CopyOpWrapper<CopyOperation>;
     using OpUnpack = typename DmaCache::template OpUnpack<Wrapper>;
 
-    auto opargs = make_tuple(get_tensor_desc(), abar_ptr);
+    auto opargs = cache_.make_args_tuple(abar_ptr);
     return Copy_Traits<Wrapper, NumBitsPerTMA, decltype(opargs), OpUnpack>{opargs};
   }
 
@@ -110,7 +117,7 @@ struct Copy_Traits<Xe4CopyOp<CopyOperation>, NumBitsPerTMA, DmaCache>
     using Wrapper = Xe4CopyOpWrapper<CopyOperation>;
     using OpUnpack = typename DmaCache::template OpUnpack<Wrapper>;
 
-    auto opargs = make_tuple(get_tensor_desc(), dim_index, dim_size, abar_ptr);
+    auto opargs = cache_.make_args_tuple(dim_index, dim_size, abar_ptr);
     return Copy_Traits<Wrapper, NumBitsPerTMA, decltype(opargs), OpUnpack>{opargs};
   }
 
@@ -168,7 +175,7 @@ struct Copy_Traits<Xe4CopyOp<xe4::ASYNC_TENSOR_LOAD_MULTICAST>, NumBitsPerTMA, D
     using Wrapper = Xe4CopyOpWrapper<CopyOperation>;
     using OpUnpack = typename DmaCache::template OpUnpack<Wrapper>;
 
-    auto opargs = make_tuple(cache_.get_tensor_desc(), abar_ptr, multicast_mask);
+    auto opargs = cache_.make_args_tuple(abar_ptr, multicast_mask);
     return Copy_Traits<Wrapper, NumBitsPerTMA, decltype(opargs), OpUnpack>{opargs};
   }
 
@@ -325,12 +332,10 @@ make_tensor_desc(Tensor<GEngine, GLayout> const& gtensor, SLayout const& slayout
   uint32_t block_height = AuxParams::isMeta ? round_up(block_height_, 32) : (block_height_ / coop_size);
 
   auto tdesc_ptr = allocate_tdesc<AuxParams::tdescIdx, typename AuxParams::tdescPtr>();
-  tensor_desc_fill_global_addr(tdesc_ptr, gmem_address);
-  tensor_descriptor_fill_dim_size<2>(tdesc_ptr, {width, height});
-  tensor_descriptor_fill_dim_stride<2>(tdesc_ptr, width * sizeof(TmaInternalType));
-  tensor_descriptor_fill_traverse_stride<2>(tdesc_ptr, sycl::vec<uint32_t, 2>{1, 1});
-  tensor_descriptor_fill_roitensor_size<2>(tdesc_ptr, {block_width, block_height});
-  tensor_descriptor_fill_misc<TmaInternalType, AuxParams::cmType>(tdesc_ptr);
+  tensordesc_fill_dim_size<2>(tdesc_ptr, {width, height});
+  tensordesc_fill_dim_stride<2>(tdesc_ptr, width * sizeof(TmaInternalType));
+  tensordesc_fill_element_stride<2>(tdesc_ptr, sycl::vec<uint32_t, 2>{1, 1});
+  tensordesc_fill_roitensor_dim_size<2>(tdesc_ptr, {block_width, block_height});
 
   return tdesc_ptr;
 }
@@ -350,12 +355,10 @@ make_conv2d_tensor_desc(GTensor const& gtensor, SLayout const& slayout, uint32_t
   sycl::vec<uint32_t, 4> elem_stride {1, 1, 1, 1};
 
   auto tdesc_ptr = allocate_tdesc<AuxParams::tdescIdx, typename AuxParams::tdescPtr>();
-  tensor_desc_fill_global_addr(tdesc_ptr, gtensor.data());
-  tensor_descriptor_fill_dim_size<4>(tdesc_ptr, gmem_shape);
-  tensor_descriptor_fill_dim_stride<4>(tdesc_ptr, gmem_stride);
-  tensor_descriptor_fill_traverse_stride<4>(tdesc_ptr, elem_stride);
-  tensor_descriptor_fill_roitensor_size<4>(tdesc_ptr, roi_shape);
-  tensor_descriptor_fill_misc<T, AuxParams::cmType>(tdesc_ptr);
+  tensordesc_fill_dim_size<4>(tdesc_ptr, gmem_shape);
+  tensordesc_fill_dim_stride<4>(tdesc_ptr, gmem_stride);
+  tensordesc_fill_element_stride<4>(tdesc_ptr, elem_stride);
+  tensordesc_fill_roitensor_dim_size<4>(tdesc_ptr, roi_shape);
 
   return tdesc_ptr;
 }
@@ -377,11 +380,12 @@ make_copy_atom(Tensor<GEngine, GLayout> const& gtensor, SLayout const& slayout, 
   auto tensor_desc = make_tensor_desc<AuxParams, TmaInternalType>(gtensor, slayout, coop_size);
   auto aux_params = make_tma_copy_aux_params<TmaInternalType>(gtensor, tma_gbasis, smem_swizzle);
 
-  using DmaCache = Xe4DmaCache<decltype(tensor_desc), decltype(aux_params)>;
+  auto gmem_ptr = recast<TmaInternalType>(gtensor).data();
+  using DmaCache = Xe4DmaCache<decltype(tensor_desc), decltype(aux_params), decltype(gmem_ptr), C<AuxParams::cmType>>;
   using Traits = Copy_Traits<Xe4CopyOp<CopyOp>, cute::C<num_bits_per_tma>, DmaCache>;
   using Atom   = Copy_Atom<Traits, typename GEngine::value_type>;
 
-  Traits tma_traits{{tensor_desc, aux_params}};
+  Traits tma_traits{{tensor_desc, aux_params, gmem_ptr}};
 
   // Return the Copy_Atom
   return Atom{tma_traits};
@@ -405,11 +409,12 @@ uint32_t coop_size, VLayout const& cta_v_map)
 
   auto tensor_desc = make_conv2d_tensor_desc<AuxParams>(gtensor, slayout);
 
-  using DmaCache = Xe4DmaCache<decltype(tensor_desc), decltype(aux_params)>;
+  auto gmem_ptr = cute::raw_pointer_cast(gtensor.data());
+  using DmaCache = Xe4DmaCache<decltype(tensor_desc), decltype(aux_params), decltype(gmem_ptr), C<AuxParams::cmType>>;
   using Traits = Copy_Traits<Xe4CopyOp<CopyOp>, cute::C<num_bits_per_tma>, DmaCache>;
   using Atom   = Copy_Atom<Traits, typename GEngine::value_type>;
 
-  Traits tma_traits{{tensor_desc, aux_params}};
+  Traits tma_traits{{tensor_desc, aux_params, gmem_ptr}};
 
   // Return the Copy_Atom
   return Atom{tma_traits};

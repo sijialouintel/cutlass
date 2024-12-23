@@ -307,8 +307,7 @@ public:
     auto accum = thread_mma.partition_fragment_C(accumulator);  // (MMA,MMA_M,MMA_N)
     auto tCrC = thread_mma.partition_fragment_C(sC);            // (MMA,MMA_M,MMA_N)
 
-    constexpr auto scaleOutOne = cute::C<cute::xe4::GMMA::ScaleOut::One>{};
-    constexpr auto scaleOutZero = cute::C<cute::xe4::GMMA::ScaleOut::Zero>{};
+    uint64_t mma_ctrl = 0x100;
     constexpr auto dstIsAccum = cute::C<cute::xe4::GMMA::DstType::Accum>{};
     constexpr auto dstIsMatC = cute::C<cute::xe4::GMMA::DstType::MatC>{};
 
@@ -316,18 +315,19 @@ public:
     auto abar_cons_base = pipeline.abar_cons_base;
 
     if (k_tile_count == 1) {
-      cute::gemm(tiled_mma.with(scaleOutZero, dstIsMatC, abar_cons_base), tCrC, tCrA(_,_,_,0), tCrB(_,_,_,0), accum);
+      cute::gemm(tiled_mma.with(dstIsMatC, mma_ctrl, abar_cons_base), tCrC, tCrA(_,_,_,0), tCrB(_,_,_,0), accum);
       pipeline.consumer_commit(slm_pipe_read);
     } else {
-      cute::gemm(tiled_mma.with(scaleOutZero, dstIsAccum, abar_cons_base), tCrA(_,_,_,0), tCrB(_,_,_,0), accum);
+      cute::gemm(tiled_mma.with(dstIsAccum, mma_ctrl, abar_cons_base), tCrA(_,_,_,0), tCrB(_,_,_,0), accum);
       pipeline.consumer_commit(slm_pipe_read);
+      mma_ctrl = 0;
 
       for (uint32_t i = 1; i < k_tile_count - 1; i++) {
         ++slm_pipe_read;
         uint32_t abar_index = slm_pipe_read.index();
         auto abar_cons = pipeline.consumer_get_barrier(abar_index);
         pipeline.consumer_try_wait(slm_pipe_read);
-        cute::gemm(tiled_mma.with(scaleOutOne, dstIsAccum, abar_cons), tCrA(_,_,_,abar_index), tCrB(_,_,_,abar_index), accum);
+        cute::gemm(tiled_mma.with(dstIsAccum, mma_ctrl, abar_cons), tCrA(_,_,_,abar_index), tCrB(_,_,_,abar_index), accum);
         pipeline.consumer_commit(slm_pipe_read);
       }
       {
@@ -339,7 +339,7 @@ public:
 
         uint32_t phase = ((k_tile_count - 1) / Stages) & 1u;
         pipeline.consumer_try_wait(abar_index, phase);
-        cute::gemm(tiled_mma.with(scaleOutOne, dstIsMatC, abar_store_prod), tCrC, tCrA(_,_,_,abar_index), tCrB(_,_,_,abar_index), accum);
+        cute::gemm(tiled_mma.with(dstIsMatC, mma_ctrl, abar_store_prod), tCrC, tCrA(_,_,_,abar_index), tCrB(_,_,_,abar_index), accum);
         finalPipeline.producer_commit(finalPipelineState, 1);
       }
     }

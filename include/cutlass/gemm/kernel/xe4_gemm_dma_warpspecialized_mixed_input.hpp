@@ -210,7 +210,7 @@ public:
         collective_mainloop.loadB(params.mainloop, mainloop_pipeline_b, mainloop_pipe_producer_state_b, make_tuple(gB_nkl, gMetaB_nkl), blk_coord, k_tile_count, local_id, cluster_mask, shared_tensors.mainloop);
       }
     } else if (warp_group_role == SubGroupRole::Consumer) {
-      collective_mainloop.mma(mainloop_pipeline, mainloop_pipe_consumer_state, mainloop_pipeline_b, mainloop_pipe_consumer_state_b, epilogue_store_pipeline, store_pipe_consumer_state, epilogue_pipeline, epilogue_pipe_producer_state, tensorD, k_tile_count, local_id, cluster_mask, shared_tensors.mainloop);
+      collective_mainloop.mma(mainloop_pipeline, mainloop_pipe_consumer_state, mainloop_pipeline_b, mainloop_pipe_consumer_state_b, epilogue_store_pipeline, store_pipe_producer_state, epilogue_pipeline, epilogue_pipe_producer_state, tensorD, k_tile_count, local_id, cluster_mask, shared_tensors.mainloop);
     } else if (warp_group_role == SubGroupRole::Epilogue) {
       collective_epilogue(epilogue_store_pipeline, store_pipe_producer_state, epilogue_pipeline, epilogue_pipe_consumer_state, shared_tensors.epilogue, local_id);
     } else if (warp_group_role == SubGroupRole::Store) {
