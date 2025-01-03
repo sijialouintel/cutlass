@@ -19,23 +19,49 @@ using namespace cutlass::epilogue::collective;
 using namespace cutlass::epilogue::collective::detail;
 using namespace cutlass::epilogue::thread;
 
-class BGEMM_ROW_ROW_RELU;
-class BGEMM_COL_ROW_RELU;
-class BGEMM_ROW_COL_RELU;
-class BGEMM_COL_COL_RELU;
+struct BGEMM_TEST_CONFIG {
+    using dtypeA = bf16;
+    using dtypeB = bf16;
+    using dtypeAcc = float;
+    using dtypeC = bf16;
+    static constexpr uint32_t wg_m = 256;
+    static constexpr uint32_t wg_n = 512;
+    static constexpr uint32_t wg_k = 128;
+    static constexpr uint32_t stage = 3;
+};
+
+struct BGEMM_ROW_ROW : public BGEMM_TEST_CONFIG {
+    static constexpr mem_layout layout_a = mem_layout::row_major;
+    static constexpr mem_layout layout_b = mem_layout::row_major;
+};
+
+struct BGEMM_COL_ROW : public BGEMM_TEST_CONFIG {
+    static constexpr mem_layout layout_a = mem_layout::col_major;
+    static constexpr mem_layout layout_b = mem_layout::row_major;
+};
+
+struct BGEMM_ROW_COL : public BGEMM_TEST_CONFIG {
+    static constexpr mem_layout layout_a = mem_layout::row_major;
+    static constexpr mem_layout layout_b = mem_layout::col_major;
+};
+
+struct BGEMM_COL_COL : public BGEMM_TEST_CONFIG {
+    static constexpr mem_layout layout_a = mem_layout::col_major;
+    static constexpr mem_layout layout_b = mem_layout::col_major;
+};
 
 struct relu_op_t
 {
     template<typename dtype_acc>
     void run(std::vector<dtype_acc>& gold_acc){
-        for(size_t i = 0; i < gold_acc.size(); i++){
-            gold_acc[i] = gold_acc[i] > 0 ? gold_acc[i] : 0;
-        }
+        std::transform(gold_acc.begin(), gold_acc.end(), gold_acc.begin(), [](dtype_acc value) {
+            return std::max(value, static_cast<dtype_acc>(0));
+        });
     }
 };
 
-template<typename test, mem_layout layout_a, mem_layout layout_b>
-int run_test()
+template<typename test>
+void run_test()
 {
     queue q;
     auto dev = q.get_device();
@@ -45,21 +71,24 @@ int run_test()
     int mat_n = 512;
     int mat_k = 512;
     int mat_l = 1;
-    constexpr uint32_t wg_m = 256;
-    constexpr uint32_t wg_n = 512;
-    constexpr uint32_t wg_k = 128;
-    constexpr uint32_t stage = 3;
+
+    using dtypeA = typename test::dtypeA;
+    using dtypeB = typename test::dtypeB;
+    using dtypeAcc = typename test::dtypeAcc;
+    using dtypeC = typename test::dtypeC;
+
+    constexpr int wg_m = test::wg_m;
+    constexpr int wg_n = test::wg_n;
+    constexpr int wg_k = test::wg_k;
+    constexpr int stage = test::stage;
+    constexpr mem_layout layout_a = test::layout_a;
+    constexpr mem_layout layout_b = test::layout_b;
 
     assert(((mat_k + wg_k - 1) / wg_k) > 1);
 
     uint32_t sizeA = mat_m * mat_k;
     uint32_t sizeB = mat_n * mat_k;
     uint32_t sizeC = mat_m * mat_n;
-
-    using dtypeA = bf16;
-    using dtypeB = bf16;
-    using dtypeAcc = float;
-    using dtypeC = bf16;
 
     static constexpr auto tnspA = (layout_a == mem_layout::row_major) ? xe4::GMMA::Major::K : xe4::GMMA::Major::MN;
     static constexpr auto tnspB = (layout_b == mem_layout::row_major) ? xe4::GMMA::Major::MN : xe4::GMMA::Major::K;
@@ -158,25 +187,17 @@ int run_test()
 
     uint32_t err_cnt = validate_gemm_result(A_s, B_s, C_s, mat_m, mat_n, mat_k, layout_a, layout_b, relu_op_t{});
     if (err_cnt > 0) {
-        std::cout << "Test Failed!" << std::endl;
-        return -1;
+        std::runtime_error("Test Failed!");
+    } else {
+        std::cout << "Test Pass!" << std::endl;
     }
-
-    std::cout << "Test Pass!" << std::endl;
-    return 0;
 }
 
 int main()
 {
-#if defined(TEST_ROW_ROW_RELU)
-    run_test<BGEMM_ROW_ROW_RELU, mem_layout::row_major, mem_layout::row_major>();
-#elif defined(TEST_COL_ROW_RELU)
-    run_test<BGEMM_COL_ROW_RELU, mem_layout::col_major, mem_layout::row_major>();
-#elif defined(TEST_ROW_COL_RELU)
-    run_test<BGEMM_ROW_COL_RELU, mem_layout::row_major, mem_layout::col_major>();
-#elif defined(TEST_COL_COL_RELU)
-    run_test<BGEMM_COL_COL_RELU, mem_layout::col_major, mem_layout::col_major>();
-#endif
-
+    run_test<BGEMM_ROW_ROW>();
+    run_test<BGEMM_COL_ROW>();
+    run_test<BGEMM_ROW_COL>();
+    run_test<BGEMM_COL_COL>();
     return 0;
 }

@@ -48,9 +48,9 @@ struct relu_op_t
 {
     template<typename dtype_acc>
     void run(std::vector<dtype_acc>& gold_acc){
-        for(size_t i = 0; i < gold_acc.size(); i++){
-            gold_acc[i] = gold_acc[i] > 0 ? gold_acc[i] : 0;
-        }
+        std::transform(gold_acc.begin(), gold_acc.end(), gold_acc.begin(), [](dtype_acc value) {
+            return std::max(value, static_cast<dtype_acc>(0));
+        });
     }
 };
 
