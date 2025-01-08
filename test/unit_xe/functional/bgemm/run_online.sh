@@ -12,12 +12,12 @@ export IGC_EnableEfficient64b=1
 export IGC_VCInternalOptions=-ze-intel-64bit-addressing
 
 SCRIPT_PATH=$(dirname "$(realpath "$0")")
-XE4_TEST_PATH=$(realpath "$SCRIPT_PATH/../../3rdparty/xe4_test")
 CUTLASS_PISA_PATH=$(realpath "$SCRIPT_PATH/../../../..")
+XE4_ROOT="$CUTLASS_PISA_PATH/test/unit_xe/3rdparty/drivers.gpu.compute.workloads/simt_workloads"
 
 INCLUDE_PATHS="-I$CUTLASS_PISA_PATH/include \
   -I/usr/local/cuda/include \
-  -I$XE4_TEST_PATH/pisa_tests \
+  -I$XE4_ROOT/common_headers \
   -I$CUTLASS_PISA_PATH/tools/util/include"
 
 ORIGIN_PATH=$(pwd)
@@ -27,7 +27,7 @@ rm -rf $BUILD_PATH; mkdir -p $BUILD_PATH; cd $BUILD_PATH
 
 GEN_HEADER_PATH=$BUILD_PATH/generated_headers/async_gmma.hpp
 
-python3 $XE4_TEST_PATH/generator/gen_mma.py \
+python3 $XE4_ROOT/scripts/generator/gen_mma.py \
   --mma_type mma \
   --output $GEN_HEADER_PATH \
   --shape 128x128x128 256x512x128 --dtype f32_f32_bf16_bf16 bf16_f32_bf16_bf16

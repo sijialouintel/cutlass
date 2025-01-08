@@ -44,16 +44,6 @@ struct BGEMM_ROW_COL
     static constexpr uint32_t cluster_size_y = 2;
 };
 
-struct relu_op_t
-{
-    template<typename dtype_acc>
-    void run(std::vector<dtype_acc>& gold_acc){
-        std::transform(gold_acc.begin(), gold_acc.end(), gold_acc.begin(), [](dtype_acc value) {
-            return std::max(value, static_cast<dtype_acc>(0));
-        });
-    }
-};
-
 template<typename test>
 void run_test()
 {
@@ -185,7 +175,7 @@ void run_test()
         kernel(params, item);
      }).wait();
 
-    uint32_t err_cnt = validate_gemm_result(A_s, B_s, C_s, mat_m, mat_n, mat_k, layout_a, layout_b, relu_op_t{});
+    uint32_t err_cnt = validate_gemm_result(A_s, B_s, C_s, mat_m, mat_n, mat_k, layout_a, layout_b, ReluOp{});
 
     if (err_cnt > 0) {
         throw std::runtime_error("Test Failed!");
