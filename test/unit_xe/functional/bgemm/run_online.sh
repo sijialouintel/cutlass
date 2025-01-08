@@ -2,7 +2,7 @@
 
 set -e
 
-source /opt/intel/oneapi/setvars.sh
+source /opt/intel/oneapi/setvars.sh > /dev/null 2>&1
 
 export IGC20_ROOT=/root/llc
 export IGC_DumpToCustomDir=./igc_dump
@@ -45,7 +45,7 @@ export XE4_LOG_FOLDER_PATH="./logdump"
 export ZESIM_ROOT=/root/zesim/debug/zesim
 export LD_LIBRARY_PATH=$ZESIM_ROOT:$LD_LIBRARY_PATH
 
-./bgemm
+./bgemm 2>&1 | tee console_log.txt | sed '/^WARNING \[/d; /^missing impl/d'
 
 find . -type f -name "*.pisa" | while read -r file; do
   sed -i '/Inline assembly/d' "$file"

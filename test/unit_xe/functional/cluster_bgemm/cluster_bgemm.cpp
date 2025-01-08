@@ -19,7 +19,19 @@ using namespace cutlass::epilogue::collective;
 using namespace cutlass::epilogue::collective::detail;
 using namespace cutlass::epilogue::thread;
 
-struct BGEMM_ROW_ROW
+struct BGEMM_TEST_CONFIG
+{
+    using dtypeA = bf16;
+    using dtypeB = bf16;
+    using dtypeAcc = float;
+    using dtypeC = bf16;
+    static constexpr uint32_t wg_m = 256;
+    static constexpr uint32_t wg_n = 512;
+    static constexpr uint32_t wg_k = 128;
+    static constexpr uint32_t stage = 3;
+};
+
+struct BGEMM_ROW_ROW : public BGEMM_TEST_CONFIG
 {
     static constexpr mem_layout layout_a = mem_layout::row_major;
     static constexpr mem_layout layout_b = mem_layout::row_major;
@@ -27,8 +39,7 @@ struct BGEMM_ROW_ROW
     static constexpr uint32_t cluster_size_y = 2;
 };
 
-
-struct BGEMM_COL_ROW
+struct BGEMM_COL_ROW : public BGEMM_TEST_CONFIG
 {
     static constexpr mem_layout layout_a = mem_layout::col_major;
     static constexpr mem_layout layout_b = mem_layout::row_major;
@@ -36,7 +47,7 @@ struct BGEMM_COL_ROW
     static constexpr uint32_t cluster_size_y = 2;
 };
 
-struct BGEMM_ROW_COL
+struct BGEMM_ROW_COL : public BGEMM_TEST_CONFIG
 {
     static constexpr mem_layout layout_a = mem_layout::row_major;
     static constexpr mem_layout layout_b = mem_layout::col_major;
@@ -55,11 +66,15 @@ void run_test()
     int mat_n = 1024;
     int mat_k = 1024;
     int mat_l = 1;
-    constexpr uint32_t wg_m = 256;
-    constexpr uint32_t wg_n = 512;
-    constexpr uint32_t wg_k = 128;
-    constexpr uint32_t stage = 3;
 
+    using dtypeA = typename test::dtypeA;
+    using dtypeB = typename test::dtypeB;
+    using dtypeAcc = typename test::dtypeAcc;
+    using dtypeC = typename test::dtypeC;
+    constexpr uint32_t wg_m = test::wg_m;
+    constexpr uint32_t wg_n = test::wg_n;
+    constexpr uint32_t wg_k = test::wg_k;
+    constexpr uint32_t stage = test::stage;
     constexpr mem_layout layout_a = test::layout_a;
     constexpr mem_layout layout_b = test::layout_b;
     constexpr uint32_t cluster_size_x = test::cluster_size_x;
@@ -75,11 +90,6 @@ void run_test()
     uint32_t sizeA = mat_m * mat_k;
     uint32_t sizeB = mat_n * mat_k;
     uint32_t sizeC = mat_m * mat_n;
-
-    using dtypeA = bf16;
-    using dtypeB = bf16;
-    using dtypeAcc = float;
-    using dtypeC = bf16;
 
     static constexpr auto tnspA = (layout_a == mem_layout::row_major) ? xe4::GMMA::Major::K : xe4::GMMA::Major::MN;
     static constexpr auto tnspB = (layout_b == mem_layout::row_major) ? xe4::GMMA::Major::MN : xe4::GMMA::Major::K;

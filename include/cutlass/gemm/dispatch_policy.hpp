@@ -331,7 +331,7 @@ template<
 struct MainloopXe4DmaGmmaWarpSpecialized {
   constexpr static int Stages = Stages_;
   using ClusterShape = ClusterShape_;
-  using ArchTag = arch::Sm90;
+  using ArchTag = arch::Xe4;
   using Schedule = KernelSchedule;
   static_assert(
     cute::is_same_v<Schedule, KernelXe4WarpSpecialized>,
@@ -351,7 +351,7 @@ struct MainloopXe4DmaGmmaWarpSpecializedMixedInput {
   constexpr static uint32_t MxScaleSize = MxScaleSize_;
   constexpr static uint32_t StagesB = (Stages - 1) * SplitB + 1;
   using ClusterShape = ClusterShape_;
-  using ArchTag = arch::Sm90;
+  using ArchTag = arch::Xe4;
   using Schedule = KernelSchedule;
   static_assert(
     cute::is_same_v<Schedule, KernelXe4WarpSpecializedMixedInput>,
@@ -372,7 +372,7 @@ struct MainloopXe4DmaGmmaWarpSpecializedImplicitGemm {
   static constexpr int PipelineAsyncMmaStages = PipelineAsyncMmaStages_;
   using ConvOp = ConvOp_;
   using ClusterShape = ClusterShape_;
-  using ArchTag = arch::Sm90;
+  using ArchTag = arch::Xe4;
   using Schedule = KernelSchedule;
 
   static_assert(NumSpatialDimensions >= 1);

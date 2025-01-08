@@ -64,10 +64,10 @@ int SmId() {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 struct Sm50 {
   static int const kMinComputeCapability = 50;
-}; 
+};
 struct Sm60 {
   static int const kMinComputeCapability = 60;
-}; 
+};
 struct Sm61 {
   static int const kMinComputeCapability = 61;
 };
@@ -81,7 +81,7 @@ struct Sm75 {
   static int const kMinComputeCapability = 75;
 };
 struct Sm80 {
-  static int const kMinComputeCapability = 80; 
+  static int const kMinComputeCapability = 80;
 };
 struct Sm86 {
   static int const kMinComputeCapability = 86;
@@ -90,7 +90,10 @@ struct Sm89 {
   static int const kMinComputeCapability = 89;
 };
 struct Sm90 {
-  static int const kMinComputeCapability = 90; 
+  static int const kMinComputeCapability = 90;
+};
+struct Xe4 {
+  static int const kMinComputeCapability = -1;
 };
 
 /// Triggers a breakpoint on the device
