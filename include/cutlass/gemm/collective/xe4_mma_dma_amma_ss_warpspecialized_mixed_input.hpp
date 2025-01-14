@@ -66,6 +66,7 @@ struct CollectiveMma<
   using SmemLayoutAtomB = SmemLayoutAtomB_;
   using SmemCopyAtomA = SmemCopyAtomA_;
   using SmemCopyAtomB = SmemCopyAtomB_;
+  using ArchTag = typename DispatchPolicy::ArchTag;
 
   using TensorDesc = uint64_t*;
   using MatrixDesc = uint32_t;
@@ -266,28 +267,10 @@ struct CollectiveMma<
     return cute::make_tuple(gA_mkl, gB_nkl, gMetaA_mkl, gMetaB_nkl);
   }
 
-  CUTLASS_DEVICE static auto
-  calculateClusterMasks() {
-    uint32_t cluster_wgid_x = get_cluster_wgid<0>();
-    uint32_t cluster_wgid_y = get_cluster_wgid<1>();
-
-    uint32_t coop_set_id_a = cluster_wgid_y;
-    constexpr uint32_t cluster_size_x = size<1>(ClusterShape{});
-    uint32_t cluster_mask_a = ((1u << cluster_size_x) - 1) << (coop_set_id_a * cluster_size_x);
-
-    uint32_t coop_set_id_b = cluster_wgid_x;
-    uint32_t cluster_mask_b_base = 1u << coop_set_id_b;
-    constexpr uint32_t cluster_size_y = size<0>(ClusterShape{});
-    constexpr uint32_t cluster_mask_b_scale = ((1u << (cluster_size_x * cluster_size_y)) - 1) / ((1u << cluster_size_x) - 1);
-    uint32_t cluster_mask_b = cluster_mask_b_base * cluster_mask_b_scale;
-
-    return cute::make_tuple(cluster_mask_a, cluster_mask_b);
-  }
-
-  template <class TensorA, class MetaA, class BlockCoord, class ClusterMask>
+  template <class TensorA, class MetaA, class BlockCoord, class CoopIds, class ClusterMask>
   CUTLASS_DEVICE void
-  loadA(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState slm_pipe_write,
-    cute::tuple<TensorA, MetaA> const& load_inputs, BlockCoord const& blk_coord, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
+  loadA(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState& slm_pipe_write,
+    cute::tuple<TensorA, MetaA> const& load_inputs, BlockCoord const& blk_coord, int k_tile_count, int local_id, CoopIds const& coop_ids, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
 
     TiledMma tiled_mma;
     Copy_Atom<AutoVectorizingCopy, uint32_t> copy_atom_scale;
@@ -295,13 +278,11 @@ struct CollectiveMma<
 
     auto [gA_mkl, gMetaA_mkl] = load_inputs;
     auto [m_coord, n_coord, l_coord] = blk_coord;
+    auto [coop_id_a, coop_id_b] = coop_ids;
     auto [cluster_mask_a, cluster_mask_b] = cluster_mask;
 
-    uint32_t cluster_wgid_x = get_cluster_wgid<0>();
-    uint32_t cluster_wgid_y = get_cluster_wgid<1>();
-
-    auto block_load_a = mainloop_params.load_a.get_slice(0);
-    auto block_load_meta_a = mainloop_params.load_meta_a.get_slice(0);
+    auto block_load_a = mainloop_params.load_a.get_slice(coop_id_a);
+    auto block_load_meta_a = mainloop_params.load_meta_a.get_slice(coop_id_a);
     auto block_load_smem_meta_a = load_smem_meta_a.get_thread_slice(0);
 
     auto gA = gA_mkl(_, _, m_coord, _, l_coord);        // (BLK_M,BLK_K,k)
@@ -328,10 +309,10 @@ struct CollectiveMma<
     }
   }
 
-  template <class TensorB, class MetaB, class BlockCoord, class ClusterMask>
+  template <class TensorB, class MetaB, class BlockCoord, class CoopIds, class ClusterMask>
   CUTLASS_DEVICE void
-  loadB(Params const& mainloop_params, MainloopPipelineB pipeline_b, PipelineStateB slm_pipe_write_b,
-    cute::tuple<TensorB, MetaB> const& load_inputs, BlockCoord const& blk_coord, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
+  loadB(Params const& mainloop_params, MainloopPipelineB pipeline_b, PipelineStateB& slm_pipe_write_b,
+    cute::tuple<TensorB, MetaB> const& load_inputs, BlockCoord const& blk_coord, int k_tile_count, int local_id, CoopIds const& coop_ids, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
 
     TiledMma tiled_mma;
     Copy_Atom<AutoVectorizingCopy, uint32_t> copy_atom_scale;
@@ -339,13 +320,11 @@ struct CollectiveMma<
 
     auto [gB_nkl, gMetaB_nkl] = load_inputs;
     auto [m_coord, n_coord, l_coord] = blk_coord;
+    auto [coop_id_a, coop_id_b] = coop_ids;
     auto [cluster_mask_a, cluster_mask_b] = cluster_mask;
 
-    uint32_t cluster_wgid_x = get_cluster_wgid<0>();
-    uint32_t cluster_wgid_y = get_cluster_wgid<1>();
-
-    auto block_load_b = mainloop_params.load_b.get_slice(0);
-    auto block_load_meta_b = mainloop_params.load_meta_b.get_slice(0);
+    auto block_load_b = mainloop_params.load_b.get_slice(coop_id_b);
+    auto block_load_meta_b = mainloop_params.load_meta_b.get_slice(coop_id_b);
     auto block_load_smem_meta_b = load_smem_meta_b.get_thread_slice(0);
 
     auto gB = gB_nkl(_, _, n_coord, _, l_coord);        // (BLK_N,BLK_K,k)

@@ -2,7 +2,7 @@
 
 set -e
 
-source /opt/intel/oneapi/setvars.sh
+source /opt/intel/oneapi/setvars.sh > /dev/null 2>&1
 
 export IGC20_ROOT=/root/llc
 export IGC_DumpToCustomDir=./igc_dump
@@ -45,9 +45,8 @@ export XE4_LOG_ON="1"
 export XE4_LOG_FOLDER_PATH="./logdump"
 export ZESIM_ROOT=/root/zesim/debug/zesim
 export LD_LIBRARY_PATH=$ZESIM_ROOT:$LD_LIBRARY_PATH
-export L0SIM_GRITS_AUBLOAD_OPTS="-frametime 0 -msglevel verbose -attr EU.Debug true -attr EU.CmdDasm true -attr GT_LSC_L1_NUM_WAYS 180 -attr Mempipe.LoopbackCmpDelay 500 Mempipe.LoopbackDataDelay 500  -sim_mode perf_mfu -enableFeature clusterSupportForSystolic2 "
 
-./cluster_bgemm
+./cluster_bgemm 2>&1 | tee console_log.txt | sed '/^WARNING \[/d; /^missing impl/d'
 
 find . -type f -name "*.pisa" | while read -r file; do
   sed -i '/Inline assembly/d' "$file"

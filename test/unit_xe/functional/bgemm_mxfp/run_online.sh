@@ -38,8 +38,8 @@ icpx -fsycl -std=c++20 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -l
 
 export L0SIM_DEVICE_KIND=Xe4
 export L0SIM_GRITS_PATH=/root/XE3P_V2
-# export L0SIM_SELECT_DEVICES=XE4ISAI
-export L0SIM_SELECT_DEVICES=GRITS
+export L0SIM_SELECT_DEVICES=XE4ISAI
+# export L0SIM_SELECT_DEVICES=GRITS
 
 export XE4_LOG_ON="1"
 export XE4_LOG_FOLDER_PATH="./logdump"

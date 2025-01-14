@@ -56,7 +56,7 @@ struct BGEMM_ROW_COL : public BGEMM_TEST_CONFIG
 };
 
 template<typename test>
-void run_test()
+void run_test(bool is_persistent_mode = false)
 {
     queue q;
     auto dev = q.get_device();
@@ -110,7 +110,11 @@ void run_test()
     uint32_t group_range_m = round_up(ceil_div(mat_m, wg_m), cluster_size_y);
     uint32_t group_range_n = round_up(ceil_div(mat_n, wg_n), cluster_size_x);
     range<3> group_range(1, group_range_m, group_range_n);
-    std::cout << "Group range: {" << 1 << ", " << group_range_m << ", " << group_range_n << "} \n";
+    if (is_persistent_mode) {
+        group_range = range<3>(1, cluster_size_y, cluster_size_x);
+    }
+
+    std::cout << "Group range: {" << group_range[0] << ", " << group_range[1] << ", " << group_range[2] << "} \n";
     nd_range<3> Range(group_range * local_range, local_range);
 
     using LayoutA = std::conditional_t<tnspA == xe4::GMMA::Major::K, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
@@ -196,8 +200,12 @@ void run_test()
 
 int main()
 {
-    run_test<BGEMM_ROW_ROW>();
-    run_test<BGEMM_COL_ROW>();
-    run_test<BGEMM_ROW_COL>();
+    bool is_persistent_mode = false;
+    for (int i = 0; i < 2; ++i) {
+        run_test<BGEMM_ROW_ROW>(is_persistent_mode);
+        run_test<BGEMM_COL_ROW>(is_persistent_mode);
+        run_test<BGEMM_ROW_COL>(is_persistent_mode);
+        is_persistent_mode = true;
+    }
     return 0;
 }

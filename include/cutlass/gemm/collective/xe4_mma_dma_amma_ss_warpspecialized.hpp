@@ -61,6 +61,7 @@ struct CollectiveMma<
   using SmemLayoutAtomB = SmemLayoutAtomB_;
   using SmemCopyAtomA = SmemCopyAtomA_;
   using SmemCopyAtomB = SmemCopyAtomB_;
+  using ArchTag = typename DispatchPolicy::ArchTag;
 
   using TensorDesc = uint64_t*;
   using Abarrier = typename TiledMma::AbarrierType;
@@ -163,82 +164,16 @@ struct CollectiveMma<
     return cute::make_tuple(gA_mkl, gB_knl);
   }
 
-  template <typename NdItem>
-  CUTLASS_DEVICE static auto
-  calculateClusterMasks(NdItem const& item) {
-    uint32_t coop_id_a {0};
-    uint32_t coop_id_b {0};
-    uint32_t coop_set_id_a {0};
-    uint32_t coop_set_id_b {0};
-    uint32_t cluster_mask_a {0};
-    uint32_t cluster_mask_b {0};
-
-    uint32_t cluster_wgid_x = get_cluster_wgid<0>();
-    uint32_t cluster_wgid_y = get_cluster_wgid<1>();
-
-    constexpr auto cluster_shape = typename DispatchPolicy::ClusterShape{};
-    if constexpr (size(cluster_shape) == 1) {
-      coop_id_a = cluster_wgid_x;
-      coop_id_b = cluster_wgid_y;
-      auto blk_coord = cute::make_tuple((uint32_t)item.get_group(1), (uint32_t)item.get_group(2), 0);
-      auto cluster_mask_tuple = make_tuple(coop_id_a, coop_id_b, cluster_mask_a, cluster_mask_b);
-      return make_tuple(blk_coord, cluster_mask_tuple);
-    }
-
-    constexpr uint32_t cluster_size_x = get<1>(cluster_shape);
-    constexpr uint32_t cluster_size_y = get<0>(cluster_shape);
-
-    constexpr uint32_t coop_num_a = cluster_size_x;
-    constexpr uint32_t coop_num_b = cluster_size_y;
-
-    constexpr uint32_t multicast_size_a = SlmBytesA / coop_num_a;
-    constexpr uint32_t multicast_size_b = SlmBytesB / coop_num_b;
-
-    if constexpr(multicast_size_a >= multicast_size_b) {
-      coop_set_id_a = cluster_wgid_y;
-      coop_set_id_b = cluster_wgid_x;
-      coop_id_a = cluster_wgid_x;
-      coop_id_b = cluster_wgid_y;
-      cluster_mask_a = ((1u << coop_num_a) - 1) << (coop_set_id_a * coop_num_a); //0011
-      uint32_t cluster_mask_b_base = 1u << coop_set_id_b;
-      #pragma unroll
-      for (uint32_t i = 0; i < coop_num_b; i++) {
-        cluster_mask_b |= cluster_mask_b_base << (i * coop_num_a);
-      } //0101
-    } else {
-      uint32_t cluster_wgid = cluster_wgid_y * cluster_size_x + cluster_wgid_x;
-      cluster_wgid_x = cluster_wgid % coop_num_b;
-      cluster_wgid_y = cluster_wgid / coop_num_b;
-      coop_set_id_a = cluster_wgid_x;
-      coop_set_id_b = cluster_wgid_y;
-      coop_id_a = cluster_wgid_y;
-      coop_id_b = cluster_wgid_x;
-      cluster_mask_b = ((1u << coop_num_b) - 1) << (coop_set_id_b * coop_num_b); //0011
-      uint32_t cluster_mask_a_base = 1u << coop_set_id_a;
-      #pragma unroll
-      for (uint32_t i = 0; i < coop_num_a; i++) {
-        cluster_mask_a |= cluster_mask_a_base << (i * coop_num_b);
-      } //0101
-    }
-
-    const uint32_t cluster_id_x = get_cluster_id<0>(); // this already scaled with cluster_size_x
-    const uint32_t cluster_id_y = get_cluster_id<1>(); // this already scaled with cluster_size_y
-
-    auto blk_coord = make_tuple(cluster_id_y + coop_set_id_a, cluster_id_x + coop_set_id_b, 0);
-    auto cluster_mask_tuple = make_tuple(coop_id_a, coop_id_b, cluster_mask_a, cluster_mask_b);
-
-    return make_tuple(blk_coord, cluster_mask_tuple);
-  }
-
-  template <class TensorA, class TensorB, class BlockCoord, class ClusterMask>
+  template <class TensorA, class TensorB, class BlockCoord, class CoopIds, class ClusterMask>
   CUTLASS_DEVICE void
-  load(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState slm_pipe_write,
-    cute::tuple<TensorA, TensorB> const& load_inputs, BlockCoord const& blk_coord, int k_tile_count, int local_id, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
+  load(Params const& mainloop_params, MainloopPipeline pipeline, PipelineState& slm_pipe_write,
+    cute::tuple<TensorA, TensorB> const& load_inputs, BlockCoord const& blk_coord, int k_tile_count, int local_id, CoopIds const& coop_ids, ClusterMask const& cluster_mask, TensorStorage& shared_tensors) {
     auto sA = make_tensor(shared_tensors.smem_A.data(), SmemLayoutA {});
     auto sB = make_tensor(shared_tensors.smem_B.data(), SmemLayoutB {});
 
     auto [load_a, load_b] = mainloop_params;
-    auto [coop_id_a, coop_id_b, cluster_mask_a, cluster_mask_b] = cluster_mask;
+    auto [coop_id_a, coop_id_b] = coop_ids;
+    auto [cluster_mask_a, cluster_mask_b] = cluster_mask;
 
     auto block_load_a = load_a.get_slice(coop_id_a);
     auto block_load_b = load_b.get_slice(coop_id_b);
@@ -281,7 +216,7 @@ struct CollectiveMma<
     auto sB = make_tensor(shared_tensors.smem_B.data(), SmemLayoutB {});
     auto sAcc = make_tensor(shared_tensors.smem_Acc.data(), SmemLayoutAcc{});
 
-    auto [coop_id_a, coop_id_b, cluster_mask_a, cluster_mask_b] = cluster_mask;
+    auto [cluster_mask_a, cluster_mask_b] = cluster_mask;
 
     TiledMma tiled_mma;
     auto thread_mma = tiled_mma.get_thread_slice(0);

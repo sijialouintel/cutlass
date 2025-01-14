@@ -22,44 +22,42 @@ using namespace cutlass::epilogue::collective;
 using namespace cutlass::epilogue::collective::detail;
 using namespace cutlass::epilogue::thread;
 
-struct GEMM_BF16_BF8_FP4 {
-  using dtypeA = bf8;
-  using dtypeB = fp4_e3m0x2;
+struct BGEMM_TEST_CONFIG {
   using dtypeAcc = float;
   using dtypeC = bf16;
-  static constexpr mem_layout layout_a = mem_layout::row_major;
-  static constexpr mem_layout layout_b = mem_layout::col_major;
   static constexpr uint32_t wg_m = 256;
   static constexpr uint32_t wg_n = 512;
-  static constexpr uint32_t wg_k = 256;
+  static constexpr uint32_t stage = 3;
+  static constexpr uint32_t num_xecore_x = 1;
+  static constexpr uint32_t num_xecore_y = 1;
 };
 
-struct GEMM_BF16_FP4_FP4 {
+struct GEMM_BF16_BF8_FP4 : public BGEMM_TEST_CONFIG {
+  using dtypeA = bf8;
+  using dtypeB = fp4_e3m0x2;
+  static constexpr uint32_t wg_k = 256;
+  static constexpr mem_layout layout_a = mem_layout::row_major;
+  static constexpr mem_layout layout_b = mem_layout::col_major;
+};
+
+struct GEMM_BF16_FP4_FP4 : public BGEMM_TEST_CONFIG {
   using dtypeA = fp4_e3m0x2;
   using dtypeB = fp4_e3m0x2;
-  using dtypeAcc = float;
-  using dtypeC = bf16;
+  static constexpr uint32_t wg_k = 512;
   static constexpr mem_layout layout_a = mem_layout::row_major;
   static constexpr mem_layout layout_b = mem_layout::col_major;
-  static constexpr uint32_t wg_m = 256;
-  static constexpr uint32_t wg_n = 512;
-  static constexpr uint32_t wg_k = 512;
 };
 
-struct GEMM_BF16_BF8_BF8 {
+struct GEMM_BF16_BF8_BF8 : public BGEMM_TEST_CONFIG {
   using dtypeA = bf8;
   using dtypeB = bf8;
-  using dtypeAcc = float;
-  using dtypeC = bf16;
+  static constexpr uint32_t wg_k = 256;
   static constexpr mem_layout layout_a = mem_layout::row_major;
   static constexpr mem_layout layout_b = mem_layout::col_major;
-  static constexpr uint32_t wg_m = 256;
-  static constexpr uint32_t wg_n = 512;
-  static constexpr uint32_t wg_k = 256;
 };
 
 template <typename test>
-void run_test() {
+void run_test(bool is_persistent_mode = false) {
   queue q;
   auto dev = q.get_device();
   std::cout << "Running on " << dev.get_info<info::device::name>() << "\n";
@@ -147,7 +145,10 @@ void run_test() {
   constexpr uint32_t NumControlSubGroup = 4;
   constexpr uint32_t NumPostOpSubGroup = 16;
   range<3> local_size(1, NumControlSubGroup + NumPostOpSubGroup, SubGroupSize);
-  range<3> group_size(1, ceil_div<size_t>(mat_m, wg_m), ceil_div<size_t>(mat_n, wg_n));
+  range<3> group_size(1, test::num_xecore_y, test::num_xecore_x);
+  if (!is_persistent_mode) {
+    group_size = range<3>(1, ceil_div(mat_m, wg_m), ceil_div(mat_n, wg_n));
+  }
   nd_range<3> Range(group_size * local_size, local_size);
 
   static constexpr auto tnspA = (layout_a == mem_layout::row_major) ? xe4::GMMA::Major::K : xe4::GMMA::Major::MN;
@@ -251,8 +252,12 @@ void run_test() {
 }
 
 int main() {
-  run_test<GEMM_BF16_BF8_FP4>();
-  run_test<GEMM_BF16_FP4_FP4>();
-  run_test<GEMM_BF16_BF8_BF8>();
+  bool is_persistent_mode = false;
+  for (int i = 0; i < 2; ++i) {
+    run_test<GEMM_BF16_BF8_FP4>(is_persistent_mode);
+    run_test<GEMM_BF16_FP4_FP4>(is_persistent_mode);
+    run_test<GEMM_BF16_BF8_BF8>(is_persistent_mode);
+    is_persistent_mode = true;
+  }
   return 0;
 }

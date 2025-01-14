@@ -38,6 +38,8 @@
 #include "cutlass/arch/arch.h"
 #include "cutlass/detail/dependent_false.hpp"
 
+#include "cutlass/gemm/kernel/xe4_tile_scheduler.hpp"
+
 #if defined(__CUDA_ARCH__)
 #include "cutlass/gemm/kernel/sm90_tile_scheduler.hpp"
 #include "cutlass/gemm/kernel/sm90_tile_scheduler_stream_k.hpp"
@@ -83,19 +85,17 @@ struct TileSchedulerSelector {
       "Could not select a tile scheduler for given parameters.");
 };
 
-#if defined(__CUDA_ARCH__)
 template <
-  class ArchTag,
   class TileShape,
   class ClusterShape
 >
 struct TileSchedulerSelector<
     PersistentScheduler,
-    ArchTag,
+    cutlass::arch::Xe4,
     TileShape,
     ClusterShape
   > {
-  using Scheduler = PersistentTileSchedulerSm90;
+  using Scheduler = PersistentTileSchedulerXe4;
 };
 
 // Default (void) for Sm90 maps to PersistentTileSchedulerSm90
@@ -116,6 +116,21 @@ struct TileSchedulerSelector<
       TileShape,
       ClusterShape
   >::Scheduler;
+};
+
+#if defined(__CUDA_ARCH__)
+template <
+  class ArchTag,
+  class TileShape,
+  class ClusterShape
+>
+struct TileSchedulerSelector<
+    PersistentScheduler,
+    ArchTag,
+    TileShape,
+    ClusterShape
+  > {
+  using Scheduler = PersistentTileSchedulerSm90;
 };
 
 template <

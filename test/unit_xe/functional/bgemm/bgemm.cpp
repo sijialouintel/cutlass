@@ -28,6 +28,8 @@ struct BGEMM_TEST_CONFIG {
     static constexpr uint32_t wg_n = 512;
     static constexpr uint32_t wg_k = 128;
     static constexpr uint32_t stage = 3;
+    static constexpr uint32_t num_xecore_x = 1;
+    static constexpr uint32_t num_xecore_y = 1;
 };
 
 struct BGEMM_ROW_ROW : public BGEMM_TEST_CONFIG {
@@ -51,7 +53,7 @@ struct BGEMM_COL_COL : public BGEMM_TEST_CONFIG {
 };
 
 template<typename test>
-void run_test()
+void run_test(bool is_persistent_mode = false)
 {
     queue q;
     auto dev = q.get_device();
@@ -96,14 +98,16 @@ void run_test()
     constexpr uint32_t NumControlSubGroup = 4;
     constexpr uint32_t NumPostOpSubGroup = 16;
     range<3> local_range(1, NumControlSubGroup + NumPostOpSubGroup, SubGroupSize);
-    uint32_t group_range_m = (mat_m + wg_m - 1) / wg_m;
-    uint32_t group_range_n = (mat_n + wg_n - 1) / wg_n;
-    range<3> group_range(1, group_range_m, group_range_n);
+    range<3> group_range(1, test::num_xecore_y, test::num_xecore_x);
+    if (!is_persistent_mode) {
+        group_range = range<3>(1, ceil_div(mat_m, wg_m), ceil_div(mat_n, wg_n));
+    }
     nd_range<3> Range(group_range * local_range, local_range);
 
+    std::cout << "IsPersistentMode: " << is_persistent_mode << std::endl;
     std::cout << "ProblemShape: (" << mat_m << ", " << mat_n << ", " << mat_k << ")\n";
     std::cout << "TileShape: (" << wg_m << ", " << wg_n << ", " << wg_k << ")\n";
-    std::cout << "Group range: {" << 1 << ", " << group_range_m << ", " << group_range_n << "} \n";
+    std::cout << "Group range: {" << group_range[0] << ", " << group_range[1] << ", " << group_range[2] << "} \n";
 
     using LayoutA = std::conditional_t<tnspA == xe4::GMMA::Major::K, cutlass::layout::RowMajor, cutlass::layout::ColumnMajor>;
     using StrideA = cutlass::detail::TagToStrideA_t<LayoutA>;
@@ -185,9 +189,13 @@ void run_test()
 
 int main()
 {
-    run_test<BGEMM_ROW_ROW>();
-    run_test<BGEMM_COL_ROW>();
-    run_test<BGEMM_ROW_COL>();
-    run_test<BGEMM_COL_COL>();
+    bool is_persistent_mode = false;
+    for (int i = 0; i < 2; ++i) {
+        run_test<BGEMM_ROW_ROW>(is_persistent_mode);
+        run_test<BGEMM_COL_ROW>(is_persistent_mode);
+        run_test<BGEMM_ROW_COL>(is_persistent_mode);
+        run_test<BGEMM_COL_COL>(is_persistent_mode);
+        is_persistent_mode = true;
+    }
     return 0;
 }

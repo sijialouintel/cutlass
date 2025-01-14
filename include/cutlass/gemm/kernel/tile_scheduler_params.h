@@ -599,7 +599,7 @@ struct PersistentTileSchedulerSm90StreamKParams {
       //   and this violate k_tile start from even requirements. Thus we need to
       //   reduce the number of splits.
       if (ktile_start_alignment_count > 1u &&
-           static_cast<decltype(k_tiles_per_output_tile)>(splits) == k_tiles_per_output_tile) { 
+           static_cast<decltype(k_tiles_per_output_tile)>(splits) == k_tiles_per_output_tile) {
         splits = k_tiles_per_output_tile / ktile_start_alignment_count;
       }
 
