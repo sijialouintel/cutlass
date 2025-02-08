@@ -11,29 +11,18 @@ export NEO_CACHE_PERSISTENT=0
 export IGC_EnableEfficient64b=1
 export IGC_VCInternalOptions=-ze-intel-64bit-addressing
 
-SCRIPT_PATH=$(dirname "$(realpath "$0")")
-CUTLASS_PISA_PATH=$(realpath "$SCRIPT_PATH/../../../..")
-XE4_ROOT="$CUTLASS_PISA_PATH/test/unit_xe/3rdparty/drivers.gpu.compute.workloads/simt_workloads"
-
-INCLUDE_PATHS="-I$CUTLASS_PISA_PATH/include \
-  -I/usr/local/cuda/include \
-  -I$XE4_ROOT/common_headers \
-  -I$CUTLASS_PISA_PATH/tools/util/include"
+SCRIPT_DIR=$(dirname $(realpath $0))
+ROOT_DIR=$(realpath "$SCRIPT_DIR/../../../..")
+XE4_DIR="$ROOT_DIR/test/unit_xe/3rdparty/drivers.gpu.compute.workloads/simt_workloads/workloads"
+INCLUDE_PATHS="-I$ROOT_DIR/include -I$ROOT_DIR/tools/util/include -I$XE4_DIR/common_headers -I/usr/local/cuda/include"
 
 ORIGIN_PATH=$(pwd)
 BUILD_PATH=$ORIGIN_PATH/build
-
 rm -rf $BUILD_PATH; mkdir -p $BUILD_PATH; cd $BUILD_PATH
 
 GEN_HEADER_PATH=$BUILD_PATH/generated_headers/async_gmma.hpp
-
-python3 $XE4_ROOT/scripts/generator/gen_mma.py \
-  --mma_type mma \
-  --output $GEN_HEADER_PATH \
-  --shape 128x128x128 256x512x128 --dtype f32_f32_bf16_bf16 bf16_f32_bf16_bf16
-
-icpx -fsycl -std=c++20 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -Xs " -xe-set-abarrier-arrive-lmc " \
-  -DTEST_$test_case -DAMMA_HEADER_PATH=$GEN_HEADER_PATH $INCLUDE_PATHS $ORIGIN_PATH/bgemm.cpp -o bgemm
+python3 $XE4_DIR/common_headers/generator/gen_mma.py --mma_type mma --output $GEN_HEADER_PATH --shape 128x128x128 256x512x128 --dtype f32_f32_bf16_bf16 bf16_f32_bf16_bf16
+icpx -fsycl -std=c++20 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -Xs " -xe-set-abarrier-arrive-lmc " -DAMMA_GENERATED -I$BUILD_PATH $INCLUDE_PATHS $ORIGIN_PATH/bgemm.cpp -o bgemm
 
 export L0SIM_DEVICE_KIND=Xe4
 export L0SIM_GRITS_PATH=/root/XE3P_V2

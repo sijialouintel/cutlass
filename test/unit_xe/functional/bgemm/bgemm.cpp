@@ -23,7 +23,7 @@ struct BGEMM_TEST_CONFIG {
     using dtypeA = bf16;
     using dtypeB = bf16;
     using dtypeAcc = float;
-    using dtypeC = bf16;
+    using dtypeC = fp16;
     static constexpr uint32_t wg_m = 256;
     static constexpr uint32_t wg_n = 512;
     static constexpr uint32_t wg_k = 128;
@@ -59,9 +59,9 @@ void run_test(bool is_persistent_mode = false)
     auto dev = q.get_device();
     std::cout << "Running on " << dev.get_info<info::device::name>() << "\n";
 
-    int mat_m = 512;
-    int mat_n = 512;
-    int mat_k = 512;
+    int mat_m = 2048;
+    int mat_n = 2048;
+    int mat_k = 2048;
     int mat_l = 1;
 
     using dtypeA = typename test::dtypeA;
