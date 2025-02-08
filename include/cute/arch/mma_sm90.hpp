@@ -1,5 +1,5 @@
 /***************************************************************************************************
- * Copyright (c) 2023 - 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2023 - 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
@@ -381,8 +381,18 @@ ss_op_selector()
         return SM90::GMMA::MMA_64x256x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -391,16 +401,36 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -409,37 +439,82 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x16_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
@@ -461,8 +536,18 @@ ss_op_selector()
         return SM90::GMMA::MMA_64x256x32_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x32_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x32_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x32_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -471,16 +556,36 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x32_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x32_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x32_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x32_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x32_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x32_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x32_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -489,37 +594,82 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x32_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x32_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x32_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x32_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x32_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x32_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x32_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x32_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x32_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x32_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x32_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x32_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x32_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x32_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x32_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_F16E4M3E4M3_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_F16E4M3E4M3_SS_TN<Args...>{};
       }
@@ -541,8 +691,18 @@ ss_op_selector()
         return SM90::GMMA::MMA_64x256x32_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x32_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x32_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x32_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -551,16 +711,36 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x32_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x32_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x32_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x32_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x32_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x32_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x32_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -569,37 +749,82 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x32_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x32_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x32_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x32_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x32_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x32_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x32_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x32_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x32_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x32_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x32_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x32_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x32_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x32_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x32_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_F16E4M3E5M2_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_F16E4M3E5M2_SS_TN<Args...>{};
       }
@@ -621,8 +846,18 @@ ss_op_selector()
         return SM90::GMMA::MMA_64x256x32_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x32_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x32_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x32_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -631,16 +866,36 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x32_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x32_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x32_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x32_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x32_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x32_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x32_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -649,37 +904,82 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x32_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x32_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x32_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x32_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x32_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x32_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x32_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x32_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x32_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x32_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x32_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x32_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x32_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x32_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x32_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_F16E5M2E4M3_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_F16E5M2E4M3_SS_TN<Args...>{};
       }
@@ -701,8 +1001,18 @@ ss_op_selector()
         return SM90::GMMA::MMA_64x256x32_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x32_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x32_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x32_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -711,16 +1021,36 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x32_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x32_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x32_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x32_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x32_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x32_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x32_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -729,37 +1059,82 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x32_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x32_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x32_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x32_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x32_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x32_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x32_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x32_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x32_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x32_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x32_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x32_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x32_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x32_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x32_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_F16E5M2E5M2_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_F16E5M2E5M2_SS_TN<Args...>{};
       }
@@ -787,8 +1162,18 @@ ss_op_selector()
         return SM90::GMMA::MMA_64x256x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -797,16 +1182,36 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -815,37 +1220,82 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x16_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
@@ -865,8 +1315,18 @@ ss_op_selector()
         return SM90::GMMA::MMA_64x256x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -875,16 +1335,36 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -893,37 +1373,82 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x16_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
@@ -945,8 +1470,18 @@ ss_op_selector()
         return SM90::GMMA::MMA_64x256x8_F32TF32TF32_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x8_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x8_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x8_F32TF32TF32_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -955,16 +1490,36 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x8_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x8_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x8_F32TF32TF32_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x8_F32TF32TF32_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x8_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x8_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x8_F32TF32TF32_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -973,37 +1528,82 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x8_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x8_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x8_F32TF32TF32_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x8_F32TF32TF32_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x8_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x8_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x8_F32TF32TF32_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x8_F32TF32TF32_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x8_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x8_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x8_F32TF32TF32_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x8_F32TF32TF32_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x8_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x8_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x8_F32TF32TF32_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x8_F32TF32TF32_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x8_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x8_F32TF32TF32_SS_TN<Args...>{};
       }
@@ -1025,8 +1625,18 @@ ss_op_selector()
         return SM90::GMMA::MMA_64x256x32_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x32_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x32_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x32_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -1035,16 +1645,36 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x32_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x32_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x32_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x32_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x32_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x32_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x32_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -1053,37 +1683,82 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x32_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x32_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x32_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x32_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x32_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x32_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x32_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x32_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x32_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x32_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x32_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x32_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x32_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x32_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x32_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_F32E4M3E4M3_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_F32E4M3E4M3_SS_TN<Args...>{};
       }
@@ -1105,8 +1780,18 @@ ss_op_selector()
         return SM90::GMMA::MMA_64x256x32_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x32_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x32_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x32_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -1115,16 +1800,36 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x32_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x32_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x32_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x32_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x32_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x32_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x32_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -1133,37 +1838,82 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x32_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x32_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x32_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x32_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x32_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x32_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x32_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x32_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x32_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x32_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x32_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x32_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x32_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x32_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x32_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_F32E4M3E5M2_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_F32E4M3E5M2_SS_TN<Args...>{};
       }
@@ -1185,8 +1935,18 @@ ss_op_selector()
         return SM90::GMMA::MMA_64x256x32_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x32_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x32_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x32_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -1195,16 +1955,36 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x32_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x32_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x32_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x32_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x32_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x32_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x32_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -1213,37 +1993,82 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x32_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x32_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x32_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x32_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x32_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x32_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x32_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x32_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x32_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x32_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x32_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x32_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x32_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x32_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x32_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_F32E5M2E4M3_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_F32E5M2E4M3_SS_TN<Args...>{};
       }
@@ -1265,8 +2090,18 @@ ss_op_selector()
         return SM90::GMMA::MMA_64x256x32_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x32_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x32_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x32_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -1275,16 +2110,36 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x32_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x32_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x32_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x32_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x32_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x32_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x32_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -1293,37 +2148,82 @@ ss_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x32_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x32_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x32_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x32_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x32_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x32_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x32_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x32_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x32_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x32_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x32_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x32_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x32_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x32_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x32_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_F32E5M2E5M2_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_F32E5M2E5M2_SS_TN<Args...>{};
       }
@@ -1412,6 +2312,11 @@ ss_op_selector()
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_S32S8S8_SS_TN{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_S32S8S8_SS_TN{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_S32S8S8_SS_TN{};
       }
@@ -1492,6 +2397,11 @@ ss_op_selector()
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_S32S8U8_SS_TN{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_S32S8U8_SS_TN{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_S32S8U8_SS_TN{};
       }
@@ -1572,6 +2482,11 @@ ss_op_selector()
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_S32U8S8_SS_TN{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_S32U8S8_SS_TN{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_S32U8S8_SS_TN{};
       }
@@ -1652,6 +2567,11 @@ ss_op_selector()
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_S32U8U8_SS_TN{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_S32U8U8_SS_TN{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_S32U8U8_SS_TN{};
       }
@@ -1704,8 +2624,18 @@ ss_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -1714,16 +2644,36 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -1732,37 +2682,82 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x32_F16F16F16_SS<MajorA, MajorB, Args...>{};
       }
@@ -1784,8 +2779,18 @@ ss_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x64_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x64_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x64_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x64_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -1794,16 +2799,36 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x64_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x64_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x64_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x64_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x64_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x64_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x64_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -1812,37 +2837,82 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x64_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x64_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x64_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x64_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x64_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x64_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x64_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x64_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x64_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x64_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x64_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x64_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x64_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x64_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x64_F16E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_F16E4M3E4M3_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_F16E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_F16E4M3E4M3_SS_TN<Args...>{};
       }
@@ -1864,8 +2934,18 @@ ss_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x64_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x64_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x64_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x64_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -1874,16 +2954,36 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x64_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x64_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x64_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x64_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x64_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x64_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x64_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -1892,37 +2992,82 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x64_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x64_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x64_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x64_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x64_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x64_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x64_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x64_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x64_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x64_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x64_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x64_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x64_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x64_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x64_F16E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_F16E4M3E5M2_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_F16E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_F16E4M3E5M2_SS_TN<Args...>{};
       }
@@ -1944,8 +3089,18 @@ ss_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x64_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x64_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x64_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x64_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -1954,16 +3109,36 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x64_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x64_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x64_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x64_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x64_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x64_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x64_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -1972,37 +3147,82 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x64_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x64_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x64_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x64_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x64_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x64_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x64_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x64_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x64_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x64_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x64_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x64_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x64_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x64_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x64_F16E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_F16E5M2E4M3_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_F16E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_F16E5M2E4M3_SS_TN<Args...>{};
       }
@@ -2024,8 +3244,18 @@ ss_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x64_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x64_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x64_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x64_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -2034,16 +3264,36 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x64_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x64_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x64_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x64_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x64_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x64_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x64_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -2052,37 +3302,82 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x64_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x64_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x64_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x64_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x64_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x64_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x64_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x64_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x64_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x64_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x64_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x64_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x64_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x64_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x64_F16E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_F16E5M2E5M2_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_F16E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_F16E5M2E5M2_SS_TN<Args...>{};
       }
@@ -2110,8 +3405,18 @@ ss_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -2120,16 +3425,36 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -2138,37 +3463,82 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x32_F32F16F16_SS<MajorA, MajorB, Args...>{};
       }
@@ -2188,8 +3558,18 @@ ss_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -2198,16 +3578,36 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -2216,37 +3616,82 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x32_F32BF16BF16_SS<MajorA, MajorB, Args...>{};
       }
@@ -2268,8 +3713,18 @@ ss_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x16_F32TF32TF32_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x16_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x16_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x16_F32TF32TF32_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -2278,16 +3733,36 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x16_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x16_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x16_F32TF32TF32_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x16_F32TF32TF32_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x16_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x16_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x16_F32TF32TF32_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -2296,37 +3771,82 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x16_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x16_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x16_F32TF32TF32_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x16_F32TF32TF32_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x16_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x16_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x16_F32TF32TF32_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x16_F32TF32TF32_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x16_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x16_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x16_F32TF32TF32_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x16_F32TF32TF32_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x16_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x16_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x16_F32TF32TF32_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x16_F32TF32TF32_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x16_F32TF32TF32_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x16_F32TF32TF32_SS_TN<Args...>{};
       }
@@ -2348,8 +3868,18 @@ ss_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x64_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x64_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x64_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x64_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -2358,16 +3888,36 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x64_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x64_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x64_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x64_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x64_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x64_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x64_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -2376,37 +3926,82 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x64_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x64_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x64_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x64_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x64_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x64_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x64_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x64_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x64_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x64_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x64_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x64_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x64_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x64_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x64_F32E4M3E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_F32E4M3E4M3_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_F32E4M3E4M3_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_F32E4M3E4M3_SS_TN<Args...>{};
       }
@@ -2428,8 +4023,18 @@ ss_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x64_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x64_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x64_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x64_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -2438,16 +4043,36 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x64_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x64_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x64_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x64_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x64_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x64_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x64_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -2456,37 +4081,82 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x64_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x64_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x64_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x64_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x64_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x64_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x64_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x64_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x64_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x64_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x64_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x64_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x64_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x64_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x64_F32E4M3E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_F32E4M3E5M2_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_F32E4M3E5M2_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_F32E4M3E5M2_SS_TN<Args...>{};
       }
@@ -2508,8 +4178,18 @@ ss_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x64_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x64_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x64_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x64_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -2518,16 +4198,36 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x64_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x64_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x64_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x64_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x64_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x64_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x64_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -2536,37 +4236,82 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x64_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x64_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x64_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x64_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x64_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x64_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x64_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x64_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x64_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x64_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x64_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x64_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x64_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x64_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x64_F32E5M2E4M3_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_F32E5M2E4M3_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_F32E5M2E4M3_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_F32E5M2E4M3_SS_TN<Args...>{};
       }
@@ -2588,8 +4333,18 @@ ss_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x64_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x64_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x64_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x64_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -2598,16 +4353,36 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x64_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x64_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x64_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x64_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x64_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x64_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x64_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -2616,37 +4391,82 @@ ss_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x64_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x64_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x64_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x64_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x64_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x64_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x64_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x64_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x64_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x64_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x64_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x64_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x64_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x64_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x64_F32E5M2E5M2_SS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_F32E5M2E5M2_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_F32E5M2E5M2_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_F32E5M2E5M2_SS_TN<Args...>{};
       }
@@ -2735,6 +4555,11 @@ ss_op_selector_sparse()
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_S32S8S8_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_S32S8S8_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_S32S8S8_SS_TN<Args...>{};
       }
@@ -2815,6 +4640,11 @@ ss_op_selector_sparse()
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_S32S8U8_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_S32S8U8_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_S32S8U8_SS_TN<Args...>{};
       }
@@ -2895,6 +4725,11 @@ ss_op_selector_sparse()
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_S32U8S8_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_S32U8S8_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_S32U8S8_SS_TN<Args...>{};
       }
@@ -2975,6 +4810,11 @@ ss_op_selector_sparse()
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_S32U8U8_SS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_S32U8U8_SS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_S32U8U8_SS_TN<Args...>{};
       }
@@ -3028,8 +4868,18 @@ rs_op_selector()
         return SM90::GMMA::MMA_64x256x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3038,16 +4888,36 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3056,37 +4926,82 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x16_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
@@ -3108,8 +5023,18 @@ rs_op_selector()
         return SM90::GMMA::MMA_64x256x32_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x32_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x32_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x32_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3118,16 +5043,36 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x32_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x32_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x32_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x32_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x32_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x32_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x32_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3136,37 +5081,82 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x32_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x32_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x32_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x32_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x32_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x32_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x32_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x32_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x32_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x32_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x32_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x32_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x32_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x32_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x32_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_F16E4M3E4M3_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_F16E4M3E4M3_RS_TN<Args...>{};
       }
@@ -3188,8 +5178,18 @@ rs_op_selector()
         return SM90::GMMA::MMA_64x256x32_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x32_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x32_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x32_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3198,16 +5198,36 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x32_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x32_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x32_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x32_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x32_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x32_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x32_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3216,37 +5236,82 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x32_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x32_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x32_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x32_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x32_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x32_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x32_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x32_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x32_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x32_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x32_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x32_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x32_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x32_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x32_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_F16E4M3E5M2_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_F16E4M3E5M2_RS_TN<Args...>{};
       }
@@ -3268,8 +5333,18 @@ rs_op_selector()
         return SM90::GMMA::MMA_64x256x32_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x32_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x32_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x32_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3278,16 +5353,36 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x32_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x32_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x32_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x32_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x32_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x32_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x32_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3296,37 +5391,82 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x32_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x32_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x32_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x32_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x32_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x32_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x32_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x32_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x32_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x32_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x32_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x32_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x32_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x32_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x32_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_F16E5M2E4M3_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_F16E5M2E4M3_RS_TN<Args...>{};
       }
@@ -3348,8 +5488,18 @@ rs_op_selector()
         return SM90::GMMA::MMA_64x256x32_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x32_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x32_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x32_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3358,16 +5508,36 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x32_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x32_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x32_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x32_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x32_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x32_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x32_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3376,37 +5546,82 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x32_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x32_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x32_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x32_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x32_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x32_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x32_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x32_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x32_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x32_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x32_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x32_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x32_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x32_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x32_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_F16E5M2E5M2_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_F16E5M2E5M2_RS_TN<Args...>{};
       }
@@ -3434,8 +5649,18 @@ rs_op_selector()
         return SM90::GMMA::MMA_64x256x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3444,16 +5669,36 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3462,37 +5707,82 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x16_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
@@ -3512,8 +5802,18 @@ rs_op_selector()
         return SM90::GMMA::MMA_64x256x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3522,16 +5822,36 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3540,37 +5860,82 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x16_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
@@ -3592,8 +5957,18 @@ rs_op_selector()
         return SM90::GMMA::MMA_64x256x8_F32TF32TF32_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x8_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x8_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x8_F32TF32TF32_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3602,16 +5977,36 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x8_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x8_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x8_F32TF32TF32_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x8_F32TF32TF32_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x8_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x8_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x8_F32TF32TF32_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3620,37 +6015,82 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x8_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x8_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x8_F32TF32TF32_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x8_F32TF32TF32_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x8_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x8_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x8_F32TF32TF32_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x8_F32TF32TF32_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x8_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x8_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x8_F32TF32TF32_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x8_F32TF32TF32_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x8_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x8_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x8_F32TF32TF32_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x8_F32TF32TF32_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x8_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x8_F32TF32TF32_RS_TN<Args...>{};
       }
@@ -3672,8 +6112,18 @@ rs_op_selector()
         return SM90::GMMA::MMA_64x256x32_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x32_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x32_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x32_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3682,16 +6132,36 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x32_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x32_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x32_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x32_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x32_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x32_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x32_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3700,37 +6170,82 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x32_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x32_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x32_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x32_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x32_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x32_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x32_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x32_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x32_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x32_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x32_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x32_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x32_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x32_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x32_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_F32E4M3E4M3_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_F32E4M3E4M3_RS_TN<Args...>{};
       }
@@ -3752,8 +6267,18 @@ rs_op_selector()
         return SM90::GMMA::MMA_64x256x32_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x32_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x32_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x32_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3762,16 +6287,36 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x32_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x32_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x32_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x32_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x32_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x32_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x32_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3780,37 +6325,82 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x32_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x32_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x32_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x32_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x32_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x32_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x32_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x32_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x32_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x32_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x32_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x32_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x32_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x32_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x32_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_F32E4M3E5M2_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_F32E4M3E5M2_RS_TN<Args...>{};
       }
@@ -3832,8 +6422,18 @@ rs_op_selector()
         return SM90::GMMA::MMA_64x256x32_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x32_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x32_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x32_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3842,16 +6442,36 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x32_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x32_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x32_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x32_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x32_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x32_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x32_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3860,37 +6480,82 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x32_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x32_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x32_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x32_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x32_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x32_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x32_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x32_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x32_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x32_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x32_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x32_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x32_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x32_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x32_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_F32E5M2E4M3_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_F32E5M2E4M3_RS_TN<Args...>{};
       }
@@ -3912,8 +6577,18 @@ rs_op_selector()
         return SM90::GMMA::MMA_64x256x32_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::MMA_64x248x32_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::MMA_64x240x32_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::MMA_64x232x32_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3922,16 +6597,36 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::MMA_64x216x32_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::MMA_64x208x32_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::MMA_64x200x32_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::MMA_64x192x32_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::MMA_64x184x32_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::MMA_64x176x32_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::MMA_64x168x32_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -3940,37 +6635,82 @@ rs_op_selector()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::MMA_64x152x32_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::MMA_64x144x32_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::MMA_64x136x32_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::MMA_64x128x32_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::MMA_64x120x32_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::MMA_64x112x32_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::MMA_64x104x32_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::MMA_64x96x32_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::MMA_64x88x32_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::MMA_64x80x32_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::MMA_64x72x32_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::MMA_64x64x32_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::MMA_64x56x32_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::MMA_64x48x32_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::MMA_64x40x32_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_F32E5M2E5M2_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_F32E5M2E5M2_RS_TN<Args...>{};
       }
@@ -4059,6 +6799,11 @@ rs_op_selector()
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_S32S8S8_RS_TN{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_S32S8S8_RS_TN{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_S32S8S8_RS_TN{};
       }
@@ -4139,6 +6884,11 @@ rs_op_selector()
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_S32S8U8_RS_TN{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_S32S8U8_RS_TN{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_S32S8U8_RS_TN{};
       }
@@ -4219,6 +6969,11 @@ rs_op_selector()
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_S32U8S8_RS_TN{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_S32U8S8_RS_TN{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_S32U8S8_RS_TN{};
       }
@@ -4299,6 +7054,11 @@ rs_op_selector()
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::MMA_64x32x32_S32U8U8_RS_TN{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::MMA_64x24x32_S32U8U8_RS_TN{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::MMA_64x16x32_S32U8U8_RS_TN{};
       }
@@ -4352,8 +7112,18 @@ rs_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -4362,16 +7132,36 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -4380,37 +7170,82 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x32_F16F16F16_RS<MajorA, MajorB, Args...>{};
       }
@@ -4432,8 +7267,18 @@ rs_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x64_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x64_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x64_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x64_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -4442,16 +7287,36 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x64_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x64_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x64_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x64_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x64_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x64_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x64_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -4460,37 +7325,82 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x64_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x64_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x64_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x64_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x64_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x64_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x64_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x64_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x64_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x64_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x64_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x64_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x64_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x64_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x64_F16E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_F16E4M3E4M3_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_F16E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_F16E4M3E4M3_RS_TN<Args...>{};
       }
@@ -4512,8 +7422,18 @@ rs_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x64_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x64_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x64_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x64_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -4522,16 +7442,36 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x64_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x64_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x64_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x64_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x64_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x64_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x64_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -4540,37 +7480,82 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x64_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x64_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x64_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x64_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x64_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x64_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x64_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x64_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x64_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x64_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x64_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x64_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x64_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x64_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x64_F16E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_F16E4M3E5M2_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_F16E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_F16E4M3E5M2_RS_TN<Args...>{};
       }
@@ -4592,8 +7577,18 @@ rs_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x64_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x64_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x64_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x64_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -4602,16 +7597,36 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x64_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x64_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x64_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x64_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x64_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x64_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x64_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -4620,37 +7635,82 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x64_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x64_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x64_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x64_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x64_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x64_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x64_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x64_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x64_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x64_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x64_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x64_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x64_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x64_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x64_F16E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_F16E5M2E4M3_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_F16E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_F16E5M2E4M3_RS_TN<Args...>{};
       }
@@ -4672,8 +7732,18 @@ rs_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x64_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x64_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x64_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x64_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -4682,16 +7752,36 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x64_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x64_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x64_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x64_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x64_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x64_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x64_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -4700,37 +7790,82 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x64_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x64_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x64_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x64_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x64_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x64_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x64_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x64_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x64_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x64_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x64_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x64_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x64_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x64_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x64_F16E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_F16E5M2E5M2_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_F16E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_F16E5M2E5M2_RS_TN<Args...>{};
       }
@@ -4758,8 +7893,18 @@ rs_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -4768,16 +7913,36 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -4786,37 +7951,82 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x32_F32F16F16_RS<MajorA, MajorB, Args...>{};
       }
@@ -4836,8 +8046,18 @@ rs_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -4846,16 +8066,36 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -4864,37 +8104,82 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x32_F32BF16BF16_RS<MajorA, MajorB, Args...>{};
       }
@@ -4916,8 +8201,18 @@ rs_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x16_F32TF32TF32_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x16_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x16_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x16_F32TF32TF32_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -4926,16 +8221,36 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x16_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x16_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x16_F32TF32TF32_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x16_F32TF32TF32_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x16_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x16_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x16_F32TF32TF32_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -4944,37 +8259,82 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x16_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x16_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x16_F32TF32TF32_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x16_F32TF32TF32_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x16_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x16_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x16_F32TF32TF32_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x16_F32TF32TF32_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x16_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x16_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x16_F32TF32TF32_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x16_F32TF32TF32_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x16_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x16_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x16_F32TF32TF32_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x16_F32TF32TF32_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x16_F32TF32TF32_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x16_F32TF32TF32_RS_TN<Args...>{};
       }
@@ -4996,8 +8356,18 @@ rs_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x64_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x64_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x64_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x64_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -5006,16 +8376,36 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x64_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x64_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x64_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x64_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x64_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x64_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x64_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -5024,37 +8414,82 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x64_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x64_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x64_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x64_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x64_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x64_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x64_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x64_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x64_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x64_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x64_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x64_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x64_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x64_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x64_F32E4M3E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_F32E4M3E4M3_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_F32E4M3E4M3_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_F32E4M3E4M3_RS_TN<Args...>{};
       }
@@ -5076,8 +8511,18 @@ rs_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x64_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x64_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x64_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x64_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -5086,16 +8531,36 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x64_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x64_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x64_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x64_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x64_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x64_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x64_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -5104,37 +8569,82 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x64_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x64_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x64_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x64_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x64_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x64_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x64_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x64_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x64_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x64_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x64_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x64_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x64_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x64_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x64_F32E4M3E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_F32E4M3E5M2_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_F32E4M3E5M2_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_F32E4M3E5M2_RS_TN<Args...>{};
       }
@@ -5156,8 +8666,18 @@ rs_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x64_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x64_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x64_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x64_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -5166,16 +8686,36 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x64_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x64_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x64_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x64_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x64_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x64_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x64_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -5184,37 +8724,82 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x64_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x64_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x64_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x64_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x64_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x64_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x64_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x64_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x64_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x64_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x64_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x64_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x64_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x64_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x64_F32E5M2E4M3_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_F32E5M2E4M3_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_F32E5M2E4M3_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_F32E5M2E4M3_RS_TN<Args...>{};
       }
@@ -5236,8 +8821,18 @@ rs_op_selector_sparse()
         return SM90::GMMA::SPARSE::GMMA_64x256x64_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 248 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x248x64_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 240 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x240x64_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 232 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x232x64_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -5246,16 +8841,36 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 216 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x216x64_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 208 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x208x64_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 200 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x200x64_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 192 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x192x64_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 184 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x184x64_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 176 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x176x64_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 168 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x168x64_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
@@ -5264,37 +8879,82 @@ rs_op_selector_sparse()
       }
 #endif
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 152 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x152x64_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 144 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x144x64_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 136 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x136x64_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 128 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x128x64_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 120 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x120x64_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 112 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x112x64_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 104 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x104x64_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 96 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x96x64_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 88 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x88x64_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 80 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x80x64_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 72 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x72x64_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 64 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x64x64_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 56 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x56x64_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
       else if constexpr (Tile_N % 48 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x48x64_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 40 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x40x64_F32E5M2E5M2_RS_TN<Args...>{};
       }
 #endif
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_F32E5M2E5M2_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_F32E5M2E5M2_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_F32E5M2E5M2_RS_TN<Args...>{};
       }
@@ -5383,6 +9043,11 @@ rs_op_selector_sparse()
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_S32S8S8_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_S32S8S8_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_S32S8S8_RS_TN<Args...>{};
       }
@@ -5463,6 +9128,11 @@ rs_op_selector_sparse()
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_S32S8U8_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_S32S8U8_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_S32S8U8_RS_TN<Args...>{};
       }
@@ -5543,6 +9213,11 @@ rs_op_selector_sparse()
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_S32U8S8_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_S32U8S8_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_S32U8S8_RS_TN<Args...>{};
       }
@@ -5623,6 +9298,11 @@ rs_op_selector_sparse()
       else if constexpr (Tile_N % 32 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x32x64_S32U8U8_RS_TN<Args...>{};
       }
+#if defined(CUTE_SM90_EXTENDED_MMA_SHAPES_ENABLED)
+      else if constexpr (Tile_N % 24 == 0) {
+        return SM90::GMMA::SPARSE::GMMA_64x24x64_S32U8U8_RS_TN<Args...>{};
+      }
+#endif
       else if constexpr (Tile_N % 16 == 0) {
         return SM90::GMMA::SPARSE::GMMA_64x16x64_S32U8U8_RS_TN<Args...>{};
       }

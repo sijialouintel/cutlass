@@ -1,5 +1,5 @@
 /***************************************************************************************************
- * Copyright (c) 2023 - 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2023 - 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,6 +57,12 @@
 #define CUTLASS_DEVICE inline
 #endif
 
+#if ! defined(_MSC_VER)
+#define CUTLASS_LAMBDA_FUNC_INLINE __attribute__((always_inline))
+#else
+#define CUTLASS_LAMBDA_FUNC_INLINE
+#endif
+
 #define CUTLASS_HOST __host__
 #define CUTLASS_GLOBAL __global__ static
 
@@ -74,11 +80,11 @@ CUTLASS_HOST_DEVICE void __CUTLASS_UNUSED(T const &)
 
 #ifdef _MSC_VER
 // Provides support for alternative operators 'and', 'or', and 'not'
-#include <iso646.h>
+#include <ciso646>
 #endif // _MSC_VER
 
 #if !defined(__CUDACC_RTC__)
-#include <assert.h>
+#include <cassert>
 #endif
 
 #if defined(__CUDA_ARCH__)

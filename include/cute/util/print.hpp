@@ -1,5 +1,5 @@
 /***************************************************************************************************
- * Copyright (c) 2023 - 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2023 - 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 
 #include <cute/config.hpp>           // CUTE_HOST_DEVICE
 #include <cute/util/type_traits.hpp> // cute::is_valid
+#include <cute/numeric/numeric_types.hpp> 
 
 //
 // CUDA compatible print and printf
@@ -107,6 +108,42 @@ print(int a) {
 
 CUTE_HOST_DEVICE
 void
+print(uint1b_t a) {
+  printf("%d", int(a));
+}
+
+CUTE_HOST_DEVICE
+void
+print(int2b_t a) {
+  printf("%d", int(a));
+}
+
+CUTE_HOST_DEVICE
+void
+print(uint2b_t a) {
+  printf("%d", int(a));
+}
+
+CUTE_HOST_DEVICE
+void
+print(int4b_t a) {
+  printf("%d", int(a));
+}
+
+CUTE_HOST_DEVICE
+void
+print(uint4b_t a) {
+  printf("%d", int(a));
+}
+
+CUTE_HOST_DEVICE
+void
+print(bin1_t a) {
+  printf("%d", int(a));
+}
+
+CUTE_HOST_DEVICE
+void
 print(unsigned int a) {
   printf("%u", a);
 }
@@ -165,6 +202,31 @@ print(char const* format) {
 //
 
 CUTE_HOST_DEVICE void
+pretty_print(uint1b_t a) {
+  printf("%*d", 3, int(a));
+}
+
+CUTE_HOST_DEVICE void
+pretty_print(int2b_t a) {
+  printf("%*d", 5, int(a));
+}
+
+CUTE_HOST_DEVICE void
+pretty_print(uint2b_t a) {
+  printf("%*d", 5, int(a));
+}
+
+CUTE_HOST_DEVICE void
+pretty_print(int4b_t a) {
+  printf("%*d", 5, int(a));
+}
+
+CUTE_HOST_DEVICE void
+pretty_print(uint4b_t a) {
+  printf("%*d", 5, int(a));
+}
+
+CUTE_HOST_DEVICE void
 pretty_print(bool v) {
   printf("%*d", 3, int(v));
 }
@@ -202,7 +264,12 @@ pretty_print(double v) {
 template <class T>
 CUTE_HOST_DEVICE void
 pretty_print(T t) {
+  constexpr auto has_print_exmy_base = cute::is_valid([](auto t) -> decltype(pretty_print_float_exmy_base(t)) {}, t);  
+  if constexpr (has_print_exmy_base) {   
+  pretty_print_float_exmy_base(t);       
+  } else {                               
   printf("  "); print(t);
+  }                                      
 }
 
 } // end namespace cute

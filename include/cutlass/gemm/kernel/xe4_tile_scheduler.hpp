@@ -49,6 +49,7 @@ public:
         problem_blocks_shape,
         {cluster_size_m, cluster_size_n},
         {0, 0},
+        {0, 0},
         {0, 0}
       };
     }

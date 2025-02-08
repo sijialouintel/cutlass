@@ -1,5 +1,5 @@
 /***************************************************************************************************
- * Copyright (c) 2023 - 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2023 - 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
@@ -191,6 +191,16 @@ public:
   void
   advance_to_next_work(uint32_t advance_count = 1) {
     current_work_linear_idx_ += total_grid_size_ * uint64_t(advance_count);
+  }
+
+  CUTLASS_DEVICE
+  bool is_last_tile(WorkTileInfo& work_tile_info, uint32_t advance_count = 1) const {
+    if (continue_current_work(work_tile_info)) {
+      return false;
+    }
+    return not get_current_work_for_linear_idx(
+        current_work_linear_idx_ + (total_grid_size_ * uint64_t(advance_count))
+    ).is_valid();
   }
 
   // Computes the linear index within a batch given M and N tile offsets within the batch.

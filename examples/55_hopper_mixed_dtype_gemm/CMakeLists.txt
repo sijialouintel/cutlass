@@ -1,5 +1,5 @@
 
-# Copyright (c) 2023 - 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2023 - 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 #
 # Redistribution and use in source and binary forms, with or without
@@ -68,3 +68,14 @@ cutlass_example_add_executable(
   TEST_SCALE_RESIDUE
   # TEST_ALPHA_BETA
   )
+
+  cutlass_example_add_executable(
+    55_hopper_int4_bf16_gemm
+    55_hopper_int4_bf16_gemm.cu
+    TEST_COMMAND_OPTIONS
+    TEST_DIRECT_BATCHED
+    TEST_SCALE_PERCOL
+    TEST_SCALE_GROUP
+    TEST_SCALE_RESIDUE
+    # TEST_ALPHA_BETA
+    )

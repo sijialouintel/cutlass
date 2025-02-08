@@ -1,6 +1,6 @@
 #################################################################################################
 #
-# Copyright (c) 2017 - 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2017 - 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@ from cuda import __version__, cuda
 
 from cutlass.backend.utils.device import device_cc
 
-_version_splits = [int(x) for x in __version__.split("rc")[0].split(".")]
+_version_splits = [int(x) for x in __version__.split("rc")[0].split(".post")[0].split(".")]
 _supports_cluster_launch = None
 
 

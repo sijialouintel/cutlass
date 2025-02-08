@@ -1,6 +1,6 @@
 #################################################################################################
 #
-# Copyright (c) 2023 - 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2023 - 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 #
 # Redistribution and use in source and binary forms, with or without
@@ -70,6 +70,8 @@ class PythonASTFrontend(EVTFrontendBase, ast.NodeVisitor):
             ast.Sub: FunctionalOp.Minus,
             ast.Mult: FunctionalOp.Multiplies,
             ast.Div: FunctionalOp.Divides,
+            "maximum": FunctionalOp.Maximum,
+            "minimum": FunctionalOp.Minimum,
             "relu": relu.binding_type,
             "multiply_add": FunctionalOp.MultiplyAdd,
             "sum": (FunctionalOp.Plus, FunctionalOp.AtomicAdd),

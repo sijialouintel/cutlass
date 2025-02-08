@@ -1,5 +1,5 @@
 /***************************************************************************************************
- * Copyright (c) 2023 - 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2023 - 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,8 @@
 #include "cute/swizzle_layout.hpp"       // cute::detail::get_swizzle_portion
 #include "cute/util/type_traits.hpp"
 #include "cute/arch/copy_sm90_tma.hpp"
+#include "cute/arch/copy_sm100_tma.hpp"  
+
 #include "cutlass/layout/matrix.h"
 #include "cutlass/layout/tensor.h"
 #include "cutlass/numeric_types.h"
@@ -198,13 +200,22 @@ is_major(Stride = {}) {
   return cute::is_constant<1, decltype(cute::front(cute::get<ModeIndex>(cute::remove_pointer_t<Stride>{})))>::value;
 }
 
+template<int ModeIndex, class Shape, class Stride>
+constexpr bool
+is_major(cute::Layout<Shape,Stride> = {}) {
+  return is_major<ModeIndex>(Stride{});
+}
+
 // Note : This method can be used for deducing the Layout Tag of A, C, D Matrices
 template<class StrideA>
 constexpr
 auto
 stride_to_layout_tag_A() {
   using InternalStrideA = cute::remove_pointer_t<StrideA>;
-  if constexpr (is_major<0, StrideA>()) { // M major
+  if constexpr (cute::is_layout<InternalStrideA>::value) {
+    return stride_to_layout_tag_A<decltype(cute::stride(InternalStrideA{}))>();
+  }
+  else if constexpr (is_major<0, StrideA>()) { // M major
     return layout::ColumnMajor{};
   }
   // Specialize for sparse layout
@@ -224,7 +235,11 @@ template<class StrideB>
 constexpr
 auto
 stride_to_layout_tag_B() {
-  if constexpr (is_major<0, StrideB>()) { // N major
+  using InternalStrideB = cute::remove_pointer_t<StrideB>;
+  if constexpr (cute::is_layout<InternalStrideB>::value) {
+    return stride_to_layout_tag_B<decltype(cute::stride(InternalStrideB{}))>();
+  }
+  else if constexpr (is_major<0, StrideB>()) { // N major
     return layout::RowMajor{};
   }
   else { // K major
@@ -238,7 +253,11 @@ template<class StrideC>
 constexpr
 auto
 stride_to_layout_tag_C() {
-  if constexpr (is_major<0, StrideC>()) { // M major
+  using InternalStrideC = cute::remove_pointer_t<StrideC>;
+  if constexpr (cute::is_layout<InternalStrideC>::value) {
+    return stride_to_layout_tag_C<decltype(cute::stride(InternalStrideC{}))>();
+  }
+  else if constexpr (is_major<0, StrideC>()) { // M major
     return layout::ColumnMajor{};
   }
   else { // N major
@@ -289,6 +308,8 @@ constexpr bool is_tma_copy_engine() {
                   || cute::is_base_of_v<cute::SM90_TMA_LOAD_IM2COL_MULTICAST,       GmemTiledCopy>
                   || cute::is_base_of_v<cute::SM90_TMA_STORE,                       GmemTiledCopy>
                   || cute::is_base_of_v<cute::SM90_TMA_STORE_IM2COL,                GmemTiledCopy>
+                  || cute::is_base_of_v<cute::SM100_TMA_2SM_LOAD,                   GmemTiledCopy> 
+                  || cute::is_base_of_v<cute::SM100_TMA_2SM_LOAD_MULTICAST,         GmemTiledCopy> 
                   ) {
       return true;
     }
@@ -320,6 +341,16 @@ get_alignment_count_from_gmem_tiled_copy() {
   else {
     // For TMA tiled copies, we know the alignment has to be 128 bits
     if constexpr (is_tma_copy_engine<GmemTiledCopy>()) {
+      
+      if constexpr ( cute::is_same_v<typename RawDtype<ElementMma>::type, cutlass::detail::float_e2m1_unpacksmem_t> ||
+                     cute::is_same_v<typename RawDtype<ElementMma>::type, cutlass::detail::float_e3m2_unpacksmem_t> ||
+                     cute::is_same_v<typename RawDtype<ElementMma>::type, cutlass::detail::float_e2m3_unpacksmem_t> ||
+                     cute::is_same_v<typename RawDtype<ElementMma>::type, cutlass::detail::type_erased_dynamic_float4_unpacksmem_t> ||
+                     cute::is_same_v<typename RawDtype<ElementMma>::type, cutlass::detail::type_erased_dynamic_float6_unpacksmem_t> ||
+                     cutlass::gemm::collective::detail::is_sm10x_f8f6f4_element<Element>() && cute::is_same_v<typename RawDtype<ElementMma>::type, uint8_t>) {
+        return 128;
+      }
+      
       // For sparse MMA, alignment in logical elements is increased by sparsity factor
       if constexpr (cute::is_sparse_v<ElementMma>) {
         return 128 / sizeof_bits<Element>::value * ElementMma::sparsity;
@@ -336,9 +367,17 @@ get_alignment_count_from_gmem_tiled_copy() {
 // Return alignment bit requirements for the GEMM inputs.
 template <
   class ElementType
+  , bool IsF8F6F4SubBytes=false  
 >
 constexpr int
 get_input_alignment_bits() {
+  
+  if constexpr (IsF8F6F4SubBytes && sizeof_bits<ElementType>::value == 4) {
+    return 64 * 8;
+  }
+  else if constexpr (IsF8F6F4SubBytes && sizeof_bits<ElementType>::value == 6) {
+    return 96 * 8;
+  }
   return 128;
 }
 
@@ -346,31 +385,34 @@ get_input_alignment_bits() {
 template <class ElementType>
 constexpr int
 get_output_alignment_bits() {
+  
+  if constexpr (sizeof_bits<ElementType>::value == 6) {
+    // U6 format : The inner tensor size dimension must be a multiple of 96B.
+    return 96 * 8;
+  }
+  
   return 128;
 }
 
-
-// Return the shape that is associated with stride-1 mode, or 1 if not found
-template<typename Shape, typename Stride>
-CUTLASS_HOST_DEVICE constexpr
-auto
-get_contiguous_shape(Shape const & shape, Stride const & stride) {
-  using namespace cute;
-  auto idx = find_if(append(flatten(stride), _1{}), [](auto s){ return is_constant<1,decltype(s)>{}; });
-  return get<decltype(idx)::value>(append(flatten(shape), _1{}));
-}
-
-// Check if tensor shape satisfies a given major alignment
+// Check if tensor layout satisfies a given major alignment
 template<int Alignment, class Shape, class Stride>
 CUTLASS_HOST_DEVICE constexpr
 bool
-check_alignment(Shape const & shape, Stride const & stride) {
-  return is_major<0>(stride)
-    ? get_contiguous_shape(cute::get<0>(shape), cute::get<0>(stride)) % Alignment == 0
-    : get_contiguous_shape(cute::get<1>(shape), cute::get<1>(stride)) % Alignment == 0;
+check_alignment(cute::Layout<Shape,Stride> const& layout) {
+  // Condition: shape must divide by Alignment without rounding
+  bool shape_check = cute::size(layout.shape()) == Alignment * cute::size(cute::upcast<Alignment>(layout));
+  // Condition: every dynamic stride must be a multiple of Alignment
+  bool stride_check = cute::all_of(cute::flatten(layout.stride()), [](auto s){ return cute::is_static<decltype(s)>::value || (s % Alignment == 0); });
+  return shape_check && stride_check;
 }
 
-// Check if tensor shape satisfies a given major alignment
+// Check if tensor layout satisfies a given major alignment
+template<int Alignment, class Shape, class Stride>
+CUTLASS_HOST_DEVICE constexpr
+bool
+check_alignment(Shape const& shape, Stride const& stride) {
+  return check_alignment<Alignment>(cute::make_layout(shape, stride));
+}
 
 template<int B, int M, int S>
 CUTLASS_HOST_DEVICE constexpr

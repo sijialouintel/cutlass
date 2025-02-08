@@ -1,5 +1,5 @@
 /***************************************************************************************************
- * Copyright (c) 2023 - 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2023 - 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
@@ -523,7 +523,8 @@ public:
     CudaHostAdapter* cuda_adapter = nullptr) {
   #if !defined(CUTLASS_SKIP_REDUCTION_INIT)
     if constexpr (IsAtomic) {
-      auto [M, N, K, L] = problem_shape;
+      auto problem_shape_mnkl = append<4>(problem_shape, 1);
+      auto [M, N, K, L] = problem_shape_mnkl;
       Layout mScalar_layout = make_layout(make_shape(M,N,L), args.dScalar);
       if (args.ptr_scalar != nullptr) {
         return fill_workspace(args.ptr_scalar, ElementOutput(args.reduction_identity), cosize(mScalar_layout), stream, cuda_adapter);
@@ -701,7 +702,8 @@ public:
       reduction_buffer = nullptr;
     }
     else if constexpr (FinalReduction) {
-      auto [M, N, K, L] = problem_shape;
+      auto problem_shape_mnkl = append<4>(problem_shape, 1);
+      auto [M, N, K, L] = problem_shape_mnkl;
       auto [tile_M, tile_N, tile_K] = CtaTileShapeMNK{};
       size_t tile_counters_offset = product(ceil_div(make_shape(size<>(M), size<>(N), L), make_shape(tile_M, tile_N))) * tile_N * sizeof(ElementCompute);
       tile_counters_offset = round_nearest(tile_counters_offset, MinWorkspaceAlignment);
@@ -736,7 +738,8 @@ public:
     }
 
     size_t workspace_size = 0;
-    auto [M, N, K, L] = problem_shape;
+    auto problem_shape_mnkl = append<4>(problem_shape, 1);
+    auto [M, N, K, L] = problem_shape_mnkl;
     auto [tile_M, tile_N, tile_K] = CtaTileShapeMNK{};
     // Increment by size of reduction buffer
     workspace_size += product(ceil_div(make_shape(size<>(M),size<>(N),L), make_shape(tile_M, tile_N))) * tile_N * sizeof(ElementCompute);
@@ -750,19 +753,18 @@ public:
   static cutlass::Status
   initialize_workspace(ProblemShape const& problem_shape, Arguments const& args, void* workspace, cudaStream_t stream,
     CudaHostAdapter* cuda_adapter = nullptr) {
-#if !defined(CUTLASS_SKIP_REDUCTION_INIT)
     if constexpr (IsAtomic) {
-      auto [M, N, K, L] = problem_shape;
+      auto problem_shape_mnkl = append<4>(problem_shape, 1);
+      auto [M, N, K, L] = problem_shape_mnkl;
       Layout mRow_layout = make_layout(make_shape(size<>(M),size<>(N),size<>(L)), args.dRow);
       if (args.ptr_row != nullptr) {
         return fill_workspace(args.ptr_row, ElementOutput(args.reduction_identity), cosize(mRow_layout), stream, cuda_adapter);
       }
       return Status::kSuccess;
     }
-    else
-#endif
-    if constexpr (FinalReduction) {
-      auto [M, N, K, L] = problem_shape;
+    else if constexpr (FinalReduction) {
+      auto problem_shape_mnkl = append<4>(problem_shape, 1);
+      auto [M, N, K, L] = problem_shape_mnkl;
       auto [tile_M, tile_N, tile_K] = CtaTileShapeMNK{};
       size_t tile_counters_offset = product(ceil_div(make_shape(size<>(M),size<>(N),L), make_shape(tile_M, tile_N))) * tile_N * sizeof(ElementCompute);
       tile_counters_offset = round_nearest(tile_counters_offset, MinWorkspaceAlignment);
@@ -936,7 +938,7 @@ public:
             for (int v = 0; v < size(frg_A); ++v) {
               // Step1: swap
               if (not (lane_m & m)) { // the first half of threads swap fragments from the first half of data to the second
-                swap(frg_A(v), frg_B(v));
+                cutlass::swap(frg_A(v), frg_B(v));
               }
 
               // Step2: shuffle
@@ -1020,9 +1022,7 @@ public:
         }
         else {
           if (is_reduced_lane) {
-            // Filter so we don't issue redundant copies over stride-0 modes
-            // (only works if 0-strides are in same location, which is by construction)
-            copy_aligned(filter(tCrRow), recast<ElementGmem>(filter(tCgBuf)));
+            copy_aligned(tCrRow, recast<ElementGmem>(tCgBuf));
           }
         }
         sync_fn();
@@ -1051,9 +1051,7 @@ public:
         }
         else {
           if (is_reduced_lane) {
-            // Filter so we don't issue redunant copies over stride-0 modes
-            // (only works if 0-strides are in same location, which is by construction)
-            copy_aligned(filter(tCrRow), filter(tCsBuf));
+            copy_aligned(tCrRow, tCsBuf);
           }
         }
         sync_fn();
@@ -1291,7 +1289,8 @@ public:
       reduction_buffer = nullptr;
     }
     else if constexpr (FinalReduction) {
-      auto [M, N, K, L] = problem_shape;
+      auto problem_shape_mnkl = append<4>(problem_shape, 1);
+      auto [M, N, K, L] = problem_shape_mnkl;
       auto [tile_M, tile_N, tile_K] = CtaTileShapeMNK{};
       size_t tile_counters_offset = product(ceil_div(make_shape(M,N,L), make_shape(tile_M, tile_N))) * tile_M * sizeof(ElementCompute);
       tile_counters_offset = round_nearest(tile_counters_offset, MinWorkspaceAlignment);
@@ -1326,7 +1325,8 @@ public:
     }
 
     size_t workspace_size = 0;
-    auto [M, N, K, L] = problem_shape;
+    auto problem_shape_mnkl = append<4>(problem_shape, 1);
+    auto [M, N, K, L] = problem_shape_mnkl;
     auto [tile_M, tile_N, tile_K] = CtaTileShapeMNK{};
 
     // Increment by size of reduction buffer
@@ -1342,19 +1342,18 @@ public:
   static cutlass::Status
   initialize_workspace(ProblemShape const& problem_shape, Arguments const& args, void* workspace, cudaStream_t stream,
     CudaHostAdapter* cuda_adapter = nullptr) {
-#if !defined(CUTLASS_SKIP_REDUCTION_INIT)
     if constexpr (IsAtomic) {
-      auto [M, N, K, L] = problem_shape;
+      auto problem_shape_mnkl = append<4>(problem_shape, 1);
+      auto [M, N, K, L] = problem_shape_mnkl;
       Layout mCol_layout = make_layout(make_shape(size<>(M),size<>(N),size<>(L)), args.dCol);
       if (args.ptr_col != nullptr) {
         return fill_workspace(args.ptr_col, ElementOutput(args.reduction_identity), cosize(mCol_layout), stream, cuda_adapter);
       }
       return Status::kSuccess;
     }
-    else
-#endif
-    if constexpr (FinalReduction) {
-      auto [M, N, K, L] = problem_shape;
+    else if constexpr (FinalReduction) {
+      auto problem_shape_mnkl = append<4>(problem_shape, 1);
+      auto [M, N, K, L] = problem_shape_mnkl;
       auto [tile_M, tile_N, tile_K] = CtaTileShapeMNK{};
       size_t tile_counters_offset = product(ceil_div(make_shape(M,N,L), make_shape(tile_M, tile_N))) * tile_M * sizeof(ElementCompute);
       tile_counters_offset = round_nearest(tile_counters_offset, MinWorkspaceAlignment);
@@ -1516,9 +1515,7 @@ public:
         using ElementGmem = cute::conditional_t<FinalReduction, ElementCompute volatile, ElementCompute>;
         Tensor tCgBuf = sm90_partition_for_epilogue<ReferenceSrc>(gBuf_nl(_,_,n,l), epi_tile, tiled_copy, thread_idx);
         if (is_reduced_lane) {
-          // Filter so we don't issue redundant copies over stride-0 modes
-          // (only works if 0-strides are in same location, which is by construction)
-          copy_aligned(filter(tCrCol), recast<ElementGmem>(filter(tCgBuf)));
+          copy_aligned(tCrCol, recast<ElementGmem>(tCgBuf));
         }
         sync_fn();
       }
@@ -1536,9 +1533,7 @@ public:
         // Dump warp reduction to smem workspace
         Tensor tCsBuf = sm90_partition_for_epilogue<ReferenceSrc>(sBuf(_,_,get<1>(warp_mn)), epi_tile, tiled_copy, thread_idx);
         if (is_reduced_lane) {
-          // Filter so we don't issue redunant copies over stride-0 modes
-          // (only works if 0-strides are in same location, which is by construction)
-          copy_aligned(filter(tCrCol), filter(tCsBuf));
+          copy_aligned(tCrCol, tCsBuf);
         }
         sync_fn();
 

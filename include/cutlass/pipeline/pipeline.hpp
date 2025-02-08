@@ -1,5 +1,5 @@
 /***************************************************************************************************
- * Copyright (c) 2023 - 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2023 - 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,9 @@
 
 #if defined(__CUDA_ARCH__)
 #include "cutlass/pipeline/sm90_pipeline.hpp"
+#include "cutlass/pipeline/sm100_pipeline.hpp"
 #elif defined(SYCL_LANGUAGE_VERSION)
 #include "cutlass/pipeline/xe4_pipeline.hpp"
 #endif
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////

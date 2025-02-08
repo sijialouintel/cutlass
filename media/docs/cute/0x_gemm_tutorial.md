@@ -106,10 +106,10 @@ How do we translate this into the BLAS user's experience?
 
 | BLAS | A Majorness | A Layout        | B Majorness | B Layout        |
 | ---  | ---         | ---             | ---         | ---             |
-| NT   | M-major     | `(M,K):(1,ldA)` | N-major     | `(N,K):(1,ldA)` |
+| NT   | M-major     | `(M,K):(1,ldA)` | N-major     | `(N,K):(1,ldB)` |
 | TN   | K-major     | `(M,K):(ldA,1)` | K-major     | `(N,K):(ldB,1)` |
 | NN   | M-major     | `(M,K):(1,ldA)` | K-major     | `(N,K):(ldB,1)` |
-| TT   | K-major     | `(M,K):(ldA,1)` | N-major     | `(N,K):(1,ldA)` |
+| TT   | K-major     | `(M,K):(ldA,1)` | N-major     | `(N,K):(1,ldB)` |
 
 Regardless, we'll still use the BLAS "NT" and "TN" notations for high-level descriptions of kernels when it's appropriate.
 
@@ -154,7 +154,7 @@ Tensor gA_mk = zipped_divide(mA, select<0,2>(cta_tiler));
 ```
 2. apply the coord to the second mode, the "Rest" mode, to extract out the correct tiles for this CTA.
 ```cpp
-// (BLK_M,BLK_N,k)
+// (BLK_M,BLK_K,k)
 Tensor gA = gA_mk(make_coord(_,_), select<0,2>(cta_coord));
 ```
 Because the projections of the tiler and coord are symmetric and the two steps (apply a tiler and then slice into the rest-mode to produce a partition) are so common, they are wrapped together into the projective `local_tile` interface.

@@ -1,6 +1,6 @@
 #################################################################################################
 #
-# Copyright (c) 2023 - 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2023 - 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 #
 # Redistribution and use in source and binary forms, with or without
@@ -255,6 +255,7 @@ _CUTLASS_TYPE_TO_TORCH_TYPE = {
     DataType.f64: "torch::kF64",
     DataType.s8: "torch::kI8",
     DataType.s32: "torch::kI32",
+    DataType.bf16: "torch::kBFloat16",
 }
 
 _PYTORCH_GEMM_IMPL_TEMPLATE_2x = (

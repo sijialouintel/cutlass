@@ -1,5 +1,5 @@
 /***************************************************************************************************
- * Copyright (c) 2023 - 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2023 - 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,12 +52,12 @@ template <
   typename Epilogue,             ///! Epilogue
   typename ThreadblockSwizzle_   ///! Threadblock swizzling function
 >
-class GemmWithEpilogueVisitor: GemmUniversal<Mma,Epilogue, ThreadblockSwizzle_> {
+class GemmWithEpilogueVisitor: public GemmUniversal<Mma, Epilogue, ThreadblockSwizzle_> {
 public:
 
   using ThreadblockSwizzle = ThreadblockSwizzle_;
 
-  using Base = GemmUniversal<Mma,Epilogue, ThreadblockSwizzle>;
+  using Base = GemmUniversal<Mma, Epilogue, ThreadblockSwizzle>;
   using Base::Base;
 
   using FusionCallbacks = typename Epilogue::FusionCallbacks;
