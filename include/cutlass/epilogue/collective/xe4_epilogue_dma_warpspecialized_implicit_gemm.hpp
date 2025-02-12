@@ -143,8 +143,7 @@ public:
         epilogue_store_pipeline.consumer_commit(pipe_store_state, epilogue_params.tma_transaction_bytes);
     }
 
-    uint32_t abar_store_cons_index = pipe_store_state.index();
-    auto abar_store = epilogue_store_pipeline.producer_get_barrier(abar_store_cons_index);
+    auto abar_store = epilogue_store_pipeline.producer_get_barrier(pipe_store_state);
     copy(epilogue_params.tma_store_d.with(abar_store), tDsD, tDgD);
     ++pipe_store_state;
     epilogue_store_pipeline.producer_try_wait(pipe_store_state);

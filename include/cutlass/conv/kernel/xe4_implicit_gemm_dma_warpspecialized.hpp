@@ -55,7 +55,11 @@ public:
   using EpilogueArguments = typename CollectiveEpilogue::Arguments;
   using EpilogueParams = typename CollectiveEpilogue::Params;
   using ElementD = typename CollectiveEpilogue::ElementD;
-
+  
+  using MainloopPipeline = typename CollectiveMainloop::MainloopPipeline;
+  using EpilogueStorePipeline = typename CollectiveEpilogue::EpilogueStorePipeline;
+  using MainloopPipelineState = typename CollectiveMainloop::PipelineState;
+  using EpilogueStorePipelineState = typename CollectiveEpilogue::StorePipelineState;
   struct SharedStorage
   {
     using MainloopTensorStorage = typename CollectiveMainloop::TensorStorage;
@@ -67,10 +71,20 @@ public:
       EpilogueTensorStorage epilogue;
     } tensors;
 
+
+    struct PipelineStorage {
+      using MainloopPipelineStorage = typename MainloopPipeline::SharedStorage;
+      using EpiStorePipelineStorage = typename EpilogueStorePipeline::SharedStorage;
+
+      MainloopPipelineStorage mainloop;
+      EpiStorePipelineStorage epi_store;
+    } pipelines;
+
     cute::array<ElementAccumulator, cute::cosize_v<SmemLayoutC>> smem_Acc;
   };
 
   static constexpr int SharedStorageSize = sizeof(SharedStorage);
+  static constexpr int PipelineStorageSize = sizeof(typename SharedStorage::PipelineStorage);
 
   // Device side arguments
   struct Arguments {
@@ -112,18 +126,18 @@ public:
       Other
     };
 
-    using MainloopPipeline = typename CollectiveMainloop::MainloopPipeline;
-    using EpilogueStorePipeline = typename CollectiveEpilogue::EpilogueStorePipeline;
-    using MainloopPipelineState = typename CollectiveMainloop::PipelineState;
-    using EpilogueStorePipelineState = typename CollectiveEpilogue::StorePipelineState;
-
     uint32_t local_id = item.get_local_linear_id();
-    constexpr uint32_t abar_count = 2 * (MainloopPipeline::Stages + EpilogueStorePipeline::Stages);
 
-    auto abar_base = allocate_abar<0, abar_count>();
-    MainloopPipeline mainloop_pipeline(abar_base, local_id);
-    auto abar_store_base = abar_base + 2 * MainloopPipeline::Stages;
-    EpilogueStorePipeline epilogue_store_pipeline(abar_store_base, local_id);
+    auto abar_base = allocate_abar_bytes<0, PipelineStorageSize>();
+    auto& shared_pipelines = *reinterpret_cast<typename SharedStorage::PipelineStorage*>(abar_base);
+
+    typename MainloopPipeline::Params mainloop_pipeline_params;
+    mainloop_pipeline_params.local_id = local_id;
+    MainloopPipeline mainloop_pipeline(shared_pipelines.mainloop, mainloop_pipeline_params);
+
+    typename EpilogueStorePipeline::Params epilogue_store_pipeline_params;
+    epilogue_store_pipeline_params.local_id = local_id;
+    EpilogueStorePipeline epilogue_store_pipeline(shared_pipelines.epi_store, epilogue_store_pipeline_params);
 
     CollectiveMainloop collective_mainloop;
     CollectiveEpilogue collective_epilogue;

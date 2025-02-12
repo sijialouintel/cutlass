@@ -276,13 +276,13 @@ public:
     CUTLASS_PRAGMA_NO_UNROLL
     for ( ; k_tile_count > 0; --k_tile_count) {
       uint32_t write_stage = smem_pipe_producer_state.index();
-      auto abar_prod = pipeline.producer_get_barrier(write_stage);
+      auto abar_prod = pipeline.producer_get_barrier(smem_pipe_producer_state);
 
       pipeline.producer_try_wait(smem_pipe_producer_state);
       copy(mainloop_params.tma_load_a.with(abar_prod), tAgA(_,_,_,*k_tile_iter), tAsA(_,_,_,write_stage));
 
       if (thread_idx == 0) {
-        pipeline.producer_commit(write_stage, mainloop_params.tma_transaction_bytes);
+        pipeline.producer_commit(smem_pipe_producer_state, mainloop_params.tma_transaction_bytes);
         copy(mainloop_params.tma_load_b.with(abar_prod), tBgB(_,_,_,*k_tile_iter), tBsB(_,_,_,write_stage));
       }
 
@@ -312,7 +312,7 @@ public:
     constexpr auto dstIsMatC = cute::C<cute::xe4::GMMA::DstType::MatC>{};
 
     pipeline.consumer_try_wait(slm_pipe_read);
-    auto abar_cons_base = pipeline.abar_cons_base;
+    auto abar_cons_base = pipeline.consumer_get_barrier(slm_pipe_read);
 
     if (k_tile_count == 1) {
       cute::gemm(tiled_mma.with(dstIsMatC, mma_ctrl, abar_cons_base), tCrC, tCrA(_,_,_,0), tCrB(_,_,_,0), accum);
@@ -325,20 +325,19 @@ public:
       for (uint32_t i = 1; i < k_tile_count - 1; i++) {
         ++slm_pipe_read;
         uint32_t abar_index = slm_pipe_read.index();
-        auto abar_cons = pipeline.consumer_get_barrier(abar_index);
+        auto abar_cons = pipeline.consumer_get_barrier(slm_pipe_read);
         pipeline.consumer_try_wait(slm_pipe_read);
         cute::gemm(tiled_mma.with(dstIsAccum, mma_ctrl, abar_cons), tCrA(_,_,_,abar_index), tCrB(_,_,_,abar_index), accum);
         pipeline.consumer_commit(slm_pipe_read);
       }
       {
-        uint32_t abar_store_prod_index = finalPipelineState.index();
-        auto abar_store_prod = finalPipeline.producer_get_barrier(abar_store_prod_index);
+        auto abar_store_prod = finalPipeline.producer_get_barrier(finalPipelineState);
 
         ++slm_pipe_read;
         uint32_t abar_index = slm_pipe_read.index();
 
         uint32_t phase = ((k_tile_count - 1) / Stages) & 1u;
-        pipeline.consumer_try_wait(abar_index, phase);
+        pipeline.consumer_try_wait(slm_pipe_read, phase);
         cute::gemm(tiled_mma.with(dstIsMatC, mma_ctrl, abar_store_prod), tCrC, tCrA(_,_,_,abar_index), tCrB(_,_,_,abar_index), accum);
         finalPipeline.producer_commit(finalPipelineState, 1);
       }
