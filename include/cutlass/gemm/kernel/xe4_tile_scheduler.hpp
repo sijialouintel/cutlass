@@ -7,6 +7,20 @@ namespace cutlass::gemm::kernel::detail {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+static auto make_coord_tensor(cute::tuple<int, int, int> problem_blocks_shape, cute::tuple<uint32_t, uint32_t> cluster_shape) {
+  auto group_range = cute::make_shape(get_wgcount<0>(), get_wgcount<1>());
+  auto wg_gride_layout = make_layout(group_range, make_stride(cute::E<0>{}, cute::E<1>{}));
+  auto tiled_wg_gride_layout = zipped_divide(wg_gride_layout, cluster_shape);
+
+  auto problem_blocks_layout = cute::make_layout(problem_blocks_shape, cute::make_stride(cute::E<0>{}, cute::E<1>{}, cute::E<2>{}));
+  auto tiled_problem_blocks_layout = zipped_divide(problem_blocks_layout, group_range);
+
+  auto coord_tensor_layout = replace<0>(tiled_problem_blocks_layout, tiled_wg_gride_layout);
+  auto coord_tensor = cute::make_tensor(cute::make_inttuple_iter(0,0), coord_tensor_layout);
+
+  return coord_tensor;
+}
+
 class PersistentTileSchedulerXe4 {
 public:
   struct Arguments {
@@ -134,60 +148,47 @@ public:
     }
   };
 
-  template <typename CoordTensor>
-  class Impl {
-    public:
-      Impl(Params const& params, CoordTensor const& coord_tensor, cute::tuple<uint32_t, uint32_t> wg_id)
-        : params_(params), wgid_(wg_id), coord_tensor_(coord_tensor) {}
+  PersistentTileSchedulerXe4(Params const& params)
+    : params_(params)
+    , coord_tensor_(make_coord_tensor(params.problem_blocks_shape, params.cluster_shape))
+    , wgid_(get_wgid<0>(), get_wgid<1>()) {}
 
-      CUTLASS_DEVICE
-      WorkTileInfo initial_work_tile_info() {
-        return get_current_work();
+    CUTLASS_DEVICE
+    WorkTileInfo initial_work_tile_info() {
+      return get_current_work();
+    }
+
+    CUTLASS_DEVICE
+    WorkTileInfo get_current_work() const {
+      if (iter_id_ >= size<1>(coord_tensor_)) {
+        return WorkTileInfo::invalid_work_tile();
       }
 
-      CUTLASS_DEVICE
-      WorkTileInfo get_current_work() const {
-        if (iter_id_ >= size<1>(coord_tensor_)) {
-          return WorkTileInfo::invalid_work_tile();
-        }
+      const auto& cluster_local_id = params_.coop_set_ids;
+      const auto cluster_id = cute::transform(wgid_, params_.cluster_shape, [](auto x, auto y) { return x / y; });
+      auto [coord_m, coord_n, coord_l] = coord_tensor_(cute::make_coord(cluster_local_id, cluster_id), iter_id_);
 
-        const auto& cluster_local_id = params_.coop_set_ids;
-        const auto cluster_id = cute::transform(wgid_, params_.cluster_shape, [](auto x, auto y) { return x / y; });
-        auto [coord_m, coord_n, coord_l] = coord_tensor_(cute::make_coord(cluster_local_id, cluster_id), iter_id_);
+      return {
+        static_cast<int32_t>(coord_m),
+        static_cast<int32_t>(coord_n),
+        static_cast<int32_t>(coord_l),
+        true
+      };
+    }
 
-        return {
-          static_cast<int32_t>(coord_m),
-          static_cast<int32_t>(coord_n),
-          static_cast<int32_t>(coord_l),
-          true
-        };
-      }
+    CUTLASS_DEVICE
+    void
+    advance_to_next_work(uint32_t advance_count = 1) {
+      ++iter_id_;
+    }
 
-      CUTLASS_DEVICE
-      void
-      advance_to_next_work(uint32_t advance_count = 1) {
-        ++iter_id_;
-      }
+  private:
+    using CoordTensor = decltype(make_coord_tensor(cute::make_tuple(0,0,0), cute::make_tuple((uint32_t)0,(uint32_t)0)));
 
-    private:
-      Params params_;
-      uint32_t iter_id_ {0};
-      CoordTensor coord_tensor_;
-      cute::tuple<uint32_t, uint32_t> wgid_;
-  };
-
-  static auto make_scheduler(Params const& params, cute::tuple<uint32_t, uint32_t> wg_id, cute::tuple<uint32_t, uint32_t> group_range) {
-    auto wg_gride_layout = make_layout(group_range, make_stride(cute::E<0>{}, cute::E<1>{}));
-    auto tiled_wg_gride_layout = zipped_divide(wg_gride_layout, params.cluster_shape);
-
-    auto problem_blocks_layout = cute::make_layout(params.problem_blocks_shape, cute::make_stride(cute::E<0>{}, cute::E<1>{}, cute::E<2>{}));
-    auto tiled_problem_blocks_layout = zipped_divide(problem_blocks_layout, group_range);
-
-    auto coord_tensor_layout = replace<0>(tiled_problem_blocks_layout, tiled_wg_gride_layout);
-    auto coord_tensor = cute::make_tensor(cute::make_inttuple_iter(0,0), coord_tensor_layout);
-
-    return Impl<decltype(coord_tensor)>{params, coord_tensor, wg_id};
-  }
+    Params params_;
+    uint32_t iter_id_ {0};
+    CoordTensor coord_tensor_;
+    cute::tuple<uint32_t, uint32_t> wgid_;
 };
 
 }

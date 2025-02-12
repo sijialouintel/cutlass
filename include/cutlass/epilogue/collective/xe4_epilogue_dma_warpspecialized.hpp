@@ -54,8 +54,8 @@ public:
   using TiledCopyD = cute::xe4::ASYNC_TENSOR_STORE;
   using AuxParamsD = AuxParams<slm_matrix_type::type1, cute::xe4::GMMA::Major::K, TensorDesc, 2>;
 
-  using PostOpPipeline = cutlass::xe4::PipelineTmaAsync<1>;
-  using PostOpPipelineState = typename PostOpPipeline::PipelineState;
+  using AccumulatorPipeline = cutlass::xe4::PipelineTmaAsync<1>;
+  using AccumulatorPipelineState = typename AccumulatorPipeline::PipelineState;
 
   using StorePipeline = cutlass::xe4::PipelineTmaAsync<1>;
   using StorePipelineState = typename StorePipeline::PipelineState;
@@ -124,15 +124,14 @@ public:
       : _params(params) { }
 
   CUTLASS_DEVICE void
-  operator()(
-      StorePipeline store_pipeline,
-      StorePipelineState& store_pipe_write,
-      PostOpPipeline postop_pipeline,
-      PostOpPipelineState& postop_pipe_read,
-      TensorStorage& shared_tensors,
-      uint32_t worker_id)
+  operator()(cute::tuple<StorePipeline, AccumulatorPipeline> pipelines,
+    cute::tuple<StorePipelineState, AccumulatorPipelineState> pipeline_states,
+    TensorStorage& shared_tensors, uint32_t worker_id)
   {
-    postop_pipeline.consumer_try_wait(postop_pipe_read++);
+    auto [store_pipeline, accumulator_pipeline] = pipelines;
+    auto [store_pipe_producer_state, accumulator_pipe_consumer_state] = pipeline_states;
+
+    accumulator_pipeline.consumer_try_wait(accumulator_pipe_consumer_state);
 
     constexpr auto tile_mn = take<0,2>(TileShape{});
     auto tensor_d = make_tensor(shared_tensors.smem_D.data(), CoreMatrix::retile<ElementD>(tile_mn));
@@ -158,7 +157,7 @@ public:
     auto cst_callbacks = fusion_callbacks.template get_consumer_store_callbacks<true>(cst_args);
     pattern2<FragmentSize, EpiSgNum, SgSize>(cst_callbacks, tensor_d, tensor_d, worker_id);
 
-    store_pipeline.producer_arrive(store_pipe_write++, 1);
+    store_pipeline.producer_arrive(store_pipe_producer_state, 1);
   }
 
   template<

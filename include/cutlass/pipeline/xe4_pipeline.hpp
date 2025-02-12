@@ -1,16 +1,35 @@
 #pragma once
 
-#include "inline_pisa.hpp"
-
-#ifndef CUTLASS_HOST_DEVICE
-#define CUTLASS_HOST_DEVICE inline
-#endif
-
-#ifndef CUTLASS_DEVICE
-#define CUTLASS_DEVICE inline
-#endif
+#include "cutlass/arch/barrier_xe4.h"
 
 namespace cutlass::xe4 {
+
+namespace detail {
+
+// Helper function for DEBUG checks
+template<class ThreadCategory>
+CUTLASS_DEVICE
+bool pipeline_is_producer(ThreadCategory role) {
+  return (role == ThreadCategory::Producer || role == ThreadCategory::ProducerConsumer);
+}
+
+template<class ThreadCategory>
+CUTLASS_DEVICE
+void pipeline_check_is_producer(ThreadCategory role) {
+}
+
+template<class ThreadCategory>
+CUTLASS_DEVICE
+bool pipeline_is_consumer(ThreadCategory role) {
+  return (role == ThreadCategory::Consumer || role == ThreadCategory::ProducerConsumer);
+}
+
+template<class ThreadCategory>
+CUTLASS_DEVICE
+void pipeline_check_is_consumer(ThreadCategory role) {
+}
+
+} // namespace detail
 
 // Circular Buffer Index + Associated Phase
 // Assumes only one operation possible - i.e., ++
@@ -113,39 +132,65 @@ PipelineState<Pipeline::Stages> make_producer_start_state() {
   return {InitialProducerStage, InitialProducerPhase, InitialProducerCount};
 }
 
-template <int Stages_, typename ABarrier = uint64_t*>
+template <int Stages_>
 class PipelineTmaAsync {
 public:
-  using ProducerBarrier = ABarrier;
-  using ConsumerBarrier = ABarrier;
+  using FullBarrier = cutlass::arch::xe4::AddressableTransactionBarrier;
+  using EmptyBarrier = cutlass::arch::xe4::AddressableTransactionBarrier;
+  using ProducerBarrierType = FullBarrier::ValueType;
+  using ConsumerBarrierType = EmptyBarrier::ValueType;
   static constexpr int Stages = Stages_;
   using PipelineState = cutlass::xe4::PipelineState<Stages>;
 
-  ABarrier abar_prod_base = nullptr;
-  ABarrier abar_cons_base = nullptr;
+  struct SharedStorage {
+    FullBarrier full_barrier_[Stages];
+    EmptyBarrier empty_barrier_[Stages];
+  };
 
-  PipelineTmaAsync(ABarrier abar_base, uint32_t local_id, uint32_t prod_total_arrive_cnt = 1, uint32_t cons_total_arrive_cnt = 1) : abar_prod_base(abar_base), abar_cons_base(abar_base + Stages) {
-    if (local_id == 0) {
-      #pragma unroll
-      for (int i = 0; i < Stages; i++) {
-        abarrier_init(abar_prod_base + i, prod_total_arrive_cnt);
-      }
-    } else if (local_id == 32) {
-      #pragma unroll
-      for (int i = 0; i < Stages; i++) {
-        abarrier_init(abar_cons_base + i, cons_total_arrive_cnt);
-      }
+  enum class ThreadCategory {
+    NonParticipant,
+    Producer,
+    Consumer,
+    ProducerConsumer
+  };
+
+  struct Params {
+    uint32_t transaction_bytes = 0;
+    ThreadCategory role = ThreadCategory::NonParticipant;
+    uint32_t is_leader = 0;
+    uint32_t num_consumers = 1; // Number of consumer threads
+    uint32_t num_producers = 1; // Number of producer threads
+    uint32_t local_id = 0;
+    uint32_t initializing_id = 0;
+  };
+
+  static
+  CUTLASS_DEVICE
+  void
+  init_barriers(SharedStorage& storage, Params params) {
+    if (params.local_id == 0) {
+      // Barrier FULL and EMPTY init
+      uint32_t const producer_arv_cnt = params.num_producers;
+      uint32_t const consumer_arv_cnt = params.num_consumers;
+      cutlass::arch::xe4::detail::initialize_barrier_array_pair_aligned<decltype(storage.full_barrier_), decltype(storage.empty_barrier_), Stages>(
+          storage.full_barrier_, storage.empty_barrier_, producer_arv_cnt, consumer_arv_cnt);
     }
   }
 
   CUTLASS_DEVICE
-  void producer_try_wait(PipelineState state, uint32_t skip_wait = false) {
-    return producer_try_wait(state.index(), state.phase(), skip_wait);
+  PipelineTmaAsync(SharedStorage& storage, Params params)
+    : full_barrier_ptr_(&storage.full_barrier_[0])
+    , empty_barrier_ptr_(&storage.empty_barrier_[0]) {
+    init_barriers(storage, params);
   }
 
+  ////////////////////
+  // Producer APIs
+  ////////////////////
+
   CUTLASS_DEVICE
-  void producer_try_wait(uint32_t stage, uint32_t phase, uint32_t skip_wait = false) {
-    abarrier_try_wait(abar_cons_base + stage, phase);
+  void producer_try_wait(PipelineState state, uint32_t skip_wait = false) {
+    return producer_try_wait(state.index(), state.phase(), skip_wait);
   }
 
   CUTLASS_DEVICE
@@ -154,28 +199,22 @@ public:
   }
 
   CUTLASS_DEVICE
-  void producer_commit(uint32_t stage, uint32_t bytes) {
-    abarrier_workgroup_arrive_expect_tx(abar_prod_base + stage, bytes);
-  }
-
-  CUTLASS_DEVICE
   void producer_arrive(PipelineState state, uint32_t bytes) {
     producer_arrive(state.index(), bytes);
   }
 
   CUTLASS_DEVICE
-  void producer_arrive(uint32_t stage, uint32_t bytes) {
-    abarrier_workgroup_arrive(abar_prod_base + stage, bytes);
+  ProducerBarrierType* producer_get_barrier(PipelineState state) {
+    return producer_get_barrier(state.index());
   }
+
+  ////////////////////
+  // Consumer APIs
+  ////////////////////
 
   CUTLASS_DEVICE
   void consumer_try_wait(PipelineState state, uint32_t skip_wait = false) {
     consumer_try_wait(state.index(), state.phase(), skip_wait);
-  }
-
-  CUTLASS_DEVICE
-  void consumer_try_wait(uint32_t stage, uint32_t phase, uint32_t skip_wait = 0) {
-    abarrier_try_wait(abar_prod_base + stage, phase);
   }
 
   CUTLASS_DEVICE
@@ -184,38 +223,57 @@ public:
   }
 
   CUTLASS_DEVICE
-  void consumer_commit(uint32_t stage, uint32_t count, uint32_t skip = false) {
-    abarrier_workgroup_arrive_expect_tx(abar_cons_base + stage, count);
-  }
-
-  CUTLASS_DEVICE
   void consumer_arrive(PipelineState state, uint32_t bytes) {
     consumer_arrive(state.index(), bytes);
   }
 
   CUTLASS_DEVICE
-  void consumer_arrive(uint32_t stage, uint32_t bytes) {
-    abarrier_workgroup_arrive(abar_cons_base + stage, bytes);
-  }
-
-  CUTLASS_DEVICE
-  ProducerBarrier producer_get_barrier(PipelineState state) {
-    return producer_get_barrier(state.index());
-  }
-
-  CUTLASS_DEVICE
-  ProducerBarrier producer_get_barrier(uint32_t stage) {
-    return abar_prod_base + stage;
-  }
-
-  CUTLASS_DEVICE
-  ConsumerBarrier consumer_get_barrier(PipelineState state) {
+  ConsumerBarrierType* consumer_get_barrier(PipelineState state) {
     return consumer_get_barrier(state.index());
   }
 
+private:
+  FullBarrier *full_barrier_ptr_ = nullptr;
+  EmptyBarrier *empty_barrier_ptr_ = nullptr;
+
   CUTLASS_DEVICE
-  ConsumerBarrier consumer_get_barrier(uint32_t stage) {
-    return abar_cons_base + stage;
+  void producer_try_wait(uint32_t stage, uint32_t phase, uint32_t skip_wait = false) {
+    empty_barrier_ptr_[stage].try_wait(phase);
+  }
+
+  CUTLASS_DEVICE
+  void producer_commit(uint32_t stage, uint32_t bytes) {
+    full_barrier_ptr_[stage].arrive_and_expect_tx(bytes);
+  }
+
+  CUTLASS_DEVICE
+  void producer_arrive(uint32_t stage, uint32_t bytes) {
+    full_barrier_ptr_[stage].arrive(bytes);
+  }
+
+  CUTLASS_DEVICE
+  ProducerBarrierType* producer_get_barrier(uint32_t stage) {
+    return reinterpret_cast<ProducerBarrierType*>(&full_barrier_ptr_[stage]);
+  }
+
+  CUTLASS_DEVICE
+  void consumer_try_wait(uint32_t stage, uint32_t phase, uint32_t skip_wait = 0) {
+    full_barrier_ptr_[stage].try_wait(phase);
+  }
+
+  CUTLASS_DEVICE
+  void consumer_commit(uint32_t stage, uint32_t count, uint32_t skip = false) {
+    empty_barrier_ptr_[stage].arrive_and_expect_tx(count);
+  }
+
+  CUTLASS_DEVICE
+  void consumer_arrive(uint32_t stage, uint32_t bytes) {
+    empty_barrier_ptr_[stage].arrive(bytes);
+  }
+
+  CUTLASS_DEVICE
+  ConsumerBarrierType* consumer_get_barrier(uint32_t stage) {
+    return reinterpret_cast<ProducerBarrierType*>(&empty_barrier_ptr_[stage]);
   }
 };
 

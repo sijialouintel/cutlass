@@ -21,8 +21,8 @@ BUILD_PATH=$ORIGIN_PATH/build
 rm -rf $BUILD_PATH; mkdir -p $BUILD_PATH; cd $BUILD_PATH
 
 GEN_HEADER_PATH=$BUILD_PATH/generated_headers/async_gmma.hpp
-python3 $XE4_DIR/common_headers/generator/gen_mma.py --mma_type mma --output $GEN_HEADER_PATH --shape 128x128x128 256x512x128 --dtype f32_f32_bf16_bf16 bf16_f32_bf16_bf16
-icpx -fsycl -std=c++20 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -Xs " -xe-set-abarrier-arrive-lmc " -DAMMA_GENERATED -I$BUILD_PATH $INCLUDE_PATHS $ORIGIN_PATH/bgemm.cpp -o bgemm
+python3 $XE4_DIR/common_headers/generator/gen_mma.py --mma_type mma --output $GEN_HEADER_PATH --shape 128x128x128 256x512x128 --dtype f32_f32_bf16_bf16 bf16_f32_bf16_bf16 f16_f32_bf16_bf16
+icpx -fsycl -std=c++20 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -Xs " -xe-set-abarrier-arrive-lmc -disable-branch-fold " -DAMMA_GENERATED -I$BUILD_PATH $INCLUDE_PATHS $ORIGIN_PATH/bgemm.cpp -o bgemm
 
 export L0SIM_DEVICE_KIND=Xe4
 export L0SIM_GRITS_PATH=/root/XE3P_V2

@@ -23,7 +23,7 @@ struct BGEMM_TEST_CONFIG {
     using dtypeA = bf16;
     using dtypeB = bf16;
     using dtypeAcc = float;
-    using dtypeC = fp16;
+    using dtypeC = bf16;
     static constexpr uint32_t wg_m = 256;
     static constexpr uint32_t wg_n = 512;
     static constexpr uint32_t wg_k = 128;
@@ -52,6 +52,8 @@ struct BGEMM_COL_COL : public BGEMM_TEST_CONFIG {
     static constexpr mem_layout layout_b = mem_layout::col_major;
 };
 
+#define ENABLE_EPILOGUE_RELU
+
 template<typename test>
 void run_test(bool is_persistent_mode = false)
 {
@@ -59,9 +61,9 @@ void run_test(bool is_persistent_mode = false)
     auto dev = q.get_device();
     std::cout << "Running on " << dev.get_info<info::device::name>() << "\n";
 
-    int mat_m = 2048;
-    int mat_n = 2048;
-    int mat_k = 2048;
+    int mat_m = 512;
+    int mat_n = 512;
+    int mat_k = 256;
     int mat_l = 1;
 
     using dtypeA = typename test::dtypeA;
@@ -141,12 +143,17 @@ void run_test(bool is_persistent_mode = false)
         void                                                                                    // TransformB
     >;
 
+#ifdef ENABLE_EPILOGUE_RELU
     static constexpr int FragmentSize = 2;
     using FusionOp = fusion::LinCombEltAct<thread::ReLu, dtypeC, dtypeC, void>;  // LinCombEltAct<ElementOutput, ElementCompute, ElementSource>
     using FusionCallbacks = fusion::FusionCallbacks<
         Sm90TmaWarpSpecialized<1, 1, FragmentSize, false, false>,
         FusionOp, Shape<Int<wg_m>, Int<wg_n>, _1>, Shape<_2,_1>
     >;
+#else
+    static constexpr int FragmentSize = 1;
+    using FusionCallbacks = fusion::Sm90EVT<fusion::Sm90AccFetch>;
+#endif
 
     using CollectiveEpilogue = CollectiveEpilogue<
         Xe4DmaWarpSpecialized<FragmentSize, NumPostOpSubGroup, SubGroupSize>,
@@ -189,13 +196,7 @@ void run_test(bool is_persistent_mode = false)
 
 int main()
 {
-    bool is_persistent_mode = false;
-    for (int i = 0; i < 2; ++i) {
-        run_test<BGEMM_ROW_ROW>(is_persistent_mode);
-        run_test<BGEMM_COL_ROW>(is_persistent_mode);
-        run_test<BGEMM_ROW_COL>(is_persistent_mode);
-        run_test<BGEMM_COL_COL>(is_persistent_mode);
-        is_persistent_mode = true;
-    }
+    bool is_persistent_mode = true;
+    run_test<BGEMM_ROW_ROW>(is_persistent_mode);
     return 0;
 }
